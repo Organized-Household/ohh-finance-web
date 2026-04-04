@@ -6,23 +6,29 @@ const PUBLIC_PATHS = [
   "/",
   "/login",
   "/register",
-  "/auth/callback",
+  "/auth/callback"
 ];
 
 export async function middleware(request: NextRequest) {
+
   const { supabase, response } = createClient(request);
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublicPath = PUBLIC_PATHS.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  const pathname = request.nextUrl.pathname;
+
+  const isPublicPath = PUBLIC_PATHS.includes(pathname);
 
   if (!user && !isPublicPath) {
+
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirectTo", request.nextUrl.pathname);
+
+    loginUrl.searchParams.set(
+      "redirectTo",
+      pathname
+    );
 
     return NextResponse.redirect(loginUrl);
   }
