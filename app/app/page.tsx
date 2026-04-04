@@ -1,24 +1,22 @@
-export default function LandingPage() {
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function AppHomePage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?redirectTo=/app");
+  }
+
   return (
     <main>
-      <h1>Organized Household</h1>
-
-      <p>Welcome to the household finance platform.</p>
-
-      <ul>
-        <li>
-          <a href="/login">Login</a>
-        </li>
-
-        <li>
-          <a href="/register">Register</a>
-        </li>
-
-        <li>
-          <a href="/app">Go to App (requires login)</a>
-        </li>
-      </ul>
-
+      <h1>Authenticated App</h1>
+      <p>You are signed in.</p>
+      <p>Email: {user.email}</p>
     </main>
   );
 }
