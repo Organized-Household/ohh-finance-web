@@ -14,9 +14,15 @@ export async function createClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // This can run inside a Server Component render where cookie writes
+            // are not allowed. In that case, ignore the write here.
+            // Middleware or Server Actions can still persist cookies when allowed.
+          }
         },
       },
     }
