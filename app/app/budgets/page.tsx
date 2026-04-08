@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import BudgetTable from "@/components/budgets/budget-table";
 
 export default async function BudgetPage({
   searchParams,
@@ -27,28 +28,10 @@ export default async function BudgetPage({
       <h1 className="text-2xl font-semibold">Monthly Budget</h1>
 
       <div className="rounded-lg border p-4">
-        <p className="text-sm text-muted-foreground">
-          Selected month: {month}
-        </p>
+        <p className="text-sm">Selected month: {month}</p>
       </div>
 
-      <div className="rounded-lg border p-4">
-        <h2 className="mb-3 text-lg font-medium">Categories</h2>
-
-        {categories && categories.length > 0 ? (
-          <ul className="space-y-2">
-            {categories.map((category) => (
-              <li key={category.id} className="text-sm">
-                {category.name}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No categories available yet.
-          </p>
-        )}
-      </div>
+      <BudgetTable categories={categories ?? []} month={month} />
     </div>
   );
 }
