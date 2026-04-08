@@ -9,84 +9,72 @@ import {
   deleteCategorySchema,
 } from "@/lib/validation/category";
 
-export async function createCategoryAction(formData: FormData) {
-  const parsed = createCategorySchema.safeParse({
-    name: formData.get("name"),
-    tag: formData.get("tag"),
-  });
-
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Invalid category.");
-  }
-
-  const membership = await getCurrentTenantMembership();
-
-  if (membership.role !== "admin") {
-    throw new Error("Admin privileges required.");
-  }
+export async function createCategory(input: unknown) {
+  const parsed = createCategorySchema.parse(input);
 
   const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
 
   const { error } = await supabase.from("categories").insert({
     tenant_id: membership.tenant_id,
-    name: parsed.data.name,
-    tag: parsed.data.tag,
+    name: parsed.name,
+    tag: parsed.tag,
+    category_type: parsed.category_type,
   });
 
-  if (error) throw new Error(error.message);
-
-  revalidatePath("/app/budgets/categories");
-}
-
-export async function updateCategoryAction(formData: FormData) {
-  const parsed = updateCategorySchema.safeParse({
-    id: formData.get("id"),
-    name: formData.get("name"),
-    tag: formData.get("tag"),
-  });
-
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message ?? "Invalid category.");
+  if (error) {
+    throw new Error(`Failed to create category: ${error.message}`);
   }
 
-  const membership = await getCurrentTenantMembership();
+  revalidatePath("/app/budgets/categories");
+
+  return { success: true };
+}
+
+export async function updateCategory(input: unknown) {
+  const parsed = updateCategorySchema.parse(input);
 
   const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
 
   const { error } = await supabase
     .from("categories")
     .update({
-      name: parsed.data.name,
-      tag: parsed.data.tag,
+      name: parsed.name,
+      tag: parsed.tag,
+      category_type: parsed.category_type,
     })
-    .eq("id", parsed.data.id)
+    .eq("id", parsed.id)
     .eq("tenant_id", membership.tenant_id);
 
-  if (error) throw new Error(error.message);
-
-  revalidatePath("/app/budgets/categories");
-}
-
-export async function deleteCategoryAction(formData: FormData) {
-  const parsed = deleteCategorySchema.safeParse({
-    id: formData.get("id"),
-  });
-
-  if (!parsed.success) {
-    throw new Error("Invalid category id.");
+  if (error) {
+    throw new Error(`Failed to update category: ${error.message}`);
   }
 
-  const membership = await getCurrentTenantMembership();
+  revalidatePath("/app/budgets/categories");
+  revalidatePath("/app/budgets");
+
+  return { success: true };
+}
+
+export async function deleteCategory(input: unknown) {
+  const parsed = deleteCategorySchema.parse(input);
 
   const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
 
   const { error } = await supabase
     .from("categories")
     .delete()
-    .eq("id", parsed.data.id)
+    .eq("id", parsed.id)
     .eq("tenant_id", membership.tenant_id);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    throw new Error(`Failed to delete category: ${error.message}`);
+  }
 
   revalidatePath("/app/budgets/categories");
+  revalidatePath("/app/budgets");
+
+  return { success: true };
 }
