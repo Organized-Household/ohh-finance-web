@@ -9,10 +9,18 @@ export async function getBudgetForMonth(month: string) {
   const supabase = await createClient()
 
   const membership = await getCurrentTenantMembership()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found")
+  }
 
   const monthStart = getMonthStart(month)
 
-  const { data: budget } = await supabase
+  const { data: budget, error } = await supabase
     .from("budgets")
     .select(`
       id,
@@ -25,9 +33,13 @@ export async function getBudgetForMonth(month: string) {
       )
     `)
     .eq("tenant_id", membership.tenant_id)
-    .eq("user_id", membership.user_id)
+    .eq("user_id", user.id)
     .eq("month_start", monthStart)
-    .single()
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to load budget: ${error.message}`)
+  }
 
   return budget
 }
@@ -38,42 +50,55 @@ export async function upsertBudget(input: unknown) {
   const supabase = await createClient()
 
   const membership = await getCurrentTenantMembership()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found")
+  }
 
   const monthStart = getMonthStart(parsed.month)
 
-  // ensure budget row exists
-  const { data: budget } = await supabase
+  const { data: budget, error: budgetError } = await supabase
     .from("budgets")
     .upsert(
       {
         tenant_id: membership.tenant_id,
-        user_id: membership.user_id,
-        month_start: monthStart
+        user_id: user.id,
+        month_start: monthStart,
       },
       {
-        onConflict: "tenant_id,user_id,month_start"
+        onConflict: "tenant_id,user_id,month_start",
       }
     )
-    .select()
+    .select("id")
     .single()
 
-  if (!budget) {
-    throw new Error("Failed to create budget")
+  if (budgetError || !budget) {
+    throw new Error(
+      `Failed to create or load budget: ${budgetError?.message ?? "unknown error"}`
+    )
   }
 
-  const lines = parsed.lines.map(line => ({
+  const lines = parsed.lines.map((line) => ({
     tenant_id: membership.tenant_id,
     budget_id: budget.id,
     category_id: line.category_id,
     planned_income: line.planned_income,
-    planned_expense: line.planned_expense
+    planned_expense: line.planned_expense,
   }))
 
-  await supabase
+  const { error: linesError } = await supabase
     .from("budget_lines")
     .upsert(lines, {
-      onConflict: "tenant_id,budget_id,category_id"
+      onConflict: "tenant_id,budget_id,category_id",
     })
+
+  if (linesError) {
+    throw new Error(`Failed to save budget lines: ${linesError.message}`)
+  }
 
   return { success: true }
 }
