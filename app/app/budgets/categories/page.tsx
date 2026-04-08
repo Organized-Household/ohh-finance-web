@@ -23,7 +23,7 @@ const tagDescriptions: Record<"standard" | "savings" | "investment", string> = {
 export default async function BudgetCategoriesPage() {
   const supabase = await createClient();
 
-  const { data: categories, error } = await supabase
+  const { data, error } = await supabase
     .from("categories")
     .select("id, name, tag, category_type")
     .order("category_type", { ascending: true })
@@ -33,9 +33,11 @@ export default async function BudgetCategoriesPage() {
     throw new Error(`Failed to load categories: ${error.message}`);
   }
 
-  const grouped = {
-    income: (categories ?? []).filter((c) => c.category_type === "income"),
-    expense: (categories ?? []).filter((c) => c.category_type === "expense"),
+  const categories: Category[] = (data ?? []) as Category[];
+
+  const grouped: Record<"income" | "expense", Category[]> = {
+    income: categories.filter((c) => c.category_type === "income"),
+    expense: categories.filter((c) => c.category_type === "expense"),
   };
 
   return (
