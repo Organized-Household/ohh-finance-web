@@ -2,6 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { upsertBudget } from "@/app/app/budgets/actions";
+import GroupedBudgetTable, {
+  type GroupedBudgetSection,
+} from "@/components/budgets/grouped-budget-table";
+import BudgetTotalsFooter from "@/components/budgets/budget-totals-footer";
 
 type Category = {
   id: string;
@@ -19,29 +23,6 @@ type Props = {
   categories: Category[];
   month: string;
   initialLines: InitialLine[];
-};
-
-type TagKey = "standard" | "savings" | "investment";
-type CategoryTypeKey = "income" | "expense";
-
-const TAG_ORDER: TagKey[] = ["standard", "savings", "investment"];
-const CATEGORY_TYPE_ORDER: CategoryTypeKey[] = ["income", "expense"];
-
-const TAG_LABELS: Record<TagKey, string> = {
-  standard: "Standard",
-  savings: "Savings",
-  investment: "Investment",
-};
-
-const TAG_HELPER_TEXT: Record<TagKey, string> = {
-  standard: "Everyday categories",
-  savings: "Money set aside for a goal or future use",
-  investment: "Money planned for long-term growth",
-};
-
-const SECTION_LABELS: Record<CategoryTypeKey, string> = {
-  income: "Income",
-  expense: "Expense",
 };
 
 export default function BudgetTable({
@@ -64,29 +45,75 @@ export default function BudgetTable({
 
   const [values, setValues] = useState<Record<string, string>>(initialValues);
 
-  const groupedCategories = useMemo(() => {
-    const result: Record<
-      CategoryTypeKey,
-      Record<TagKey, Category[]>
-    > = {
-      income: {
-        standard: [],
-        savings: [],
-        investment: [],
-      },
-      expense: {
-        standard: [],
-        savings: [],
-        investment: [],
-      },
+  function toAmount(value: string | undefined) {
+    const amount = Number(value ?? 0);
+    return Number.isFinite(amount) && amount > 0 ? amount : 0;
+  }
+
+  const groupedSections = useMemo(() => {
+    const incomeCategories = categories.filter(
+      (category) => category.category_type === "income"
+    );
+    const standardCategories = categories.filter(
+      (category) =>
+        category.category_type === "expense" && category.tag === "standard"
+    );
+    const savingsCategories = categories.filter(
+      (category) => category.tag === "savings"
+    );
+    const investmentCategories = categories.filter(
+      (category) => category.tag === "investment"
+    );
+
+    const buildSection = (
+      key: GroupedBudgetSection["key"],
+      title: string,
+      sectionCategories: Category[]
+    ): GroupedBudgetSection => {
+      const subtotal = sectionCategories.reduce(
+        (sum, category) => sum + toAmount(values[category.id]),
+        0
+      );
+
+      return {
+        key,
+        title,
+        subtotal,
+        rows: sectionCategories.map((category) => ({
+          id: category.id,
+          name: category.name,
+          amount: values[category.id] ?? "",
+        })),
+      };
     };
 
-    for (const category of categories) {
-      result[category.category_type][category.tag].push(category);
-    }
+    return [
+      buildSection("income", "Income", incomeCategories),
+      buildSection("standard", "Standard", standardCategories),
+      buildSection("savings", "Savings", savingsCategories),
+      buildSection("investment", "Investment", investmentCategories),
+    ];
+  }, [categories, values]);
 
-    return result;
-  }, [categories]);
+  const totals = useMemo(() => {
+    const incomeSubtotal =
+      groupedSections.find((section) => section.key === "income")?.subtotal ?? 0;
+    const standardSubtotal =
+      groupedSections.find((section) => section.key === "standard")?.subtotal ?? 0;
+    const savingsSubtotal =
+      groupedSections.find((section) => section.key === "savings")?.subtotal ?? 0;
+    const investmentSubtotal =
+      groupedSections.find((section) => section.key === "investment")?.subtotal ?? 0;
+
+    const totalExpenses =
+      standardSubtotal + savingsSubtotal + investmentSubtotal;
+
+    return {
+      totalIncome: incomeSubtotal,
+      totalExpenses,
+      remainingBalance: incomeSubtotal - totalExpenses,
+    };
+  }, [groupedSections]);
 
   const hasChanges = useMemo(() => {
     const allIds = new Set([
@@ -151,103 +178,13 @@ export default function BudgetTable({
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        {CATEGORY_TYPE_ORDER.map((categoryType) => {
-          const sectionGroups = groupedCategories[categoryType];
-          const hasAnyRows = TAG_ORDER.some(
-            (tag) => sectionGroups[tag].length > 0
-          );
+      <GroupedBudgetTable sections={groupedSections} onAmountChange={updateValue} />
 
-          if (!hasAnyRows) {
-            return null;
-          }
-
-          return (
-            <section
-              key={categoryType}
-              className="rounded-xl border bg-white p-4 shadow-sm"
-            >
-              <div className="mb-4 flex items-center justify-between border-b pb-3">
-                <h2 className="text-lg font-semibold">
-                  {SECTION_LABELS[categoryType]}
-                </h2>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-gray-600">
-                  {sectionGroups.standard.length +
-                    sectionGroups.savings.length +
-                    sectionGroups.investment.length}{" "}
-                  categories
-                </span>
-              </div>
-
-              <div className="space-y-6">
-                {TAG_ORDER.map((tag) => {
-                  const tagCategories = sectionGroups[tag];
-
-                  if (!tagCategories.length) {
-                    return null;
-                  }
-
-                  return (
-                    <div key={tag} className="space-y-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold">
-                            {TAG_LABELS[tag]}
-                          </h3>
-                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-                            {tagCategories.length}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-gray-500">
-                          {TAG_HELPER_TEXT[tag]}
-                        </p>
-                      </div>
-
-                      <div className="space-y-3">
-                        {tagCategories.map((category) => (
-                          <div
-                            key={category.id}
-                            className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-medium">{category.name}</p>
-                              <p className="text-xs text-gray-500 capitalize">
-                                {category.category_type}
-                              </p>
-                            </div>
-
-                            <div className="w-full sm:w-40">
-                              <label
-                                htmlFor={`amount-${category.id}`}
-                                className="mb-1 block text-xs font-medium text-gray-600"
-                              >
-                                Amount
-                              </label>
-                              <input
-                                id={`amount-${category.id}`}
-                                type="number"
-                                inputMode="decimal"
-                                min="0"
-                                step="0.01"
-                                value={values[category.id] ?? ""}
-                                onChange={(e) =>
-                                  updateValue(category.id, e.target.value)
-                                }
-                                className="w-full rounded border px-3 py-2 text-right"
-                                aria-label={`Planned amount for ${category.name}`}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      <BudgetTotalsFooter
+        totalIncome={totals.totalIncome}
+        totalExpenses={totals.totalExpenses}
+        remainingBalance={totals.remainingBalance}
+      />
 
       <div className="sticky bottom-4 z-10">
         <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-lg sm:flex-row sm:items-center sm:justify-between">

@@ -103,30 +103,6 @@ export default async function BudgetPage({
 
         <div className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
           Selected month: <span className="font-semibold">{month}</span>
-          <span className="mx-2 text-slate-400">|</span>
-          Total expenses:{" "}
-          <span className="font-semibold">
-            {new Intl.NumberFormat("en-CA", {
-              style: "currency",
-              currency: "CAD",
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(metrics.totalExpenses)}
-          </span>
-          <span className="mx-2 text-slate-400">|</span>
-          Remaining balance:{" "}
-          <span
-            className={`font-semibold ${
-              metrics.remainingBalance >= 0 ? "text-emerald-700" : "text-rose-700"
-            }`}
-          >
-            {new Intl.NumberFormat("en-CA", {
-              style: "currency",
-              currency: "CAD",
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            }).format(metrics.remainingBalance)}
-          </span>
         </div>
 
         {!categories?.length ? (
