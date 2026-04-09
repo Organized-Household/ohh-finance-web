@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import {
@@ -33,6 +34,16 @@ async function getTenantCategoryType({
   }
 
   return category.category_type as "income" | "expense";
+}
+
+function resolveMonthRedirectPath(month: unknown): string {
+  const value = typeof month === "string" ? month : "";
+
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+    return `/app/transactions?month=${value}`;
+  }
+
+  return "/app/transactions";
 }
 
 export async function createTransaction(input: unknown) {
@@ -75,6 +86,9 @@ export async function createTransaction(input: unknown) {
 
 export async function updateTransaction(input: unknown) {
   const parsed = updateTransactionSchema.parse(input);
+  const redirectPath = resolveMonthRedirectPath(
+    (input as { month?: unknown })?.month
+  );
 
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
@@ -125,12 +139,14 @@ export async function updateTransaction(input: unknown) {
   }
 
   revalidatePath("/app/transactions");
-
-  return { success: true };
+  redirect(redirectPath);
 }
 
 export async function deleteTransaction(input: unknown) {
   const parsed = deleteTransactionSchema.parse(input);
+  const redirectPath = resolveMonthRedirectPath(
+    (input as { month?: unknown })?.month
+  );
 
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
@@ -170,6 +186,5 @@ export async function deleteTransaction(input: unknown) {
   }
 
   revalidatePath("/app/transactions");
-
-  return { success: true };
+  redirect(redirectPath);
 }
