@@ -5,7 +5,11 @@ import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-le
 import TransactionForm from "@/components/transactions/transaction-form";
 import TransactionTable from "@/components/transactions/transaction-table";
 import TransactionMonthSelector from "@/components/transactions/transaction-month-selector";
-import { createTransaction } from "./actions";
+import {
+  createTransaction,
+  deleteTransaction,
+  updateTransaction,
+} from "./actions";
 
 type SearchParams = Promise<{
   month?: string;
@@ -135,6 +139,7 @@ export default async function TransactionsPage({
       description: transaction.description,
       amount: transaction.amount,
       transaction_type: transaction.transaction_type,
+      category_id: transaction.category_id,
       category_name: category?.name ?? "Unknown category",
       category_tag: (category?.tag ?? "standard") as
         | "standard"
@@ -216,6 +221,26 @@ export default async function TransactionsPage({
     });
   };
 
+  const updateAction = async (formData: FormData) => {
+    "use server";
+
+    await updateTransaction({
+      id: String(formData.get("id") ?? ""),
+      description: String(formData.get("description") ?? ""),
+      amount: Number(formData.get("amount") ?? 0),
+      transaction_date: String(formData.get("transaction_date") ?? ""),
+      category_id: String(formData.get("category_id") ?? ""),
+    });
+  };
+
+  const deleteAction = async (formData: FormData) => {
+    "use server";
+
+    await deleteTransaction({
+      id: String(formData.get("id") ?? ""),
+    });
+  };
+
   return (
     <WorkspaceShell
       title="Transactions"
@@ -242,7 +267,13 @@ export default async function TransactionsPage({
           </section>
         )}
 
-        <TransactionTable rows={tableRows} />
+        <TransactionTable
+          rows={tableRows}
+          categories={categories}
+          selectedMonth={selectedMonth}
+          updateAction={updateAction}
+          deleteAction={deleteAction}
+        />
       </div>
     </WorkspaceShell>
   );
