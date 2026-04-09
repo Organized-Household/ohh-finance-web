@@ -75,6 +75,15 @@ function getMonthOptions(selectedMonth: string): string[] {
   return options;
 }
 
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export default async function TransactionsPage({
   searchParams,
 }: {
@@ -155,6 +164,28 @@ export default async function TransactionsPage({
   const monthExpense = tableRows
     .filter((row) => row.transaction_type === "expense")
     .reduce((sum, row) => sum + row.amount, 0);
+  const standardExpense = tableRows
+    .filter(
+      (row) => row.transaction_type === "expense" && row.category_tag === "standard"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+  const savingsExpense = tableRows
+    .filter(
+      (row) => row.transaction_type === "expense" && row.category_tag === "savings"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+  const investmentExpense = tableRows
+    .filter(
+      (row) =>
+        row.transaction_type === "expense" && row.category_tag === "investment"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+
+  const maxValue = Math.max(monthIncome, monthExpense, 1);
+  const incomeBarHeight = (monthIncome / maxValue) * 100;
+  const standardBarHeight = (standardExpense / maxValue) * 100;
+  const savingsBarHeight = (savingsExpense / maxValue) * 100;
+  const investmentBarHeight = (investmentExpense / maxValue) * 100;
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
@@ -177,24 +208,87 @@ export default async function TransactionsPage({
           <div className="flex items-center justify-between">
             <span>Income</span>
             <span className="font-semibold tabular-nums text-emerald-700">
-              {new Intl.NumberFormat("en-CA", {
-                style: "currency",
-                currency: "CAD",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(monthIncome)}
+              {formatCurrency(monthIncome)}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span>Expense</span>
             <span className="font-semibold tabular-nums text-rose-700">
-              {new Intl.NumberFormat("en-CA", {
-                style: "currency",
-                currency: "CAD",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }).format(monthExpense)}
+              {formatCurrency(monthExpense)}
             </span>
+          </div>
+          <div className="space-y-1 border-t border-slate-200 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Standard</span>
+              <span className="font-medium tabular-nums text-slate-700">
+                {formatCurrency(standardExpense)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-teal-700">Savings</span>
+              <span className="font-medium tabular-nums text-teal-700">
+                {formatCurrency(savingsExpense)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-indigo-700">Investment</span>
+              <span className="font-medium tabular-nums text-indigo-700">
+                {formatCurrency(investmentExpense)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Income vs Expense",
+      content: (
+        <div className="space-y-2">
+          <div className="flex h-28 items-end justify-center gap-8 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="flex w-12 flex-col items-center gap-1">
+              <div className="flex h-20 w-7 items-end overflow-hidden rounded-t bg-slate-200">
+                <div
+                  className="w-full bg-emerald-500"
+                  style={{ height: `${incomeBarHeight}%` }}
+                />
+              </div>
+              <span className="text-[11px] text-slate-700">Income</span>
+            </div>
+            <div className="flex w-12 flex-col items-center gap-1">
+              <div className="flex h-20 w-7 flex-col-reverse overflow-hidden rounded-t bg-slate-200">
+                <div
+                  className="bg-indigo-500"
+                  style={{ height: `${investmentBarHeight}%` }}
+                />
+                <div
+                  className="bg-teal-500"
+                  style={{ height: `${savingsBarHeight}%` }}
+                />
+                <div
+                  className="bg-slate-500"
+                  style={{ height: `${standardBarHeight}%` }}
+                />
+              </div>
+              <span className="text-[11px] text-slate-700">Expense</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-emerald-500" />
+              <span>Income</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-slate-500" />
+              <span>Standard</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-teal-500" />
+              <span>Savings</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-indigo-500" />
+              <span>Investment</span>
+            </div>
           </div>
         </div>
       ),
