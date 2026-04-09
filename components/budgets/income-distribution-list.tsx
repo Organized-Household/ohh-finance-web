@@ -1,4 +1,5 @@
 import type { BudgetMetrics } from "@/components/budgets/budget-metrics";
+import { getIncomeColor } from "@/components/budgets/income-colors";
 
 type IncomeDistributionListProps = {
   metrics: BudgetMetrics;
@@ -17,10 +18,13 @@ export default function IncomeDistributionList({
 
   return (
     <div className="space-y-2">
-      {metrics.incomeDistribution.map((item) => (
+      {metrics.incomeDistribution.map((item, index) => (
         <div key={item.categoryId} className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <span className="max-w-[10rem] truncate font-medium text-emerald-700">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span
+              className="max-w-[10rem] truncate font-medium"
+              style={{ color: getIncomeColor(index) }}
+            >
               {item.name}
             </span>
             <span className="tabular-nums text-slate-600">
@@ -29,8 +33,11 @@ export default function IncomeDistributionList({
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
             <div
-              className="h-full rounded-full bg-emerald-500"
-              style={{ width: `${item.percentage}%` }}
+              className="h-full rounded-full"
+              style={{
+                width: `${item.percentage}%`,
+                backgroundColor: getIncomeColor(index),
+              }}
             />
           </div>
         </div>

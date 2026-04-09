@@ -1,11 +1,11 @@
 import type { BudgetMetrics } from "@/components/budgets/budget-metrics";
+import { getIncomeColor } from "@/components/budgets/income-colors";
 
 type DistributionBarChartProps = {
   metrics: BudgetMetrics;
 };
 
 const colors = {
-  income: "#10b981",
   standard: "#64748b",
   savings: "#14b8a6",
   investment: "#6366f1",
@@ -24,7 +24,6 @@ export default function DistributionBarChart({ metrics }: DistributionBarChartPr
   const expenseTotal = metrics.totalExpenses;
   const maxValue = Math.max(incomeTotal, expenseTotal);
 
-  const incomeHeight = percent(incomeTotal, maxValue);
   const standardHeight = percent(metrics.totals.standard, maxValue);
   const savingsHeight = percent(metrics.totals.savings, maxValue);
   const investmentHeight = percent(metrics.totals.investment, maxValue);
@@ -33,15 +32,16 @@ export default function DistributionBarChart({ metrics }: DistributionBarChartPr
     <div className="space-y-3">
       <div className="flex h-32 items-end justify-center gap-8 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
         <div className="flex w-14 flex-col items-center gap-1">
-          <div className="relative flex h-24 w-8 items-end overflow-hidden rounded-t bg-slate-200">
-            <div
-              className="w-full"
-              style={{
-                height: `${incomeHeight}%`,
-                backgroundColor: colors.income,
-              }}
-              aria-hidden="true"
-            />
+          <div className="relative flex h-24 w-8 flex-col-reverse overflow-hidden rounded-t bg-slate-200">
+            {metrics.incomeDistribution.map((incomeSlice, index) => (
+              <div
+                key={incomeSlice.categoryId}
+                style={{
+                  height: `${percent(incomeSlice.amount, maxValue)}%`,
+                  backgroundColor: getIncomeColor(index),
+                }}
+              />
+            ))}
           </div>
           <span className="text-[11px] font-medium text-slate-700">Income</span>
         </div>
@@ -59,13 +59,25 @@ export default function DistributionBarChart({ metrics }: DistributionBarChartPr
       </div>
 
       <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600">
-        <div className="flex items-center gap-1.5">
-          <span
-            className="inline-block size-2 rounded-full"
-            style={{ backgroundColor: colors.income }}
-          />
-          <span>Income</span>
-        </div>
+        {metrics.incomeDistribution.length ? (
+          metrics.incomeDistribution.map((incomeSlice, index) => (
+            <div key={incomeSlice.categoryId} className="flex items-center gap-1.5">
+              <span
+                className="inline-block size-2 rounded-full"
+                style={{ backgroundColor: getIncomeColor(index) }}
+              />
+              <span className="truncate">{incomeSlice.name}</span>
+            </div>
+          ))
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <span
+              className="inline-block size-2 rounded-full"
+              style={{ backgroundColor: getIncomeColor(0) }}
+            />
+            <span>Income</span>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <span
             className="inline-block size-2 rounded-full"
