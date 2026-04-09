@@ -35,12 +35,16 @@ export default function CategorySectionTable({
         </div>
       ) : (
         <div className="divide-y divide-slate-200">
-          {rows.map((category) => (
-            <div
-              key={category.id}
-              className="grid items-center gap-2 px-3 py-1.5 md:grid-cols-[minmax(0,1fr)_10rem_9rem_auto]"
-            >
-              <form action={updateAction} className="contents">
+          {rows.map((category) => {
+            const formId = `category-row-${category.id}`;
+
+            return (
+              <form
+                key={category.id}
+                id={formId}
+                action={updateAction}
+                className="grid items-center gap-2 px-3 py-1.5 md:grid-cols-[minmax(0,1fr)_10rem_9rem_auto]"
+              >
                 <input type="hidden" name="id" value={category.id} />
 
                 <div>
@@ -98,33 +102,29 @@ export default function CategorySectionTable({
                   >
                     Save
                   </button>
-                </div>
-              </form>
 
-              <div className="md:col-start-4 md:row-start-1 md:justify-self-end">
-                <details className="relative">
-                  <summary className="h-8 cursor-pointer list-none rounded border border-slate-300 px-2.5 text-xs leading-8 text-slate-700">
-                    Delete
-                  </summary>
+                  <details className="relative">
+                    <summary className="h-8 cursor-pointer list-none rounded border border-slate-300 px-2.5 text-xs leading-8 text-slate-700">
+                      Delete
+                    </summary>
 
-                  <div className="absolute right-0 top-9 z-10 w-36 rounded border border-slate-300 bg-white p-2 shadow">
-                    <p className="mb-2 text-[11px] text-slate-600">
-                      Delete category?
-                    </p>
-                    <form action={deleteAction}>
-                      <input type="hidden" name="id" value={category.id} />
+                    <div className="absolute right-0 top-9 z-10 w-36 rounded border border-slate-300 bg-white p-2 shadow">
+                      <p className="mb-2 text-[11px] text-slate-600">
+                        Delete category?
+                      </p>
                       <button
                         type="submit"
+                        formAction={deleteAction}
                         className="w-full rounded bg-rose-600 px-2 py-1.5 text-xs font-medium text-white"
                       >
                         Confirm
                       </button>
-                    </form>
-                  </div>
-                </details>
-              </div>
-            </div>
-          ))}
+                    </div>
+                  </details>
+                </div>
+              </form>
+            );
+          })}
         </div>
       )}
     </section>
