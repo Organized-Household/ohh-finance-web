@@ -2,11 +2,9 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import BudgetTable from "@/components/budgets/budget-table";
 import SummaryStrip from "@/components/budgets/summary-strip";
-import DistributionPercentList from "@/components/budgets/distribution-percent-list";
-import AllocationPieChart from "@/components/budgets/allocation-pie-chart";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
+import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
 import WorkspaceShell from "@/components/layout/workspace-shell";
-import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import { getBudgetForMonth } from "./actions";
 
 type SearchParams = Promise<{
@@ -39,26 +37,7 @@ export default async function BudgetPage({
 
   const budgetLines = await getBudgetForMonth(month);
   const metrics = computeBudgetMetrics(categories ?? [], budgetLines);
-
-  const budgetLeftPanelSections: WorkspaceLeftPanelSection[] = [
-    {
-      title: "Household Member",
-      content: (
-        <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-600">
-          Member selector placeholder. Shared member switching logic will be
-          added in a future phase.
-        </div>
-      ),
-    },
-    {
-      title: "Financial Distribution",
-      content: <DistributionPercentList metrics={metrics} />,
-    },
-    {
-      title: "Pie Chart",
-      content: <AllocationPieChart metrics={metrics} />,
-    },
-  ];
+  const budgetLeftPanelSections = buildBudgetLeftPanelSections({ metrics });
 
   return (
     <WorkspaceShell

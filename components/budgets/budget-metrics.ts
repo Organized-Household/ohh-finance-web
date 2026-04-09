@@ -1,5 +1,6 @@
 export type BudgetCategory = {
   id: string;
+  name: string;
   tag: "standard" | "savings" | "investment";
   category_type: "income" | "expense";
 };
@@ -17,6 +18,13 @@ export type BudgetMetrics = {
   remainingBalance: number;
   distributionTotal: number;
   percentages: Record<BudgetBucketKey, number>;
+  expensePercentages: Record<"standard" | "savings" | "investment", number>;
+  incomeDistribution: Array<{
+    categoryId: string;
+    name: string;
+    amount: number;
+    percentage: number;
+  }>;
 };
 
 const BUCKET_ORDER: BudgetBucketKey[] = [
@@ -88,11 +96,46 @@ export function computeBudgetMetrics(
     }
   }
 
+  const expensePercentages: Record<"standard" | "savings" | "investment", number> =
+    {
+      standard: 0,
+      savings: 0,
+      investment: 0,
+    };
+
+  if (totalExpenses > 0) {
+    expensePercentages.standard = (totals.standard / totalExpenses) * 100;
+    expensePercentages.savings = (totals.savings / totalExpenses) * 100;
+    expensePercentages.investment = (totals.investment / totalExpenses) * 100;
+  }
+
+  const incomeCategories = categories.filter(
+    (category) => category.category_type === "income"
+  );
+
+  const incomeDistribution = incomeCategories.map((category) => {
+    const amount = amountByCategoryId.get(category.id) ?? 0;
+
+    return {
+      categoryId: category.id,
+      name: category.name,
+      amount,
+      percentage:
+        incomeCategories.length === 1
+          ? 100
+          : totals.income > 0
+            ? (amount / totals.income) * 100
+            : 0,
+    };
+  });
+
   return {
     totals,
     totalExpenses,
     remainingBalance,
     distributionTotal,
     percentages,
+    expensePercentages,
+    incomeDistribution,
   };
 }
