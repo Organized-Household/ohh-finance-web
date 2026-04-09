@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const transactionSchema = z.object({
+const transactionBaseSchema = z.object({
   description: z
     .string()
     .trim()
@@ -13,4 +13,14 @@ export const transactionSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
   category_id: z.string().uuid(),
+});
+
+export const transactionSchema = transactionBaseSchema;
+
+export const updateTransactionSchema = transactionBaseSchema.extend({
+  id: z.string().uuid(),
+});
+
+export const deleteTransactionSchema = z.object({
+  id: z.string().uuid(),
 });

@@ -4,12 +4,24 @@ type TransactionRow = {
   description: string;
   amount: number;
   transaction_type: "income" | "expense";
+  category_id: string;
   category_name: string;
   category_tag: "standard" | "savings" | "investment";
 };
 
+type Category = {
+  id: string;
+  name: string;
+  tag: "standard" | "savings" | "investment";
+  category_type: "income" | "expense";
+};
+
 type TransactionTableProps = {
   rows: TransactionRow[];
+  categories: Category[];
+  selectedMonth: string;
+  updateAction: (formData: FormData) => Promise<void>;
+  deleteAction: (formData: FormData) => Promise<void>;
 };
 
 function formatCurrency(amount: number) {
@@ -21,7 +33,29 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-export default function TransactionTable({ rows }: TransactionTableProps) {
+export default function TransactionTable({
+  rows,
+  categories,
+  selectedMonth,
+  updateAction,
+  deleteAction,
+}: TransactionTableProps) {
+  const incomeCategories = categories.filter(
+    (category) => category.category_type === "income"
+  );
+  const standardCategories = categories.filter(
+    (category) =>
+      category.category_type === "expense" && category.tag === "standard"
+  );
+  const savingsCategories = categories.filter(
+    (category) =>
+      category.category_type === "expense" && category.tag === "savings"
+  );
+  const investmentCategories = categories.filter(
+    (category) =>
+      category.category_type === "expense" && category.tag === "investment"
+  );
+
   if (!rows.length) {
     return (
       <section className="rounded-lg border border-slate-300 bg-white px-3 py-4 text-sm text-slate-600">
@@ -80,7 +114,155 @@ export default function TransactionTable({ rows }: TransactionTableProps) {
               <td className="px-3 py-2 text-sm capitalize text-slate-700">
                 {row.transaction_type}
               </td>
-              <td className="px-3 py-2 text-sm text-slate-500">Coming soon</td>
+              <td className="px-3 py-2 text-sm text-slate-500">
+                <div className="flex items-center gap-2">
+                  <details className="relative">
+                    <summary className="h-7 cursor-pointer list-none rounded border border-slate-300 px-2 text-xs leading-7 text-slate-700">
+                      Edit
+                    </summary>
+                    <div className="absolute right-0 top-8 z-10 w-80 rounded border border-slate-300 bg-white p-3 shadow-lg">
+                      <form action={updateAction} className="space-y-2">
+                        <input type="hidden" name="id" value={row.id} />
+                        <input type="hidden" name="month" value={selectedMonth} />
+
+                        <div>
+                          <label
+                            htmlFor={`description-${row.id}`}
+                            className="mb-1 block text-xs font-medium text-slate-700"
+                          >
+                            Description
+                          </label>
+                          <input
+                            id={`description-${row.id}`}
+                            name="description"
+                            defaultValue={row.description}
+                            required
+                            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label
+                              htmlFor={`amount-${row.id}`}
+                              className="mb-1 block text-xs font-medium text-slate-700"
+                            >
+                              Amount
+                            </label>
+                            <input
+                              id={`amount-${row.id}`}
+                              name="amount"
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              inputMode="decimal"
+                              defaultValue={row.amount}
+                              required
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-right text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label
+                              htmlFor={`date-${row.id}`}
+                              className="mb-1 block text-xs font-medium text-slate-700"
+                            >
+                              Date
+                            </label>
+                            <input
+                              id={`date-${row.id}`}
+                              name="transaction_date"
+                              type="date"
+                              defaultValue={row.transaction_date}
+                              required
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor={`category-${row.id}`}
+                            className="mb-1 block text-xs font-medium text-slate-700"
+                          >
+                            Category
+                          </label>
+                          <select
+                            id={`category-${row.id}`}
+                            name="category_id"
+                            defaultValue={row.category_id}
+                            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                          >
+                            {incomeCategories.length ? (
+                              <optgroup label="Income">
+                                {incomeCategories.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+                            {standardCategories.length ? (
+                              <optgroup label="Standard">
+                                {standardCategories.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+                            {savingsCategories.length ? (
+                              <optgroup label="Savings">
+                                {savingsCategories.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+                            {investmentCategories.length ? (
+                              <optgroup label="Investment">
+                                {investmentCategories.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+                          </select>
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="h-8 w-full rounded bg-slate-900 px-3 text-xs font-medium text-white"
+                        >
+                          Save Changes
+                        </button>
+                      </form>
+                    </div>
+                  </details>
+
+                  <details className="relative">
+                    <summary className="h-7 cursor-pointer list-none rounded border border-rose-300 px-2 text-xs leading-7 text-rose-700">
+                      Delete
+                    </summary>
+                    <div className="absolute right-0 top-8 z-10 w-48 rounded border border-slate-300 bg-white p-2 shadow-lg">
+                      <p className="mb-2 text-[11px] text-slate-600">
+                        Delete this transaction?
+                      </p>
+                      <form action={deleteAction}>
+                        <input type="hidden" name="id" value={row.id} />
+                        <input type="hidden" name="month" value={selectedMonth} />
+                        <button
+                          type="submit"
+                          className="h-8 w-full rounded bg-rose-600 px-3 text-xs font-medium text-white"
+                        >
+                          Confirm Delete
+                        </button>
+                      </form>
+                    </div>
+                  </details>
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
