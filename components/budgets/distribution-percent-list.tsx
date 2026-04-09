@@ -1,24 +1,15 @@
-import type {
-  BudgetBucketKey,
-  BudgetMetrics,
-} from "@/components/budgets/budget-metrics";
+import type { BudgetMetrics } from "@/components/budgets/budget-metrics";
 
 type DistributionPercentListProps = {
   metrics: BudgetMetrics;
 };
 
 const items: Array<{
-  key: BudgetBucketKey;
+  key: "standard" | "savings" | "investment";
   label: string;
   accentClass: string;
   barClass: string;
 }> = [
-  {
-    key: "income",
-    label: "Income",
-    accentClass: "text-emerald-700",
-    barClass: "bg-emerald-500",
-  },
   {
     key: "standard",
     label: "Standard",
@@ -49,7 +40,7 @@ export default function DistributionPercentList({
   return (
     <div className="space-y-2">
       {items.map((item) => {
-        const percent = metrics.percentages[item.key];
+        const percent = metrics.expensePercentages[item.key];
 
         return (
           <div key={item.key} className="space-y-1">
