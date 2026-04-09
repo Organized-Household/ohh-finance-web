@@ -114,8 +114,8 @@ export default function TransactionTable({
               <td className="px-3 py-2 text-sm capitalize text-slate-700">
                 {row.transaction_type}
               </td>
-              <td className="px-3 py-2 text-sm text-slate-500">
-                <div className="flex items-center gap-2">
+              <td className="align-top px-3 py-2 text-sm text-slate-500">
+                <div className="flex items-start gap-2">
                   <details>
                     <summary className="h-7 cursor-pointer list-none rounded border border-slate-300 px-2 text-xs leading-7 text-slate-700">
                       Edit
