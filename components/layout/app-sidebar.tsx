@@ -1,0 +1,129 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+
+type SidebarItem = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive: (pathname: string) => boolean;
+};
+
+const navItems: SidebarItem[] = [
+  {
+    href: "/app",
+    label: "Home",
+    icon: (
+      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+        <path
+          d="M3.75 10.5 12 3.75l8.25 6.75v9a.75.75 0 0 1-.75.75h-4.5v-6h-6v6h-4.5a.75.75 0 0 1-.75-.75v-9Z"
+          fill="currentColor"
+        />
+      </svg>
+    ),
+    isActive: (pathname) => pathname === "/app",
+  },
+  {
+    href: "/app/budgets",
+    label: "Budget",
+    icon: (
+      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+        <path
+          d="M4.5 5.25h15a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-.75.75h-15a.75.75 0 0 1-.75-.75V6a.75.75 0 0 1 .75-.75Zm2.25 3a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Zm0 3.75a.75.75 0 0 0 0 1.5h9a.75.75 0 0 0 0-1.5h-9Z"
+          fill="currentColor"
+        />
+      </svg>
+    ),
+    isActive: (pathname) => pathname === "/app/budgets",
+  },
+  {
+    href: "/app/budgets/categories",
+    label: "Categories",
+    icon: (
+      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+        <path
+          d="M4.5 4.5h6.75v6.75H4.5V4.5Zm8.25 0h6.75v6.75h-6.75V4.5ZM4.5 12.75h6.75v6.75H4.5v-6.75Zm8.25 0h6.75v6.75h-6.75v-6.75Z"
+          fill="currentColor"
+        />
+      </svg>
+    ),
+    isActive: (pathname) => pathname.startsWith("/app/budgets/categories"),
+  },
+];
+
+type AppSidebarProps = {
+  collapsed: boolean;
+  onToggle: () => void;
+};
+
+export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
+  const pathname = usePathname();
+
+  return (
+    <aside
+      className={`border-r border-slate-300 bg-slate-900 text-slate-100 transition-all duration-200 ${
+        collapsed ? "w-20" : "w-64"
+      }`}
+    >
+      <div className="flex h-full flex-col">
+        <div className="flex h-16 items-center justify-between border-b border-slate-700 px-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex size-8 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-slate-900">
+              OH
+            </div>
+            {!collapsed ? (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">OHh Finance</p>
+                <p className="truncate text-xs text-slate-400">Workspace</p>
+              </div>
+            ) : null}
+          </div>
+
+          <button
+            type="button"
+            onClick={onToggle}
+            className="inline-flex size-8 items-center justify-center rounded-md border border-slate-700 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+              {collapsed ? (
+                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" />
+              ) : (
+                <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        <nav className="flex-1 px-2 py-4">
+          <ul className="space-y-1.5">
+            {navItems.map((item) => {
+              const active = item.isActive(pathname);
+
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center rounded-md px-2.5 py-2 text-sm font-medium transition ${
+                      collapsed ? "justify-center" : "gap-2.5"
+                    } ${
+                      active
+                        ? "bg-slate-100 text-slate-900"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <span>{item.icon}</span>
+                    {!collapsed ? <span>{item.label}</span> : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+    </aside>
+  );
+}
