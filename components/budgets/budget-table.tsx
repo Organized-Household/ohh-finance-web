@@ -44,15 +44,6 @@ const SECTION_LABELS: Record<CategoryTypeKey, string> = {
   expense: "Expense",
 };
 
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency: "CAD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 export default function BudgetTable({
   categories,
   month,
@@ -96,32 +87,6 @@ export default function BudgetTable({
 
     return result;
   }, [categories]);
-
-  const totals = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-
-    for (const category of categories) {
-      const rawValue = values[category.id];
-      const amount = Number(rawValue || 0);
-
-      if (!Number.isFinite(amount) || amount < 0) {
-        continue;
-      }
-
-      if (category.category_type === "income") {
-        income += amount;
-      } else {
-        expense += amount;
-      }
-    }
-
-    return {
-      income,
-      expense,
-      remaining: income - expense,
-    };
-  }, [categories, values]);
 
   const hasChanges = useMemo(() => {
     const allIds = new Set([
@@ -180,33 +145,6 @@ export default function BudgetTable({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-600">Planned income</p>
-          <p className="mt-1 text-2xl font-semibold text-green-700">
-            {formatCurrency(totals.income)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-600">Planned expenses</p>
-          <p className="mt-1 text-2xl font-semibold text-red-700">
-            {formatCurrency(totals.expense)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-600">Remaining</p>
-          <p
-            className={`mt-1 text-2xl font-semibold ${
-              totals.remaining >= 0 ? "text-blue-700" : "text-red-700"
-            }`}
-          >
-            {formatCurrency(totals.remaining)}
-          </p>
-        </div>
-      </div>
-
       {message ? (
         <div className="rounded-lg border bg-white px-4 py-3 text-sm shadow-sm">
           {message}

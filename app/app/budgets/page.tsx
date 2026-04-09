@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import BudgetTable from "@/components/budgets/budget-table";
+import SummaryStrip from "@/components/budgets/summary-strip";
+import DistributionPercentList from "@/components/budgets/distribution-percent-list";
+import AllocationPieChart from "@/components/budgets/allocation-pie-chart";
+import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
 import WorkspaceShell from "@/components/layout/workspace-shell";
-import { budgetWorkspaceLeftPanelSections } from "@/components/layout/workspace-left-panel";
+import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import { getBudgetForMonth } from "./actions";
 
 type SearchParams = Promise<{
@@ -34,12 +38,33 @@ export default async function BudgetPage({
   }
 
   const budgetLines = await getBudgetForMonth(month);
+  const metrics = computeBudgetMetrics(categories ?? [], budgetLines);
+
+  const budgetLeftPanelSections: WorkspaceLeftPanelSection[] = [
+    {
+      title: "Household Member",
+      content: (
+        <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-600">
+          Member selector placeholder. Shared member switching logic will be
+          added in a future phase.
+        </div>
+      ),
+    },
+    {
+      title: "Financial Distribution",
+      content: <DistributionPercentList metrics={metrics} />,
+    },
+    {
+      title: "Pie Chart",
+      content: <AllocationPieChart metrics={metrics} />,
+    },
+  ];
 
   return (
     <WorkspaceShell
       title="Monthly Budget"
       description="Plan your month by category. Income and expense categories are separated for easier budgeting."
-      leftPanelSections={budgetWorkspaceLeftPanelSections}
+      leftPanelSections={budgetLeftPanelSections}
       topbarControls={
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2">
@@ -74,8 +99,34 @@ export default async function BudgetPage({
       }
     >
       <div className="space-y-4">
+        <SummaryStrip metrics={metrics} />
+
         <div className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
           Selected month: <span className="font-semibold">{month}</span>
+          <span className="mx-2 text-slate-400">|</span>
+          Total expenses:{" "}
+          <span className="font-semibold">
+            {new Intl.NumberFormat("en-CA", {
+              style: "currency",
+              currency: "CAD",
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(metrics.totalExpenses)}
+          </span>
+          <span className="mx-2 text-slate-400">|</span>
+          Remaining balance:{" "}
+          <span
+            className={`font-semibold ${
+              metrics.remainingBalance >= 0 ? "text-emerald-700" : "text-rose-700"
+            }`}
+          >
+            {new Intl.NumberFormat("en-CA", {
+              style: "currency",
+              currency: "CAD",
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }).format(metrics.remainingBalance)}
+          </span>
         </div>
 
         {!categories?.length ? (
