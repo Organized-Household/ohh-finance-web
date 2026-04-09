@@ -13,10 +13,11 @@ type GroupedCategoryTableProps = {
   deleteAction: (formData: FormData) => Promise<void>;
 };
 
-const tagOrder: Array<{
-  key: "standard" | "savings" | "investment";
+const sectionOrder: Array<{
+  key: "income" | "standard" | "savings" | "investment";
   label: string;
 }> = [
+  { key: "income", label: "Income" },
   { key: "standard", label: "Standard" },
   { key: "savings", label: "Savings" },
   { key: "investment", label: "Investment" },
@@ -36,11 +37,34 @@ export default function GroupedCategoryTable({
         <span className="text-right">Actions</span>
       </div>
 
-      {tagOrder.map((tag) => (
+      {sectionOrder.map((section) => (
         <CategorySectionTable
-          key={tag.key}
-          title={tag.label}
-          rows={categories.filter((category) => category.tag === tag.key)}
+          key={section.key}
+          title={section.label}
+          rows={categories.filter((category) => {
+            if (section.key === "income") {
+              return category.category_type === "income";
+            }
+
+            if (section.key === "standard") {
+              return (
+                category.category_type === "expense" &&
+                category.tag === "standard"
+              );
+            }
+
+            if (section.key === "savings") {
+              return (
+                category.category_type === "expense" &&
+                category.tag === "savings"
+              );
+            }
+
+            return (
+              category.category_type === "expense" &&
+              category.tag === "investment"
+            );
+          })}
           updateAction={updateAction}
           deleteAction={deleteAction}
         />
