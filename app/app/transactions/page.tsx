@@ -4,6 +4,7 @@ import WorkspaceShell from "@/components/layout/workspace-shell";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import TransactionForm from "@/components/transactions/transaction-form";
 import TransactionTable from "@/components/transactions/transaction-table";
+import TransactionMonthSelector from "@/components/transactions/transaction-month-selector";
 import { createTransaction } from "./actions";
 
 type SearchParams = Promise<{
@@ -205,43 +206,10 @@ export default async function TransactionsPage({
       description="Capture actual financial activity for reporting, summaries, and budget-vs-actual analysis."
       leftPanelSections={leftPanelSections}
       topbarControls={
-        <div className="flex flex-wrap items-center gap-2">
-          <form method="get" className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2">
-            <label
-              htmlFor="month"
-              className="text-[11px] font-semibold uppercase tracking-wide text-slate-500"
-            >
-              Month
-            </label>
-            <select
-              id="month"
-              name="month"
-              defaultValue={selectedMonth}
-              className="mt-1 block w-36 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700"
-            >
-              {getMonthOptions(selectedMonth).map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Apply
-            </button>
-          </form>
-
-          <button
-            type="submit"
-            form="transaction-create-form"
-            disabled={!categories.length}
-            className="h-9 rounded-md border border-slate-300 bg-slate-900 px-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            Add Transaction
-          </button>
-        </div>
+        <TransactionMonthSelector
+          selectedMonth={selectedMonth}
+          options={getMonthOptions(selectedMonth)}
+        />
       }
     >
       <div className="space-y-3">
