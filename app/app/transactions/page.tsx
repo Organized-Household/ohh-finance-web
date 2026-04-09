@@ -40,20 +40,35 @@ function getMonthRange(month: string) {
   };
 }
 
+function toMonthString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function isValidMonth(month: string): boolean {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+
+  if (!match) {
+    return false;
+  }
+
+  const monthNumber = Number(match[2]);
+  return monthNumber >= 1 && monthNumber <= 12;
+}
+
 function getMonthOptions(selectedMonth: string): string[] {
-  const now = new Date();
+  const [yearString, monthString] = selectedMonth.split("-");
+  const baseYear = Number(yearString);
+  const baseMonthIndex = Number(monthString) - 1;
   const options: string[] = [];
 
   for (let offset = -5; offset <= 5; offset += 1) {
-    const date = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    options.push(date.toISOString().slice(0, 7));
+    const date = new Date(baseYear, baseMonthIndex + offset, 1);
+    options.push(toMonthString(date));
   }
 
-  if (!options.includes(selectedMonth)) {
-    options.push(selectedMonth);
-  }
-
-  return [...new Set(options)].sort();
+  return options;
 }
 
 export default async function TransactionsPage({
@@ -62,10 +77,11 @@ export default async function TransactionsPage({
   searchParams: SearchParams;
 }) {
   const params = await searchParams;
+  const currentMonth = toMonthString(new Date());
   const selectedMonth =
-    params.month && /^\d{4}-\d{2}$/.test(params.month)
+    params.month && isValidMonth(params.month)
       ? params.month
-      : new Date().toISOString().slice(0, 7);
+      : currentMonth;
 
   const monthRange = getMonthRange(selectedMonth);
 
