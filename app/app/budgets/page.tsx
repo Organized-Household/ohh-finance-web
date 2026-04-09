@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import BudgetTable from "@/components/budgets/budget-table";
+import WorkspaceShell from "@/components/layout/workspace-shell";
+import { budgetWorkspaceLeftPanelSections } from "@/components/layout/workspace-left-panel";
 import { getBudgetForMonth } from "./actions";
 
 type SearchParams = Promise<{
@@ -34,53 +36,72 @@ export default async function BudgetPage({
   const budgetLines = await getBudgetForMonth(month);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Monthly Budget</h1>
-          <p className="text-sm text-gray-600">
-            Plan your month by category. Income and expense categories are
-            separated for easier budgeting.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="rounded-lg border px-3 py-2 text-sm">
-            Selected month: <span className="font-medium">{month}</span>
+    <WorkspaceShell
+      title="Monthly Budget"
+      description="Plan your month by category. Income and expense categories are separated for easier budgeting."
+      leftPanelSections={budgetWorkspaceLeftPanelSections}
+      topbarControls={
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">
+              Month selector
+            </p>
+            <select
+              disabled
+              aria-label="Month selector placeholder"
+              className="mt-1 w-36 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-90"
+              defaultValue={month}
+            >
+              <option value={month}>{month}</option>
+            </select>
           </div>
+
+          <button
+            type="button"
+            disabled
+            className="rounded-md border border-slate-300 bg-slate-200 px-3 py-2 text-sm font-medium text-slate-600 disabled:cursor-not-allowed"
+          >
+            + New Month
+          </button>
 
           <Link
             href="/app/budgets/categories"
-            className="rounded border px-4 py-2 text-sm font-medium hover:bg-gray-50"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            Manage categories
+            Manage Categories
           </Link>
         </div>
-      </div>
-
-      {!categories?.length ? (
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">No categories yet</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Add shared household categories before planning this month.
-          </p>
-
-          <div className="mt-4">
-            <Link
-              href="/app/budgets/categories"
-              className="inline-flex rounded bg-black px-4 py-2 text-sm font-medium text-white"
-            >
-              Manage categories
-            </Link>
-          </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          Selected month: <span className="font-semibold">{month}</span>
         </div>
-      ) : (
-        <BudgetTable
-          categories={categories}
-          month={month}
-          initialLines={budgetLines}
-        />
-      )}
-    </div>
+
+        {!categories?.length ? (
+          <div className="rounded-xl border bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold">No categories yet</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Add shared household categories before planning this month.
+            </p>
+
+            <div className="mt-4">
+              <Link
+                href="/app/budgets/categories"
+                className="inline-flex rounded bg-black px-4 py-2 text-sm font-medium text-white"
+              >
+                Manage categories
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <BudgetTable
+            categories={categories}
+            month={month}
+            initialLines={budgetLines}
+          />
+        )}
+      </div>
+    </WorkspaceShell>
   );
 }
