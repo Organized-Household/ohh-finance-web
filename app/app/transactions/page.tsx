@@ -226,6 +226,7 @@ export default async function TransactionsPage({
 
     await updateTransaction({
       id: String(formData.get("id") ?? ""),
+      month: String(formData.get("month") ?? ""),
       description: String(formData.get("description") ?? ""),
       amount: Number(formData.get("amount") ?? 0),
       transaction_date: String(formData.get("transaction_date") ?? ""),
@@ -238,6 +239,7 @@ export default async function TransactionsPage({
 
     await deleteTransaction({
       id: String(formData.get("id") ?? ""),
+      month: String(formData.get("month") ?? ""),
     });
   };
 

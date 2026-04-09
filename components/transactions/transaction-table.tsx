@@ -65,7 +65,7 @@ export default function TransactionTable({
   }
 
   return (
-    <section className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
+    <section className="overflow-x-auto overflow-y-visible rounded-lg border border-slate-300 bg-white">
       <table className="w-full border-collapse">
         <thead className="bg-slate-900 text-white">
           <tr>
@@ -116,11 +116,11 @@ export default function TransactionTable({
               </td>
               <td className="px-3 py-2 text-sm text-slate-500">
                 <div className="flex items-center gap-2">
-                  <details className="relative">
+                  <details>
                     <summary className="h-7 cursor-pointer list-none rounded border border-slate-300 px-2 text-xs leading-7 text-slate-700">
                       Edit
                     </summary>
-                    <div className="absolute right-0 top-8 z-10 w-80 rounded border border-slate-300 bg-white p-3 shadow-lg">
+                    <div className="mt-2 w-80 rounded border border-slate-300 bg-white p-3 shadow-lg">
                       <form action={updateAction} className="space-y-2">
                         <input type="hidden" name="id" value={row.id} />
                         <input type="hidden" name="month" value={selectedMonth} />
@@ -241,11 +241,11 @@ export default function TransactionTable({
                     </div>
                   </details>
 
-                  <details className="relative">
+                  <details>
                     <summary className="h-7 cursor-pointer list-none rounded border border-rose-300 px-2 text-xs leading-7 text-rose-700">
                       Delete
                     </summary>
-                    <div className="absolute right-0 top-8 z-10 w-48 rounded border border-slate-300 bg-white p-2 shadow-lg">
+                    <div className="mt-2 w-48 rounded border border-slate-300 bg-white p-2 shadow-lg">
                       <p className="mb-2 text-[11px] text-slate-600">
                         Delete this transaction?
                       </p>
