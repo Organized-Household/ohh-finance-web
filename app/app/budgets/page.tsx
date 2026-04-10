@@ -1,11 +1,19 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import BudgetTable from "@/components/budgets/budget-table";
+import BudgetMonthSelector from "@/components/budgets/budget-month-selector";
 import SummaryStrip from "@/components/budgets/summary-strip";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
 import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
 import WorkspaceShell from "@/components/layout/workspace-shell";
 import { getUserFirstName } from "@/lib/auth/get-user-first-name";
+import {
+  getCurrentMonthStart,
+  isHistoricalMonth,
+  parseMonthParam,
+  serializeMonthParam,
+} from "@/lib/db/month";
+import { monthParamSchema } from "@/lib/validation/month";
 import { getBudgetForMonth } from "./actions";
 
 type SearchParams = Promise<{
@@ -30,10 +38,12 @@ export default async function BudgetPage({
 
   const memberFirstName = getUserFirstName(user);
 
-  const month =
-    params.month && /^\d{4}-\d{2}$/.test(params.month)
-      ? params.month
-      : new Date().toISOString().slice(0, 7);
+  const parsedMonth = monthParamSchema.safeParse((params.month ?? "").trim());
+  const selectedMonthStart = parsedMonth.success
+    ? parseMonthParam(parsedMonth.data)
+    : getCurrentMonthStart();
+  const month = serializeMonthParam(selectedMonthStart);
+  const selectedMonthIsHistorical = isHistoricalMonth(selectedMonthStart);
 
   const { data: categories, error } = await supabase
     .from("categories")
@@ -60,27 +70,7 @@ export default async function BudgetPage({
       leftPanelSections={budgetLeftPanelSections}
       topbarControls={
         <div className="flex flex-wrap items-center gap-2">
-          <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-slate-500">
-              Month selector
-            </p>
-            <select
-              disabled
-              aria-label="Month selector placeholder"
-              className="mt-1 w-36 rounded border border-slate-300 bg-white px-2 py-1 text-sm text-slate-700 disabled:cursor-not-allowed disabled:opacity-90"
-              defaultValue={month}
-            >
-              <option value={month}>{month}</option>
-            </select>
-          </div>
-
-          <button
-            type="button"
-            disabled
-            className="rounded-md border border-slate-300 bg-slate-200 px-3 py-2 text-sm font-medium text-slate-600 disabled:cursor-not-allowed"
-          >
-            + New Month
-          </button>
+          <BudgetMonthSelector selectedMonth={month} />
 
           <Link
             href="/app/budgets/categories"
@@ -95,7 +85,16 @@ export default async function BudgetPage({
         <SummaryStrip metrics={metrics} />
 
         <div className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-          Selected month: <span className="font-semibold">{month}</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <p>
+              Selected month: <span className="font-semibold">{month}</span>
+            </p>
+            {selectedMonthIsHistorical ? (
+              <p className="text-amber-700">
+                Historical month: view-only by default.
+              </p>
+            ) : null}
+          </div>
         </div>
 
         {!categories?.length ? (
@@ -116,9 +115,11 @@ export default async function BudgetPage({
           </div>
         ) : (
           <BudgetTable
+            key={month}
             categories={categories}
             month={month}
             initialLines={budgetLines}
+            isHistoricalMonth={selectedMonthIsHistorical}
           />
         )}
       </div>

@@ -14,11 +14,13 @@ export type GroupedBudgetSection = {
 type GroupedBudgetTableProps = {
   sections: GroupedBudgetSection[];
   onAmountChange: (categoryId: string, value: string) => void;
+  inputsDisabled?: boolean;
 };
 
 export default function GroupedBudgetTable({
   sections,
   onAmountChange,
+  inputsDisabled = false,
 }: GroupedBudgetTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-300">
@@ -42,6 +44,7 @@ export default function GroupedBudgetTable({
             rows={section.rows}
             subtotal={section.subtotal}
             onAmountChange={onAmountChange}
+            inputsDisabled={inputsDisabled}
           />
         ))}
       </table>

@@ -23,12 +23,14 @@ type Props = {
   categories: Category[];
   month: string;
   initialLines: InitialLine[];
+  isHistoricalMonth: boolean;
 };
 
 export default function BudgetTable({
   categories,
   month,
   initialLines,
+  isHistoricalMonth,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string>("");
@@ -44,6 +46,10 @@ export default function BudgetTable({
   }, [initialLines]);
 
   const [values, setValues] = useState<Record<string, string>>(initialValues);
+  const [historicalEditingEnabled, setHistoricalEditingEnabled] = useState(
+    !isHistoricalMonth
+  );
+  const isReadOnly = isHistoricalMonth && !historicalEditingEnabled;
 
   function toAmount(value: string | undefined) {
     const amount = Number(value ?? 0);
@@ -136,6 +142,10 @@ export default function BudgetTable({
   }, [initialValues, values]);
 
   function updateValue(categoryId: string, value: string) {
+    if (isReadOnly) {
+      return;
+    }
+
     setValues((prev) => ({
       ...prev,
       [categoryId]: value,
@@ -148,6 +158,10 @@ export default function BudgetTable({
   }
 
   function handleSave() {
+    if (isReadOnly) {
+      return;
+    }
+
     setMessage("");
 
     startTransition(async () => {
@@ -174,13 +188,41 @@ export default function BudgetTable({
 
   return (
     <div className="space-y-6">
+      {isHistoricalMonth ? (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p>
+              This is a historical month. Budgets are view-only until you enable
+              editing for this month.
+            </p>
+            {!historicalEditingEnabled ? (
+              <button
+                type="button"
+                onClick={() => setHistoricalEditingEnabled(true)}
+                className="rounded border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-900"
+              >
+                Enable Editing
+              </button>
+            ) : (
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                Editing enabled
+              </span>
+            )}
+          </div>
+        </section>
+      ) : null}
+
       {message ? (
         <div className="rounded-lg border bg-white px-4 py-3 text-sm shadow-sm">
           {message}
         </div>
       ) : null}
 
-      <GroupedBudgetTable sections={groupedSections} onAmountChange={updateValue} />
+      <GroupedBudgetTable
+        sections={groupedSections}
+        onAmountChange={updateValue}
+        inputsDisabled={isReadOnly}
+      />
 
       <BudgetTotalsFooter
         totalIncome={totals.totalIncome}
@@ -203,7 +245,7 @@ export default function BudgetTable({
             <button
               type="button"
               onClick={handleDiscard}
-              disabled={!hasChanges || isPending}
+              disabled={!hasChanges || isPending || isReadOnly}
               className="rounded border px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
               Discard
@@ -212,7 +254,7 @@ export default function BudgetTable({
             <button
               type="button"
               onClick={handleSave}
-              disabled={!hasChanges || isPending}
+              disabled={!hasChanges || isPending || isReadOnly}
               className="rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {isPending ? "Saving..." : "Save"}
