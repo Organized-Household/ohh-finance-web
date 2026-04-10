@@ -86,24 +86,30 @@ export async function createSavingsAccountFormAction(
     };
   }
 
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-  const accountNumberLast4 = toAccountNumberLast4(parsed.data.account_number);
+  try {
+    const supabase = await createClient();
+    const membership = await getCurrentTenantMembership();
+    const accountNumberLast4 = toAccountNumberLast4(parsed.data.account_number);
 
-  const { error } = await supabase.from("savings_accounts").insert({
-    tenant_id: membership.tenant_id,
-    purpose: parsed.data.purpose,
-    account_number_last4: accountNumberLast4,
-  });
+    const { error } = await supabase.from("savings_accounts").insert({
+      tenant_id: membership.tenant_id,
+      purpose: parsed.data.purpose,
+      account_number_last4: accountNumberLast4,
+    });
 
-  if (error) {
+    if (error) {
+      return {
+        message: mapMutationError(error, "Failed to create savings account."),
+      };
+    }
+
+    revalidatePath("/app/accounts/savings");
+    return { message: "Savings account created." };
+  } catch (error) {
     return {
       message: mapMutationError(error, "Failed to create savings account."),
     };
   }
-
-  revalidatePath("/app/accounts/savings");
-  return { message: "Savings account created." };
 }
 
 export async function updateSavingsAccountFormAction(
@@ -123,28 +129,34 @@ export async function updateSavingsAccountFormAction(
     };
   }
 
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-  const accountNumberLast4 = toAccountNumberLast4(parsed.data.account_number);
+  try {
+    const supabase = await createClient();
+    const membership = await getCurrentTenantMembership();
+    const accountNumberLast4 = toAccountNumberLast4(parsed.data.account_number);
 
-  const { error } = await supabase
-    .from("savings_accounts")
-    .update({
-      purpose: parsed.data.purpose,
-      account_number_last4: accountNumberLast4,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", parsed.data.id)
-    .eq("tenant_id", membership.tenant_id);
+    const { error } = await supabase
+      .from("savings_accounts")
+      .update({
+        purpose: parsed.data.purpose,
+        account_number_last4: accountNumberLast4,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", parsed.data.id)
+      .eq("tenant_id", membership.tenant_id);
 
-  if (error) {
+    if (error) {
+      return {
+        message: mapMutationError(error, "Failed to update savings account."),
+      };
+    }
+
+    revalidatePath("/app/accounts/savings");
+    return { message: "Saved." };
+  } catch (error) {
     return {
       message: mapMutationError(error, "Failed to update savings account."),
     };
   }
-
-  revalidatePath("/app/accounts/savings");
-  return { message: "Saved." };
 }
 
 export async function deleteSavingsAccountFormAction(
@@ -159,21 +171,27 @@ export async function deleteSavingsAccountFormAction(
     return { message: "Invalid savings account id." };
   }
 
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
+  try {
+    const supabase = await createClient();
+    const membership = await getCurrentTenantMembership();
 
-  const { error } = await supabase
-    .from("savings_accounts")
-    .delete()
-    .eq("id", parsed.data.id)
-    .eq("tenant_id", membership.tenant_id);
+    const { error } = await supabase
+      .from("savings_accounts")
+      .delete()
+      .eq("id", parsed.data.id)
+      .eq("tenant_id", membership.tenant_id);
 
-  if (error) {
+    if (error) {
+      return {
+        message: mapMutationError(error, "Failed to remove savings account."),
+      };
+    }
+
+    revalidatePath("/app/accounts/savings");
+    return { message: "Savings account removed." };
+  } catch (error) {
     return {
       message: mapMutationError(error, "Failed to remove savings account."),
     };
   }
-
-  revalidatePath("/app/accounts/savings");
-  return { message: "Savings account removed." };
 }
