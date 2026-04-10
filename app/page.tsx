@@ -1,24 +1,14 @@
+import PublicBrandHeader from "@/components/public/public-brand-header";
+import HeroCard from "@/components/public/hero-card";
+
 export default function LandingPage() {
   return (
-    <main>
-      <h1>Organized Household</h1>
+    <div className="min-h-screen bg-slate-100">
+      <PublicBrandHeader current="welcome" />
 
-      <p>Welcome to the household finance platform.</p>
-
-      <ul>
-        <li>
-          <a href="/login">Login</a>
-        </li>
-
-        <li>
-          <a href="/register">Register</a>
-        </li>
-
-        <li>
-          <a href="/app">Go to App (requires login)</a>
-        </li>
-      </ul>
-
-    </main>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 pb-10 pt-12 sm:pt-16">
+        <HeroCard />
+      </main>
+    </div>
   );
 }
