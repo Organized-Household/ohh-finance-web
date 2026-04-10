@@ -10,6 +10,7 @@ type BudgetSectionTableProps = {
   rows: SectionRow[];
   subtotal: number;
   onAmountChange: (categoryId: string, value: string) => void;
+  inputsDisabled?: boolean;
 };
 
 function formatCurrency(amount: number) {
@@ -27,6 +28,7 @@ export default function BudgetSectionTable({
   rows,
   subtotal,
   onAmountChange,
+  inputsDisabled = false,
 }: BudgetSectionTableProps) {
   return (
     <tbody>
@@ -59,6 +61,7 @@ export default function BudgetSectionTable({
                 step="0.01"
                 value={row.amount}
                 onChange={(event) => onAmountChange(row.id, event.target.value)}
+                disabled={inputsDisabled}
                 className="h-8 w-full rounded border border-slate-300 px-2 text-right text-sm tabular-nums"
                 aria-label={`Planned amount for ${row.name}`}
               />

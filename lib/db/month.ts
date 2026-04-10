@@ -35,3 +35,10 @@ export function formatMonthStartDate(monthStart: Date): string {
 export function getMonthStart(input: string): string {
   return formatMonthStartDate(parseMonthParam(input));
 }
+
+export function isHistoricalMonth(
+  selectedMonthStart: Date,
+  currentMonthStart: Date = getCurrentMonthStart()
+): boolean {
+  return selectedMonthStart.getTime() < currentMonthStart.getTime();
+}
