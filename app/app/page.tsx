@@ -1,10 +1,11 @@
 import WorkspaceShell from "@/components/layout/workspace-shell";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
+import IncomeVsExpenseSummary from "@/components/dashboard/income-vs-expense-summary";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import { formatMonthStartDate } from "@/lib/db/month";
 import { getDashboardMonth } from "@/lib/dashboard/get-dashboard-month";
+import { getIncomeVsExpenseSummary } from "@/lib/dashboard/get-income-vs-expense-summary";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -13,31 +14,7 @@ type DashboardData = {
   selectedMonth: string;
   monthStart: string;
   nextMonthStart: string;
-  transactionCount: number;
 };
-
-async function getDashboardData(
-  monthStartIso: string,
-  nextMonthStartIso: string
-): Promise<{ transactionCount: number }> {
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-
-  const { count, error } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", membership.tenant_id)
-    .gte("transaction_date", monthStartIso)
-    .lt("transaction_date", nextMonthStartIso);
-
-  if (error) {
-    throw new Error(`Failed to load dashboard data: ${error.message}`);
-  }
-
-  return {
-    transactionCount: count ?? 0,
-  };
-}
 
 export default async function AppHomePage({
   searchParams,
@@ -59,14 +36,16 @@ export default async function AppHomePage({
     throw new Error("Authenticated user not found");
   }
 
-  const dashboardStats = await getDashboardData(monthStartIso, nextMonthStartIso);
+  const incomeVsExpenseSummary = await getIncomeVsExpenseSummary(
+    monthStartIso,
+    nextMonthStartIso
+  );
 
   const dashboardData: DashboardData = {
     userEmail: user.email ?? "Unknown user",
     selectedMonth: resolvedMonth.monthParam,
     monthStart: monthStartIso,
     nextMonthStart: nextMonthStartIso,
-    transactionCount: dashboardStats.transactionCount,
   };
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
@@ -98,12 +77,9 @@ export default async function AppHomePage({
       leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={dashboardData.selectedMonth} />}
     >
-      <div className="space-y-2 text-sm text-slate-700">
+      <div className="space-y-3 text-sm text-slate-700">
         <p>Signed in as {dashboardData.userEmail}</p>
-        <p>
-          Transactions in selected month: {" "}
-          <span className="font-semibold tabular-nums">{dashboardData.transactionCount}</span>
-        </p>
+        <IncomeVsExpenseSummary summary={incomeVsExpenseSummary} />
       </div>
     </WorkspaceShell>
   );
