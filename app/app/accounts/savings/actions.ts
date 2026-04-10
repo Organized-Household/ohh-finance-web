@@ -18,10 +18,6 @@ export type SavingsAccountFormState = {
   fieldErrors?: Partial<Record<SavingsField, string>>;
 };
 
-export const initialSavingsAccountFormState: SavingsAccountFormState = {
-  message: "",
-};
-
 function buildFieldErrors(
   error: z.ZodError
 ): Partial<Record<SavingsField, string>> {

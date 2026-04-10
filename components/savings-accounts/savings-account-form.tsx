@@ -3,8 +3,8 @@
 import { useActionState } from "react";
 import {
   createSavingsAccountFormAction,
-  initialSavingsAccountFormState,
 } from "@/app/app/accounts/savings/actions";
+import { initialSavingsAccountFormState } from "@/app/app/accounts/savings/form-state";
 
 export default function SavingsAccountForm() {
   const [state, formAction, pending] = useActionState(
