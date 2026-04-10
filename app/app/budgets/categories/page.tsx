@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import WorkspaceShell from "@/components/layout/workspace-shell";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
 import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
+import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import CategoryCreateForm from "@/components/categories/category-create-form";
 import GroupedCategoryTable from "@/components/categories/grouped-category-table";
 import {
@@ -20,6 +21,16 @@ type Category = {
 
 export default async function BudgetCategoriesPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found");
+  }
+
+  const memberFirstName = getUserFirstName(user);
   const month = new Date().toISOString().slice(0, 7);
 
   const { data, error } = await supabase
@@ -35,7 +46,10 @@ export default async function BudgetCategoriesPage() {
   const categories: Category[] = (data ?? []) as Category[];
   const budgetLines = await getBudgetForMonth(month);
   const metrics = computeBudgetMetrics(categories, budgetLines);
-  const budgetLeftPanelSections = buildBudgetLeftPanelSections({ metrics });
+  const budgetLeftPanelSections = buildBudgetLeftPanelSections({
+    metrics,
+    memberFirstName,
+  });
 
   const createAction = async (formData: FormData) => {
     "use server";
