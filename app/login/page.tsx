@@ -1,37 +1,22 @@
-import { Suspense } from "react";
 import LoginPageContent from "./login-page-content";
 
-export default function LoginPage() {
+type SearchParams = Promise<{
+  redirectTo?: string;
+}>;
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const hasRedirectParam = typeof params.redirectTo === "string";
+  const redirectTo = hasRedirectParam ? String(params.redirectTo) : "/app";
+
   return (
-    <Suspense fallback={<LoginPageFallback />}>
-      <LoginPageContent />
-    </Suspense>
-  );
-}
-
-function LoginPageFallback() {
-  return (
-    <main>
-      <h1>Login</h1>
-      <p>Sign in with your email and password.</p>
-
-      <form>
-        <div>
-          <label htmlFor="email">Email</label>
-          <br />
-          <input id="email" name="email" type="email" disabled />
-        </div>
-
-        <div>
-          <label htmlFor="password">Password</label>
-          <br />
-          <input id="password" name="password" type="password" disabled />
-        </div>
-
-        <button type="button" disabled>
-          Loading...
-        </button>
-      </form>
-    </main>
+    <LoginPageContent
+      redirectTo={redirectTo}
+      showProtectedRouteMessage={hasRedirectParam}
+    />
   );
 }
