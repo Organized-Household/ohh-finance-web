@@ -9,8 +9,6 @@ type Category = {
 
 type GroupedCategoryTableProps = {
   categories: Category[];
-  updateAction: (formData: FormData) => Promise<void>;
-  deleteAction: (formData: FormData) => Promise<void>;
 };
 
 const sectionOrder: Array<{
@@ -25,8 +23,6 @@ const sectionOrder: Array<{
 
 export default function GroupedCategoryTable({
   categories,
-  updateAction,
-  deleteAction,
 }: GroupedCategoryTableProps) {
   return (
     <section className="overflow-hidden rounded-lg border border-slate-300 bg-white">
@@ -65,8 +61,6 @@ export default function GroupedCategoryTable({
               category.tag === "investment"
             );
           })}
-          updateAction={updateAction}
-          deleteAction={deleteAction}
         />
       ))}
     </section>

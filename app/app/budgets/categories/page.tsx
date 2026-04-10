@@ -5,11 +5,6 @@ import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-in
 import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import CategoryCreateForm from "@/components/categories/category-create-form";
 import GroupedCategoryTable from "@/components/categories/grouped-category-table";
-import {
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "./actions";
 import { getBudgetForMonth } from "../actions";
 
 type Category = {
@@ -51,35 +46,6 @@ export default async function BudgetCategoriesPage() {
     memberFirstName,
   });
 
-  const createAction = async (formData: FormData) => {
-    "use server";
-
-    await createCategory({
-      name: String(formData.get("name") ?? ""),
-      tag: String(formData.get("tag") ?? "standard"),
-      category_type: String(formData.get("category_type") ?? "expense"),
-    });
-  };
-
-  const updateAction = async (formData: FormData) => {
-    "use server";
-
-    await updateCategory({
-      id: String(formData.get("id")),
-      name: String(formData.get("name") ?? ""),
-      tag: String(formData.get("tag") ?? "standard"),
-      category_type: String(formData.get("category_type") ?? "expense"),
-    });
-  };
-
-  const deleteAction = async (formData: FormData) => {
-    "use server";
-
-    await deleteCategory({
-      id: String(formData.get("id")),
-    });
-  };
-
   return (
     <WorkspaceShell
       title="Categories"
@@ -92,13 +58,9 @@ export default async function BudgetCategoriesPage() {
       }
     >
       <div className="space-y-3">
-        <CategoryCreateForm createAction={createAction} />
+        <CategoryCreateForm />
 
-        <GroupedCategoryTable
-          categories={categories}
-          updateAction={updateAction}
-          deleteAction={deleteAction}
-        />
+        <GroupedCategoryTable categories={categories} />
       </div>
     </WorkspaceShell>
   );

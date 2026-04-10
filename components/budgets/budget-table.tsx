@@ -59,10 +59,12 @@ export default function BudgetTable({
         category.category_type === "expense" && category.tag === "standard"
     );
     const savingsCategories = categories.filter(
-      (category) => category.tag === "savings"
+      (category) =>
+        category.category_type === "expense" && category.tag === "savings"
     );
     const investmentCategories = categories.filter(
-      (category) => category.tag === "investment"
+      (category) =>
+        category.category_type === "expense" && category.tag === "investment"
     );
 
     const buildSection = (
