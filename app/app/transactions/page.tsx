@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import WorkspaceShell from "@/components/layout/workspace-shell";
+import HouseholdMemberCard from "@/components/layout/household-member-card";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import TransactionForm from "@/components/transactions/transaction-form";
 import TransactionTable from "@/components/transactions/transaction-table";
 import TransactionMonthSelector from "@/components/transactions/transaction-month-selector";
+import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import {
   createTransaction,
   deleteTransaction,
@@ -99,6 +101,16 @@ export default async function TransactionsPage({
   const monthRange = getMonthRange(selectedMonth);
 
   const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found");
+  }
+
+  const memberFirstName = getUserFirstName(user);
   const membership = await getCurrentTenantMembership();
 
   const { data: categoriesData, error: categoriesError } = await supabase
@@ -190,12 +202,7 @@ export default async function TransactionsPage({
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: (
-        <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-600">
-          Member selector placeholder. Shared member switching logic will be
-          added in a future phase.
-        </div>
-      ),
+      content: <HouseholdMemberCard firstName={memberFirstName} />,
     },
     {
       title: "Month Overview",

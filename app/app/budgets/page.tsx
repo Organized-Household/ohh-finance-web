@@ -5,6 +5,7 @@ import SummaryStrip from "@/components/budgets/summary-strip";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
 import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
 import WorkspaceShell from "@/components/layout/workspace-shell";
+import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import { getBudgetForMonth } from "./actions";
 
 type SearchParams = Promise<{
@@ -18,6 +19,16 @@ export default async function BudgetPage({
 }) {
   const params = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found");
+  }
+
+  const memberFirstName = getUserFirstName(user);
 
   const month =
     params.month && /^\d{4}-\d{2}$/.test(params.month)
@@ -37,7 +48,10 @@ export default async function BudgetPage({
 
   const budgetLines = await getBudgetForMonth(month);
   const metrics = computeBudgetMetrics(categories ?? [], budgetLines);
-  const budgetLeftPanelSections = buildBudgetLeftPanelSections({ metrics });
+  const budgetLeftPanelSections = buildBudgetLeftPanelSections({
+    metrics,
+    memberFirstName,
+  });
 
   return (
     <WorkspaceShell

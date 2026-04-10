@@ -2,7 +2,9 @@ import WorkspaceShell from "@/components/layout/workspace-shell";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
 import IncomeVsExpenseSummary from "@/components/dashboard/income-vs-expense-summary";
+import HouseholdMemberCard from "@/components/layout/household-member-card";
 import { createClient } from "@/lib/supabase/server";
+import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import { formatMonthStartDate } from "@/lib/db/month";
 import { getDashboardMonth } from "@/lib/dashboard/get-dashboard-month";
 import { getIncomeVsExpenseSummary } from "@/lib/dashboard/get-income-vs-expense-summary";
@@ -10,7 +12,7 @@ import { getIncomeVsExpenseSummary } from "@/lib/dashboard/get-income-vs-expense
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 type DashboardData = {
-  userEmail: string;
+  memberFirstName: string;
   selectedMonth: string;
   monthStart: string;
   nextMonthStart: string;
@@ -42,13 +44,17 @@ export default async function AppHomePage({
   );
 
   const dashboardData: DashboardData = {
-    userEmail: user.email ?? "Unknown user",
+    memberFirstName: getUserFirstName(user),
     selectedMonth: resolvedMonth.monthParam,
     monthStart: monthStartIso,
     nextMonthStart: nextMonthStartIso,
   };
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
+    {
+      title: "Household Member",
+      content: <HouseholdMemberCard firstName={dashboardData.memberFirstName} />,
+    },
     {
       title: "Month Context",
       content: (
@@ -77,10 +83,7 @@ export default async function AppHomePage({
       leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={dashboardData.selectedMonth} />}
     >
-      <div className="space-y-3 text-sm text-slate-700">
-        <p>Signed in as {dashboardData.userEmail}</p>
-        <IncomeVsExpenseSummary summary={incomeVsExpenseSummary} />
-      </div>
+      <IncomeVsExpenseSummary summary={incomeVsExpenseSummary} />
     </WorkspaceShell>
   );
 }
