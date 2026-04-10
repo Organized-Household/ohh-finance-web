@@ -8,6 +8,36 @@ import {
   updateCategorySchema,
   deleteCategorySchema,
 } from "@/lib/validation/category";
+import { z } from "zod";
+
+type CategoryField = "name" | "tag" | "category_type";
+
+export type CategoryFormState = {
+  message: string;
+  fieldErrors?: Partial<Record<CategoryField, string>>;
+};
+
+export const initialCategoryFormState: CategoryFormState = {
+  message: "",
+};
+
+function buildFieldErrors(
+  error: z.ZodError
+): Partial<Record<CategoryField, string>> {
+  const fieldErrors: Partial<Record<CategoryField, string>> = {};
+
+  for (const issue of error.issues) {
+    const key = issue.path[0];
+    if (
+      (key === "name" || key === "tag" || key === "category_type") &&
+      !fieldErrors[key]
+    ) {
+      fieldErrors[key] = issue.message;
+    }
+  }
+
+  return fieldErrors;
+}
 
 export async function createCategory(input: unknown) {
   const parsed = createCategorySchema.parse(input);
@@ -29,6 +59,33 @@ export async function createCategory(input: unknown) {
   revalidatePath("/app/budgets/categories");
 
   return { success: true };
+}
+
+export async function createCategoryFormAction(
+  _prevState: CategoryFormState,
+  formData: FormData
+): Promise<CategoryFormState> {
+  const parsed = createCategorySchema.safeParse({
+    name: String(formData.get("name") ?? ""),
+    tag: String(formData.get("tag") ?? "standard"),
+    category_type: String(formData.get("category_type") ?? "expense"),
+  });
+
+  if (!parsed.success) {
+    return {
+      message: "Please fix the highlighted fields.",
+      fieldErrors: buildFieldErrors(parsed.error),
+    };
+  }
+
+  try {
+    await createCategory(parsed.data);
+    return { message: "Category created." };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to create category.";
+    return { message };
+  }
 }
 
 export async function updateCategory(input: unknown) {
@@ -57,6 +114,34 @@ export async function updateCategory(input: unknown) {
   return { success: true };
 }
 
+export async function updateCategoryFormAction(
+  _prevState: CategoryFormState,
+  formData: FormData
+): Promise<CategoryFormState> {
+  const parsed = updateCategorySchema.safeParse({
+    id: String(formData.get("id") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    tag: String(formData.get("tag") ?? "standard"),
+    category_type: String(formData.get("category_type") ?? "expense"),
+  });
+
+  if (!parsed.success) {
+    return {
+      message: "Please fix the highlighted fields.",
+      fieldErrors: buildFieldErrors(parsed.error),
+    };
+  }
+
+  try {
+    await updateCategory(parsed.data);
+    return { message: "Saved." };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to update category.";
+    return { message };
+  }
+}
+
 export async function deleteCategory(input: unknown) {
   const parsed = deleteCategorySchema.parse(input);
 
@@ -77,4 +162,10 @@ export async function deleteCategory(input: unknown) {
   revalidatePath("/app/budgets");
 
   return { success: true };
+}
+
+export async function deleteCategoryFormAction(formData: FormData) {
+  await deleteCategory({
+    id: String(formData.get("id") ?? ""),
+  });
 }
