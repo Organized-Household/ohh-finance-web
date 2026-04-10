@@ -3,9 +3,9 @@
 import { useActionState } from "react";
 import {
   deleteSavingsAccountFormAction,
-  initialSavingsAccountFormState,
   updateSavingsAccountFormAction,
 } from "@/app/app/accounts/savings/actions";
+import { initialSavingsAccountFormState } from "@/app/app/accounts/savings/form-state";
 
 type SavingsAccountRow = {
   id: string;

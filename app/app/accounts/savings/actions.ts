@@ -18,10 +18,6 @@ export type SavingsAccountFormState = {
   fieldErrors?: Partial<Record<SavingsField, string>>;
 };
 
-export const initialSavingsAccountFormState: SavingsAccountFormState = {
-  message: "",
-};
-
 function buildFieldErrors(
   error: z.ZodError
 ): Partial<Record<SavingsField, string>> {
@@ -74,19 +70,23 @@ export async function createSavingsAccountFormAction(
   _prevState: SavingsAccountFormState,
   formData: FormData
 ): Promise<SavingsAccountFormState> {
-  const parsed = createSavingsAccountSchema.safeParse({
-    purpose: String(formData.get("purpose") ?? ""),
-    account_number: String(formData.get("account_number") ?? ""),
-  });
-
-  if (!parsed.success) {
-    return {
-      message: "Please fix the highlighted fields.",
-      fieldErrors: buildFieldErrors(parsed.error),
-    };
-  }
-
   try {
+    if (!(formData instanceof FormData)) {
+      return { message: "Invalid form submission. Please try again." };
+    }
+
+    const parsed = createSavingsAccountSchema.safeParse({
+      purpose: String(formData.get("purpose") ?? ""),
+      account_number: String(formData.get("account_number") ?? ""),
+    });
+
+    if (!parsed.success) {
+      return {
+        message: "Please fix the highlighted fields.",
+        fieldErrors: buildFieldErrors(parsed.error),
+      };
+    }
+
     const supabase = await createClient();
     const membership = await getCurrentTenantMembership();
     const accountNumberLast4 = toAccountNumberLast4(parsed.data.account_number);
@@ -106,6 +106,7 @@ export async function createSavingsAccountFormAction(
     revalidatePath("/app/accounts/savings");
     return { message: "Savings account created." };
   } catch (error) {
+    console.error("[savings_accounts.create] unexpected action error", error);
     return {
       message: mapMutationError(error, "Failed to create savings account."),
     };
@@ -116,20 +117,24 @@ export async function updateSavingsAccountFormAction(
   _prevState: SavingsAccountFormState,
   formData: FormData
 ): Promise<SavingsAccountFormState> {
-  const parsed = updateSavingsAccountSchema.safeParse({
-    id: String(formData.get("id") ?? ""),
-    purpose: String(formData.get("purpose") ?? ""),
-    account_number: String(formData.get("account_number") ?? ""),
-  });
-
-  if (!parsed.success) {
-    return {
-      message: "Please fix the highlighted fields.",
-      fieldErrors: buildFieldErrors(parsed.error),
-    };
-  }
-
   try {
+    if (!(formData instanceof FormData)) {
+      return { message: "Invalid form submission. Please try again." };
+    }
+
+    const parsed = updateSavingsAccountSchema.safeParse({
+      id: String(formData.get("id") ?? ""),
+      purpose: String(formData.get("purpose") ?? ""),
+      account_number: String(formData.get("account_number") ?? ""),
+    });
+
+    if (!parsed.success) {
+      return {
+        message: "Please fix the highlighted fields.",
+        fieldErrors: buildFieldErrors(parsed.error),
+      };
+    }
+
     const supabase = await createClient();
     const membership = await getCurrentTenantMembership();
     const accountNumberLast4 = toAccountNumberLast4(parsed.data.account_number);
@@ -153,6 +158,7 @@ export async function updateSavingsAccountFormAction(
     revalidatePath("/app/accounts/savings");
     return { message: "Saved." };
   } catch (error) {
+    console.error("[savings_accounts.update] unexpected action error", error);
     return {
       message: mapMutationError(error, "Failed to update savings account."),
     };
@@ -163,15 +169,19 @@ export async function deleteSavingsAccountFormAction(
   _prevState: SavingsAccountFormState,
   formData: FormData
 ): Promise<SavingsAccountFormState> {
-  const parsed = deleteSavingsAccountSchema.safeParse({
-    id: String(formData.get("id") ?? ""),
-  });
-
-  if (!parsed.success) {
-    return { message: "Invalid savings account id." };
-  }
-
   try {
+    if (!(formData instanceof FormData)) {
+      return { message: "Invalid form submission. Please try again." };
+    }
+
+    const parsed = deleteSavingsAccountSchema.safeParse({
+      id: String(formData.get("id") ?? ""),
+    });
+
+    if (!parsed.success) {
+      return { message: "Invalid savings account id." };
+    }
+
     const supabase = await createClient();
     const membership = await getCurrentTenantMembership();
 
@@ -190,6 +200,7 @@ export async function deleteSavingsAccountFormAction(
     revalidatePath("/app/accounts/savings");
     return { message: "Savings account removed." };
   } catch (error) {
+    console.error("[savings_accounts.delete] unexpected action error", error);
     return {
       message: mapMutationError(error, "Failed to remove savings account."),
     };
