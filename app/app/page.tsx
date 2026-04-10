@@ -2,12 +2,14 @@ import WorkspaceShell from "@/components/layout/workspace-shell";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
 import IncomeVsExpenseSummary from "@/components/dashboard/income-vs-expense-summary";
+import IncomeList from "@/components/dashboard/income-list";
 import HouseholdMemberCard from "@/components/layout/household-member-card";
 import { createClient } from "@/lib/supabase/server";
 import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import { formatMonthStartDate } from "@/lib/db/month";
 import { getDashboardMonth } from "@/lib/dashboard/get-dashboard-month";
 import { getIncomeVsExpenseSummary } from "@/lib/dashboard/get-income-vs-expense-summary";
+import { getIncomeList } from "@/lib/dashboard/get-income-list";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -42,6 +44,7 @@ export default async function AppHomePage({
     monthStartIso,
     nextMonthStartIso
   );
+  const incomeList = await getIncomeList(monthStartIso, nextMonthStartIso);
 
   const dashboardData: DashboardData = {
     memberFirstName: getUserFirstName(user),
@@ -83,7 +86,10 @@ export default async function AppHomePage({
       leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={dashboardData.selectedMonth} />}
     >
-      <IncomeVsExpenseSummary summary={incomeVsExpenseSummary} />
+      <div className="space-y-3">
+        <IncomeVsExpenseSummary summary={incomeVsExpenseSummary} />
+        <IncomeList items={incomeList} />
+      </div>
     </WorkspaceShell>
   );
 }
