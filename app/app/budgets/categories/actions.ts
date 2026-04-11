@@ -61,6 +61,9 @@ function mapMutationError(error: unknown, defaultMessage: string): string {
   return defaultMessage;
 }
 
+const categoryDependencyMessage =
+  "Category cannot be deleted because it is still used in budgets or transactions. Remove those dependencies first. If it is budgeted, set the budget amount to 0 before deleting.";
+
 export async function createCategory(input: unknown) {
   const parsed = createCategorySchema.parse(input);
 
@@ -170,6 +173,58 @@ export async function deleteCategory(input: unknown) {
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
 
+  const { data: transactionDependency, error: transactionDependencyError } =
+    await supabase
+      .from("transactions")
+      .select("id")
+      .eq("tenant_id", membership.tenant_id)
+      .eq("category_id", parsed.id)
+      .limit(1)
+      .maybeSingle();
+
+  if (transactionDependencyError) {
+    throw new Error(
+      `Failed to validate category transaction dependencies: ${transactionDependencyError.message}`
+    );
+  }
+
+  if (transactionDependency) {
+    throw new Error(categoryDependencyMessage);
+  }
+
+  const { data: nonZeroBudgetDependency, error: nonZeroBudgetDependencyError } =
+    await supabase
+      .from("budget_lines")
+      .select("id")
+      .eq("tenant_id", membership.tenant_id)
+      .eq("category_id", parsed.id)
+      .neq("amount", 0)
+      .limit(1)
+      .maybeSingle();
+
+  if (nonZeroBudgetDependencyError) {
+    throw new Error(
+      `Failed to validate category budget dependencies: ${nonZeroBudgetDependencyError.message}`
+    );
+  }
+
+  if (nonZeroBudgetDependency) {
+    throw new Error(categoryDependencyMessage);
+  }
+
+  const { error: zeroBudgetLineCleanupError } = await supabase
+    .from("budget_lines")
+    .delete()
+    .eq("tenant_id", membership.tenant_id)
+    .eq("category_id", parsed.id)
+    .eq("amount", 0);
+
+  if (zeroBudgetLineCleanupError) {
+    throw new Error(
+      `Failed to clear zero-amount budget dependencies: ${zeroBudgetLineCleanupError.message}`
+    );
+  }
+
   const { error } = await supabase
     .from("categories")
     .delete()
@@ -199,25 +254,13 @@ export async function deleteCategoryFormAction(
   }
 
   try {
-    const supabase = await createClient();
-    const membership = await getCurrentTenantMembership();
-
-    const { error } = await supabase
-      .from("categories")
-      .delete()
-      .eq("id", parsed.data.id)
-      .eq("tenant_id", membership.tenant_id);
-
-    if (error) {
-      return {
-        message: mapMutationError(error, "Failed to delete category."),
-      };
-    }
-
-    revalidatePath("/app/budgets/categories");
-    revalidatePath("/app/budgets");
+    await deleteCategory(parsed.data);
     return { message: "Category removed." };
   } catch (error) {
+    if (error instanceof Error && error.message === categoryDependencyMessage) {
+      return { message: categoryDependencyMessage };
+    }
+
     return {
       message: mapMutationError(error, "Failed to delete category."),
     };
