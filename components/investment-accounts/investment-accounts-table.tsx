@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import {
+  type InvestmentAccountFormState,
   deleteInvestmentAccountFormAction,
   updateInvestmentAccountFormAction,
 } from "@/app/app/accounts/investments/actions";
@@ -24,75 +25,94 @@ type EditableRowProps = {
 function EditableRow({ row }: EditableRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [draftName, setDraftName] = useState(row.name);
+  const [draftType, setDraftType] = useState(row.account_type);
+  const [lastSavedName, setLastSavedName] = useState<string | null>(null);
+  const [lastSavedType, setLastSavedType] = useState<string | null>(null);
+
+  const updateActionWithUiState = async (
+    prevState: InvestmentAccountFormState,
+    formData: FormData
+  ) => {
+    const nextState = await updateInvestmentAccountFormAction(prevState, formData);
+    if (nextState.message === "Saved." && !nextState.fieldErrors) {
+      setLastSavedName(draftName);
+      setLastSavedType(draftType);
+      setIsEditing(false);
+      setIsConfirmingDelete(false);
+    }
+    return nextState;
+  };
 
   const [state, updateAction, pending] = useActionState(
-    updateInvestmentAccountFormAction,
+    updateActionWithUiState,
     initialInvestmentAccountFormState
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteInvestmentAccountFormAction,
     initialInvestmentAccountFormState
   );
+  const displayName = lastSavedName ?? row.name;
+  const displayType = lastSavedType ?? row.account_type;
 
   return (
     <tr className="border-b border-slate-200">
       <td className="px-3 py-2 align-top text-sm text-slate-900">
         {isEditing ? (
           <input
-            form={`investment-row-${row.id}`}
             id={`investment-name-${row.id}`}
-            name="name"
+            name={`investment-name-${row.id}`}
             type="text"
-            defaultValue={row.name}
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
             required
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          <span>{row.name}</span>
+          <span>{displayName}</span>
         )}
       </td>
 
       <td className="px-3 py-2 align-top text-sm text-slate-700">
         {isEditing ? (
           <input
-            form={`investment-row-${row.id}`}
             id={`investment-type-${row.id}`}
-            name="type"
+            name={`investment-type-${row.id}`}
             type="text"
-            defaultValue={row.account_type}
+            value={draftType}
+            onChange={(event) => setDraftType(event.target.value)}
             required
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          row.account_type
+          displayType
         )}
       </td>
 
       <td className="px-3 py-2 align-top text-right text-sm">
-        <form
-          id={`investment-row-${row.id}`}
-          action={updateAction}
-          className="hidden"
-          onSubmit={() => setIsEditing(false)}
-        >
-          <input type="hidden" name="id" value={row.id} />
-        </form>
-
         <div className="flex items-center justify-end gap-2">
           {isEditing ? (
             <>
-              <button
-                type="submit"
-                form={`investment-row-${row.id}`}
-                disabled={pending}
-                className="h-7 rounded bg-slate-900 px-2 text-xs font-medium text-white disabled:opacity-70"
-              >
-                {pending ? "Saving..." : "Save"}
-              </button>
+              <form action={updateAction} className="inline">
+                <input type="hidden" name="id" value={row.id} />
+                <input type="hidden" name="name" value={draftName} />
+                <input type="hidden" name="type" value={draftType} />
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="h-7 rounded bg-slate-900 px-2 text-xs font-medium text-white disabled:opacity-70"
+                >
+                  {pending ? "Saving..." : "Save"}
+                </button>
+              </form>
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  setDraftName(displayName);
+                  setDraftType(displayType);
+                  setIsEditing(false);
+                }}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700 disabled:opacity-70"
               >
                 Cancel
@@ -125,6 +145,8 @@ function EditableRow({ row }: EditableRowProps) {
                 type="button"
                 onClick={() => {
                   setIsConfirmingDelete(false);
+                  setDraftName(displayName);
+                  setDraftType(displayType);
                   setIsEditing(true);
                 }}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700"
