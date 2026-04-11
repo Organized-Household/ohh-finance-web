@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   deleteInvestmentAccountFormAction,
   updateInvestmentAccountFormAction,
@@ -22,6 +22,7 @@ type EditableRowProps = {
 };
 
 function EditableRow({ row }: EditableRowProps) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [state, updateAction, pending] = useActionState(
     updateInvestmentAccountFormAction,
     initialInvestmentAccountFormState
@@ -94,22 +95,39 @@ function EditableRow({ row }: EditableRowProps) {
         ) : null}
       </td>
       <td className="px-3 py-2 align-top text-right text-sm">
-        <form action={deleteAction} className="inline">
-          <input type="hidden" name="id" value={row.id} />
-          <button
-            type="submit"
-            disabled={deletePending}
-            className="h-8 rounded border border-rose-300 px-2.5 text-xs font-medium text-rose-700 disabled:opacity-70"
-            onClick={(event) => {
-              const confirmed = window.confirm("Remove this investment account?");
-              if (!confirmed) {
-                event.preventDefault();
-              }
-            }}
-          >
-            {deletePending ? "Removing..." : "Remove"}
-          </button>
-        </form>
+        <div className="mt-6 flex flex-col items-end gap-1">
+          {isConfirmingDelete ? (
+            <div className="flex items-center gap-2">
+              <form action={deleteAction} className="inline">
+                <input type="hidden" name="id" value={row.id} />
+                <button
+                  type="submit"
+                  disabled={deletePending}
+                  className="h-8 rounded border border-rose-300 px-2.5 text-xs font-medium text-rose-700 disabled:opacity-70"
+                >
+                  {deletePending ? "Removing..." : "Confirm"}
+                </button>
+              </form>
+              <button
+                type="button"
+                disabled={deletePending}
+                onClick={() => setIsConfirmingDelete(false)}
+                className="h-8 rounded border border-slate-300 px-2.5 text-xs font-medium text-slate-700 disabled:opacity-70"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={deletePending}
+              onClick={() => setIsConfirmingDelete(true)}
+              className="h-8 rounded border border-rose-300 px-2.5 text-xs font-medium text-rose-700 disabled:opacity-70"
+            >
+              Remove
+            </button>
+          )}
+        </div>
 
         {deleteState.message ? (
           <p className="mt-1 text-[11px] text-rose-700">{deleteState.message}</p>
