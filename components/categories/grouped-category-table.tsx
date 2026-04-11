@@ -26,12 +26,30 @@ export default function GroupedCategoryTable({
 }: GroupedCategoryTableProps) {
   return (
     <section className="overflow-hidden rounded-lg border border-slate-300 bg-white">
-      <div className="grid items-center gap-2 border-b border-slate-300 bg-slate-900 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white md:grid-cols-[minmax(0,1fr)_10rem_9rem_auto]">
-        <span>Name</span>
-        <span>Category Type</span>
-        <span>Tag</span>
-        <span className="text-right">Actions</span>
-      </div>
+      <table className="w-full table-fixed border-collapse">
+        <colgroup>
+          <col />
+          <col className="w-40" />
+          <col className="w-36" />
+          <col className="w-44" />
+        </colgroup>
+        <thead className="bg-slate-900 text-white">
+          <tr>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide">
+              Name
+            </th>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide">
+              Category Type
+            </th>
+            <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide">
+              Tag
+            </th>
+            <th className="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide">
+              Actions
+            </th>
+          </tr>
+        </thead>
+      </table>
 
       {sectionOrder.map((section) => (
         <CategorySectionTable

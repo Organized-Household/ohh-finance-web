@@ -199,7 +199,13 @@ export default function CategorySectionTable({ title, rows }: CategorySectionTab
           No categories in this group.
         </div>
       ) : (
-        <table className="w-full border-collapse">
+        <table className="w-full table-fixed border-collapse">
+          <colgroup>
+            <col />
+            <col className="w-40" />
+            <col className="w-36" />
+            <col className="w-44" />
+          </colgroup>
           <tbody>
             {rows.map((category) => (
               <EditableCategoryRow key={category.id} category={category} />
