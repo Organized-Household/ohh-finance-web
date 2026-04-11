@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import {
+  type DebtAccountFormState,
   deleteDebtAccountFormAction,
   updateDebtAccountFormAction,
 } from "@/app/app/accounts/debts/actions";
@@ -26,15 +27,34 @@ function EditableRow({ row }: EditableRowProps) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [draftName, setDraftName] = useState(row.name);
   const [draftType, setDraftType] = useState(row.type);
+  const [lastSavedName, setLastSavedName] = useState<string | null>(null);
+  const [lastSavedType, setLastSavedType] = useState<string | null>(null);
+
+  const updateActionWithUiState = async (
+    prevState: DebtAccountFormState,
+    formData: FormData
+  ) => {
+    const nextState = await updateDebtAccountFormAction(prevState, formData);
+    if (nextState.message === "Saved." && !nextState.fieldErrors) {
+      setLastSavedName(draftName);
+      setLastSavedType(draftType);
+      setIsEditing(false);
+      setIsConfirmingDelete(false);
+    }
+    return nextState;
+  };
 
   const [state, updateAction, pending] = useActionState(
-    updateDebtAccountFormAction,
+    updateActionWithUiState,
     initialDebtAccountFormState
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteDebtAccountFormAction,
     initialDebtAccountFormState
   );
+
+  const displayName = lastSavedName ?? row.name;
+  const displayType = lastSavedType ?? row.type;
 
   return (
     <tr className="border-b border-slate-200">
@@ -50,7 +70,7 @@ function EditableRow({ row }: EditableRowProps) {
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          row.name
+          displayName
         )}
       </td>
 
@@ -66,7 +86,7 @@ function EditableRow({ row }: EditableRowProps) {
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          row.type
+          displayType
         )}
       </td>
 
@@ -90,8 +110,8 @@ function EditableRow({ row }: EditableRowProps) {
                 type="button"
                 disabled={pending}
                 onClick={() => {
-                  setDraftName(row.name);
-                  setDraftType(row.type);
+                  setDraftName(displayName);
+                  setDraftType(displayType);
                   setIsEditing(false);
                 }}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700 disabled:opacity-70"
@@ -126,8 +146,8 @@ function EditableRow({ row }: EditableRowProps) {
                 type="button"
                 onClick={() => {
                   setIsConfirmingDelete(false);
-                  setDraftName(row.name);
-                  setDraftType(row.type);
+                  setDraftName(displayName);
+                  setDraftType(displayType);
                   setIsEditing(true);
                 }}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700"
