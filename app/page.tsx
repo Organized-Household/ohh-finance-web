@@ -1,5 +1,5 @@
 import PublicBrandHeader from "@/components/public/public-brand-header";
-import HeroCard from "@/components/public/hero-card";
+import WelcomeScreen from "@/components/public/welcome-screen";
 
 export default function LandingPage() {
   return (
@@ -7,7 +7,7 @@ export default function LandingPage() {
       <PublicBrandHeader current="welcome" />
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 pb-10 pt-12 sm:pt-16">
-        <HeroCard />
+        <WelcomeScreen />
       </main>
     </div>
   );
