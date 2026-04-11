@@ -2,23 +2,23 @@
 
 import { useActionState, useState } from "react";
 import {
-  deleteInvestmentAccountFormAction,
-  updateInvestmentAccountFormAction,
-} from "@/app/app/accounts/investments/actions";
-import { initialInvestmentAccountFormState } from "@/app/app/accounts/investments/form-state";
+  deleteDebtAccountFormAction,
+  updateDebtAccountFormAction,
+} from "@/app/app/accounts/debts/actions";
+import { initialDebtAccountFormState } from "@/app/app/accounts/debts/form-state";
 
-type InvestmentAccountRow = {
+type DebtAccountRow = {
   id: string;
   name: string;
-  account_type: string;
+  type: string;
 };
 
-type InvestmentAccountsTableProps = {
-  rows: InvestmentAccountRow[];
+type DebtAccountsTableProps = {
+  rows: DebtAccountRow[];
 };
 
 type EditableRowProps = {
-  row: InvestmentAccountRow;
+  row: DebtAccountRow;
 };
 
 function EditableRow({ row }: EditableRowProps) {
@@ -26,12 +26,12 @@ function EditableRow({ row }: EditableRowProps) {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const [state, updateAction, pending] = useActionState(
-    updateInvestmentAccountFormAction,
-    initialInvestmentAccountFormState
+    updateDebtAccountFormAction,
+    initialDebtAccountFormState
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
-    deleteInvestmentAccountFormAction,
-    initialInvestmentAccountFormState
+    deleteDebtAccountFormAction,
+    initialDebtAccountFormState
   );
 
   return (
@@ -39,8 +39,8 @@ function EditableRow({ row }: EditableRowProps) {
       <td className="px-3 py-2 align-top text-sm text-slate-900">
         {isEditing ? (
           <input
-            form={`investment-row-${row.id}`}
-            id={`investment-name-${row.id}`}
+            form={`debt-row-${row.id}`}
+            id={`debt-name-${row.id}`}
             name="name"
             type="text"
             defaultValue={row.name}
@@ -48,29 +48,29 @@ function EditableRow({ row }: EditableRowProps) {
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          <span>{row.name}</span>
+          row.name
         )}
       </td>
 
       <td className="px-3 py-2 align-top text-sm text-slate-700">
         {isEditing ? (
           <input
-            form={`investment-row-${row.id}`}
-            id={`investment-type-${row.id}`}
+            form={`debt-row-${row.id}`}
+            id={`debt-type-${row.id}`}
             name="type"
             type="text"
-            defaultValue={row.account_type}
+            defaultValue={row.type}
             required
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          row.account_type
+          row.type
         )}
       </td>
 
       <td className="px-3 py-2 align-top text-right text-sm">
         <form
-          id={`investment-row-${row.id}`}
+          id={`debt-row-${row.id}`}
           action={updateAction}
           className="hidden"
           onSubmit={() => setIsEditing(false)}
@@ -83,7 +83,7 @@ function EditableRow({ row }: EditableRowProps) {
             <>
               <button
                 type="submit"
-                form={`investment-row-${row.id}`}
+                form={`debt-row-${row.id}`}
                 disabled={pending}
                 className="h-7 rounded bg-slate-900 px-2 text-xs font-medium text-white disabled:opacity-70"
               >
@@ -168,13 +168,11 @@ function EditableRow({ row }: EditableRowProps) {
   );
 }
 
-export default function InvestmentAccountsTable({
-  rows,
-}: InvestmentAccountsTableProps) {
+export default function DebtAccountsTable({ rows }: DebtAccountsTableProps) {
   if (!rows.length) {
     return (
       <section className="rounded-lg border border-slate-300 bg-white px-3 py-4 text-sm text-slate-600">
-        No investment accounts yet.
+        No debt accounts yet.
       </section>
     );
   }

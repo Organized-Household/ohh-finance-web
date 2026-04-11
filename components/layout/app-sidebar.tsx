@@ -90,6 +90,19 @@ const navItems: SidebarItem[] = [
     ),
     isActive: (pathname) => pathname.startsWith("/app/accounts/investments"),
   },
+  {
+    href: "/app/accounts/debts",
+    label: "Debts",
+    icon: (
+      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+        <path
+          d="M4.5 5.25h15a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-.75.75h-15a.75.75 0 0 1-.75-.75V6a.75.75 0 0 1 .75-.75Zm2.25 2.25a.75.75 0 0 0 0 1.5h6a.75.75 0 0 0 0-1.5h-6Zm0 3a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H6.75Zm0 3a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H6.75Z"
+          fill="currentColor"
+        />
+      </svg>
+    ),
+    isActive: (pathname) => pathname.startsWith("/app/accounts/debts"),
+  },
 ];
 
 type AppSidebarProps = {
