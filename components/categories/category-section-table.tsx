@@ -3,9 +3,9 @@
 import { useActionState, useState } from "react";
 import {
   deleteCategoryFormAction,
-  initialCategoryFormState,
   updateCategoryFormAction,
 } from "@/app/app/budgets/categories/actions";
+import { initialCategoryFormState } from "@/app/app/budgets/categories/form-state";
 
 type CategoryRow = {
   id: string;

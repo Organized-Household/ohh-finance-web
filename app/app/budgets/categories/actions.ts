@@ -17,10 +17,6 @@ export type CategoryFormState = {
   fieldErrors?: Partial<Record<CategoryField, string>>;
 };
 
-export const initialCategoryFormState: CategoryFormState = {
-  message: "",
-};
-
 function buildFieldErrors(
   error: z.ZodError
 ): Partial<Record<CategoryField, string>> {

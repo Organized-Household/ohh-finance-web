@@ -1,10 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  createCategoryFormAction,
-  initialCategoryFormState,
-} from "@/app/app/budgets/categories/actions";
+import { createCategoryFormAction } from "@/app/app/budgets/categories/actions";
+import { initialCategoryFormState } from "@/app/app/budgets/categories/form-state";
 
 export default function CategoryCreateForm() {
   const [state, formAction, pending] = useActionState(
