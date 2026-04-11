@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import {
+  type CategoryFormState,
   deleteCategoryFormAction,
   updateCategoryFormAction,
 } from "@/app/app/budgets/categories/actions";
@@ -26,54 +27,90 @@ type EditableCategoryRowProps = {
 function EditableCategoryRow({ category }: EditableCategoryRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [draftName, setDraftName] = useState(category.name);
+  const [draftCategoryType, setDraftCategoryType] = useState(
+    category.category_type
+  );
+  const [draftTag, setDraftTag] = useState(category.tag);
+  const [lastSavedName, setLastSavedName] = useState<string | null>(null);
+  const [lastSavedCategoryType, setLastSavedCategoryType] = useState<
+    CategoryRow["category_type"] | null
+  >(null);
+  const [lastSavedTag, setLastSavedTag] = useState<CategoryRow["tag"] | null>(
+    null
+  );
+
+  const updateActionWithUiState = async (
+    prevState: CategoryFormState,
+    formData: FormData
+  ) => {
+    const nextState = await updateCategoryFormAction(prevState, formData);
+    if (nextState.message === "Saved." && !nextState.fieldErrors) {
+      setLastSavedName(draftName);
+      setLastSavedCategoryType(draftCategoryType);
+      setLastSavedTag(draftTag);
+      setIsEditing(false);
+      setIsConfirmingDelete(false);
+    }
+    return nextState;
+  };
 
   const [state, updateAction, pending] = useActionState(
-    updateCategoryFormAction,
+    updateActionWithUiState,
     initialCategoryFormState
   );
+  const [deleteState, deleteAction, deletePending] = useActionState(
+    deleteCategoryFormAction,
+    initialCategoryFormState
+  );
+  const displayName = lastSavedName ?? category.name;
+  const displayCategoryType = lastSavedCategoryType ?? category.category_type;
+  const displayTag = lastSavedTag ?? category.tag;
 
   return (
     <tr className="border-b border-slate-200 last:border-b-0">
       <td className="px-3 py-2 text-sm text-slate-900 align-top">
         {isEditing ? (
           <input
-            form={`category-row-${category.id}`}
             id={`name-${category.id}`}
-            name="name"
+            name={`category-name-${category.id}`}
             type="text"
-            defaultValue={category.name}
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
             required
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          category.name
+          displayName
         )}
       </td>
 
       <td className="px-3 py-2 text-sm text-slate-700 align-top">
         {isEditing ? (
           <select
-            form={`category-row-${category.id}`}
             id={`category-type-${category.id}`}
-            name="category_type"
-            defaultValue={category.category_type}
+            name={`category-type-${category.id}`}
+            value={draftCategoryType}
+            onChange={(event) =>
+              setDraftCategoryType(event.target.value as CategoryRow["category_type"])
+            }
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           >
             <option value="expense">Expense</option>
             <option value="income">Income</option>
           </select>
         ) : (
-          <span className="capitalize">{category.category_type}</span>
+          <span className="capitalize">{displayCategoryType}</span>
         )}
       </td>
 
       <td className="px-3 py-2 text-sm text-slate-700 align-top">
         {isEditing ? (
           <select
-            form={`category-row-${category.id}`}
             id={`tag-${category.id}`}
-            name="tag"
-            defaultValue={category.tag}
+            name={`tag-${category.id}`}
+            value={draftTag}
+            onChange={(event) => setDraftTag(event.target.value as CategoryRow["tag"])}
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           >
             <option value="standard">Standard</option>
@@ -81,33 +118,34 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
             <option value="investment">Investment</option>
           </select>
         ) : (
-          <span className="capitalize">{category.tag}</span>
+          <span className="capitalize">{displayTag}</span>
         )}
       </td>
 
       <td className="px-3 py-2 text-sm text-right align-top">
-        <form
-          id={`category-row-${category.id}`}
-          action={updateAction}
-          className="hidden"
-          onSubmit={() => setIsEditing(false)}
-        >
-          <input type="hidden" name="id" value={category.id} />
-        </form>
-
         <div className="flex items-center justify-end gap-2">
           {isEditing ? (
             <>
-              <button
-                type="submit"
-                form={`category-row-${category.id}`}
-                disabled={pending}
-                className="h-7 rounded bg-slate-900 px-2 text-xs font-medium text-white disabled:opacity-70"
-              >
-                {pending ? "Saving..." : "Save"}
-              </button>
+              <form action={updateAction} className="inline">
+                <input type="hidden" name="id" value={category.id} />
+                <input type="hidden" name="name" value={draftName} />
+                <input
+                  type="hidden"
+                  name="category_type"
+                  value={draftCategoryType}
+                />
+                <input type="hidden" name="tag" value={draftTag} />
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="h-7 rounded bg-slate-900 px-2 text-xs font-medium text-white disabled:opacity-70"
+                >
+                  {pending ? "Saving..." : "Save"}
+                </button>
+              </form>
               <button
                 type="button"
+                disabled={pending}
                 onClick={() => setIsEditing(false)}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700"
               >
@@ -116,17 +154,19 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
             </>
           ) : isConfirmingDelete ? (
             <>
-              <form action={deleteCategoryFormAction} className="inline">
+              <form action={deleteAction} className="inline">
                 <input type="hidden" name="id" value={category.id} />
                 <button
                   type="submit"
+                  disabled={deletePending}
                   className="h-7 rounded border border-rose-300 px-2 text-xs font-medium text-rose-700"
                 >
-                  Confirm
+                  {deletePending ? "Removing..." : "Confirm"}
                 </button>
               </form>
               <button
                 type="button"
+                disabled={deletePending}
                 onClick={() => setIsConfirmingDelete(false)}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700"
               >
@@ -139,6 +179,9 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
                 type="button"
                 onClick={() => {
                   setIsConfirmingDelete(false);
+                  setDraftName(displayName);
+                  setDraftCategoryType(displayCategoryType);
+                  setDraftTag(displayTag);
                   setIsEditing(true);
                 }}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700"
@@ -175,6 +218,17 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
             }`}
           >
             {state.message}
+          </p>
+        ) : null}
+        {deleteState.message ? (
+          <p
+            className={`mt-1 text-[11px] text-right ${
+              deleteState.message === "Category removed."
+                ? "text-emerald-700"
+                : "text-rose-700"
+            }`}
+          >
+            {deleteState.message}
           </p>
         ) : null}
       </td>

@@ -35,6 +35,32 @@ function buildFieldErrors(
   return fieldErrors;
 }
 
+function mapMutationError(error: unknown, defaultMessage: string): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    "message" in error
+  ) {
+    const code = String((error as { code?: unknown }).code ?? "");
+    const message = String((error as { message?: unknown }).message ?? "");
+
+    if (code === "23503") {
+      return "Category cannot be deleted because it is still used in budgets or transactions. Remove those dependencies first. If it is budgeted, set the budget amount to 0 before deleting.";
+    }
+
+    if (message) {
+      return message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return defaultMessage;
+}
+
 export async function createCategory(input: unknown) {
   const parsed = createCategorySchema.parse(input);
 
@@ -160,8 +186,40 @@ export async function deleteCategory(input: unknown) {
   return { success: true };
 }
 
-export async function deleteCategoryFormAction(formData: FormData) {
-  await deleteCategory({
+export async function deleteCategoryFormAction(
+  _prevState: CategoryFormState,
+  formData: FormData
+): Promise<CategoryFormState> {
+  const parsed = deleteCategorySchema.safeParse({
     id: String(formData.get("id") ?? ""),
   });
+
+  if (!parsed.success) {
+    return { message: "Invalid category id." };
+  }
+
+  try {
+    const supabase = await createClient();
+    const membership = await getCurrentTenantMembership();
+
+    const { error } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", parsed.data.id)
+      .eq("tenant_id", membership.tenant_id);
+
+    if (error) {
+      return {
+        message: mapMutationError(error, "Failed to delete category."),
+      };
+    }
+
+    revalidatePath("/app/budgets/categories");
+    revalidatePath("/app/budgets");
+    return { message: "Category removed." };
+  } catch (error) {
+    return {
+      message: mapMutationError(error, "Failed to delete category."),
+    };
+  }
 }
