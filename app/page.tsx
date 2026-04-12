@@ -6,7 +6,7 @@ export default function LandingPage() {
     <div className="min-h-screen bg-slate-100">
       <PublicBrandHeader current="welcome" />
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center px-4 pb-10 pt-12 sm:pt-16">
+      <main className="mx-auto flex w-full flex-1 flex-col px-4 pb-10 pt-10 sm:pt-12 lg:px-6">
         <WelcomeScreen />
       </main>
     </div>
