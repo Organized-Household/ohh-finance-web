@@ -98,6 +98,18 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     phraseMaxWidth: "max-w-[48rem]",
     phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
+  {
+    imageSrc: "/hero/welcome-happy-family.png",
+    alt: "Financially free happy family",
+    phrase: "Organized finances create peaceful homes and happy families",
+    desktopObjectPosition: "32% center",
+    mobileObjectPosition: "36% center",
+    fitModeDesktop: "cover",
+    fitModeMobile: "cover",
+    scrimStrength: 0.37,
+    phraseMaxWidth: "max-w-[48rem]",
+    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+  },
 ];
 
 export const WELCOME_SLIDE_DURATION_MS = 5000;
