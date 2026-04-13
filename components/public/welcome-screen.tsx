@@ -63,8 +63,8 @@ function HeroCardContent() {
 
 export default function WelcomeScreen() {
   return (
-    <section className="w-full">
-      <div className="relative overflow-hidden bg-slate-900 lg:min-h-[680px]">
+    <section className="flex h-full w-full flex-col bg-slate-900">
+      <div className="relative min-h-[calc(100dvh-76px)] flex-1 overflow-hidden bg-slate-900">
         <WelcomeHeroSlideshow />
 
         <div className="pointer-events-none absolute inset-0 hidden items-center justify-end p-6 lg:flex xl:p-10">
@@ -74,7 +74,7 @@ export default function WelcomeScreen() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-2xl px-4 pb-8 pt-4 sm:px-6 lg:hidden">
+      <div className="mx-auto w-full max-w-2xl px-4 py-4 sm:px-6 lg:hidden">
         <HeroCardContent />
       </div>
     </section>

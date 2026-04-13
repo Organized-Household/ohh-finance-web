@@ -183,7 +183,7 @@ export default function WelcomeHeroSlideshow() {
   const incomingSlide = nextIndex == null ? null : WELCOME_SLIDES[nextIndex];
 
   return (
-    <div className="relative h-[360px] overflow-hidden bg-slate-900 sm:h-[460px] lg:h-[680px]">
+    <div className="relative h-full min-h-[360px] overflow-hidden bg-slate-900 sm:min-h-[460px]">
       {allImagesFailed ? (
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700" />
       ) : (
