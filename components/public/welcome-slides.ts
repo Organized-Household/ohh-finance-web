@@ -108,7 +108,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.37,
     phraseMaxWidth: "max-w-[48rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseBottomOffset: "pt-6 sm:pt-8 lg:pt-10",
   },
 ];
 
