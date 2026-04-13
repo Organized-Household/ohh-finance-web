@@ -77,7 +77,8 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.35,
     phraseMaxWidth: "max-w-[47rem]",
-    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseVerticalAlign: "bottom",    
+    phraseOffset: "justify-start pb-6 sm:pb-8 lg:pb-10 pl-4 sm:pl-6 lg:pl-8 text-left",
   },
   {
     imageSrc: "/hero/welcome-sandcastle-kids.png",
