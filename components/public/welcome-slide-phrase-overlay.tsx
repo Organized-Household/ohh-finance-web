@@ -1,27 +1,17 @@
-"use client";
-
-import type { PhraseAlignment } from "./welcome-slides";
+﻿"use client";
 
 type WelcomeSlidePhraseOverlayProps = {
   phrase: string;
-  alignment: PhraseAlignment;
-  textMaxWidth?: string;
+  phraseMaxWidth: string;
+  phraseBottomOffset: string;
   visible: boolean;
   reduceMotion: boolean;
 };
 
-const alignmentClassMap: Record<PhraseAlignment, string> = {
-  "top-left": "items-start justify-start pt-8 sm:pt-10 lg:pt-12",
-  "center-left": "items-center justify-start",
-  "bottom-left": "items-end justify-start pb-8 sm:pb-10 lg:pb-12",
-  "top-center": "items-start justify-center pt-8 sm:pt-10 lg:pt-12",
-  "bottom-center": "items-end justify-center pb-8 sm:pb-10 lg:pb-12",
-};
-
 export default function WelcomeSlidePhraseOverlay({
   phrase,
-  alignment,
-  textMaxWidth,
+  phraseMaxWidth,
+  phraseBottomOffset,
   visible,
   reduceMotion,
 }: WelcomeSlidePhraseOverlayProps) {
@@ -35,10 +25,10 @@ export default function WelcomeSlidePhraseOverlay({
 
   return (
     <div
-      className={`pointer-events-none absolute inset-0 flex px-4 sm:px-6 lg:px-8 xl:px-10 lg:pr-[44%] ${alignmentClassMap[alignment]}`}
+      className={`pointer-events-none absolute inset-0 flex items-end justify-center px-4 sm:px-6 lg:px-8 ${phraseBottomOffset}`}
     >
       <p
-        className={`${textMaxWidth ?? "max-w-[30rem]"} rounded-md bg-slate-950/28 px-3 py-2 text-xl font-semibold leading-tight text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition duration-500 sm:text-2xl lg:text-3xl ${motionClass}`}
+        className={`${phraseMaxWidth} text-balance bg-gradient-to-t from-slate-950/45 via-slate-950/20 to-transparent px-5 py-3 text-center text-3xl font-normal italic leading-tight text-slate-50 drop-shadow-[0_6px_16px_rgba(0,0,0,0.45)] transition duration-500 sm:text-4xl lg:text-[3.2rem] ${motionClass}`}
       >
         {phrase}
       </p>
