@@ -10,7 +10,8 @@ export type WelcomeSlide = {
   fitModeMobile: SlideFitMode;
   scrimStrength: number;
   phraseMaxWidth: string;
-  phraseBottomOffset: string;
+  phraseOffset: string;
+  phraseVerticalAlign?: "top" | "bottom";
 };
 
 export const WELCOME_SLIDES: WelcomeSlide[] = [
@@ -24,7 +25,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.34,
     phraseMaxWidth: "max-w-[46rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
   {
     imageSrc: "/hero/welcome-new-car.png",
@@ -36,7 +37,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.38,
     phraseMaxWidth: "max-w-[44rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
   {
     imageSrc: "/hero/welcome-charity-family.png",
@@ -48,7 +49,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.36,
     phraseMaxWidth: "max-w-[46rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
   {
     imageSrc: "/hero/welcome-campus-family.png",
@@ -60,7 +61,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.37,
     phraseMaxWidth: "max-w-[46rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
   {
     imageSrc: "/hero/welcome-amalfi-breakfast.png",
@@ -72,7 +73,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.35,
     phraseMaxWidth: "max-w-[47rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
   {
     imageSrc: "/hero/welcome-sandcastle-kids.png",
@@ -84,7 +85,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.33,
     phraseMaxWidth: "max-w-[42rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
   {
     imageSrc: "/hero/welcome-sunset-couple.png",
@@ -96,7 +97,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.37,
     phraseMaxWidth: "max-w-[48rem]",
-    phraseBottomOffset: "pb-6 sm:pb-8 lg:pb-10",
+    phraseOffset: "pb-6 sm:pb-8 lg:pb-10",
   },
   {
     imageSrc: "/hero/welcome-happy-family.png",
@@ -108,7 +109,8 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.37,
     phraseMaxWidth: "max-w-[48rem]",
-    phraseBottomOffset: "pt-6 sm:pt-8 lg:pt-10",
+    phraseVerticalAlign: "top",
+    phraseOffset: "pt-6 sm:pt-8 lg:pt-10",
   },
 ];
 

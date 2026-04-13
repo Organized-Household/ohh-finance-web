@@ -223,7 +223,8 @@ export default function WelcomeHeroSlideshow() {
         <WelcomeSlidePhraseOverlay
           phrase={activeSlide.phrase}
           phraseMaxWidth={activeSlide.phraseMaxWidth}
-          phraseBottomOffset={activeSlide.phraseBottomOffset}
+          phraseOffset={activeSlide.phraseOffset}
+          phraseVerticalAlign={activeSlide.phraseVerticalAlign}
           visible={phraseVisible}
           reduceMotion={reducedMotion}
         />
