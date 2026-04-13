@@ -3,7 +3,7 @@ import WelcomeHeroSlideshow from "./welcome-hero-slideshow";
 
 function HeroCardContent() {
   return (
-    <div className="w-full rounded-2xl border border-white/45 bg-white/70 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)] backdrop-blur-xl sm:p-8">
+    <div className="w-full rounded-2xl border border-white/40 bg-white/35 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)] backdrop-blur-xl sm:p-8">
       <div className="space-y-6">
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">
@@ -64,7 +64,7 @@ function HeroCardContent() {
 export default function WelcomeScreen() {
   return (
     <section className="flex h-full w-full flex-col bg-slate-900">
-      <div className="relative min-h-[calc(100dvh-76px)] flex-1 overflow-hidden bg-slate-900">
+      <div className="relative h-[calc(100dvh-76px)] min-h-[520px] overflow-hidden bg-slate-900">
         <WelcomeHeroSlideshow />
 
         <div className="pointer-events-none absolute inset-0 hidden items-center justify-end p-6 lg:flex xl:p-10">
