@@ -18,16 +18,16 @@ function HeroCardContent() {
           </p>
         </div>
 
-        <ul className="grid gap-2 text-sm text-slate-700 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-3">
+        <ul className="grid gap-2 text-sm text-slate-700">
           <li>Track income and expenses by month 📊</li>
           <li>Build budgets aligned with your financial goals 🎯</li>
           <li>Monitor savings, investments, and debts 💰</li>
           <li>Import transactions and categorize spending quickly ⚡</li>
-          <li className="sm:col-span-2">View a clear monthly snapshot of your financial progress 🗓️</li>
+          <li>View a clear monthly snapshot of your financial progress 🗓️</li>
         </ul>
 
         <p className="text-sm text-slate-600">
-          Designed for households, OHh-Finance brings clarity to everyday financial decisions —
+          Designed for households, OHh-Finance brings clarity to everyday financial decisions -
           helping you stay organized and confident about where your money is going.
         </p>
 
@@ -64,18 +64,12 @@ function HeroCardContent() {
 export default function WelcomeScreen() {
   return (
     <section className="w-full">
-      <div className="space-y-4 lg:space-y-0">
-        <div className="relative">
+      <div className="grid gap-4 lg:grid-cols-12 lg:items-stretch">
+        <div className="lg:col-span-8">
           <WelcomeHeroSlideshow />
-
-          <div className="pointer-events-none absolute inset-0 hidden items-center justify-end p-8 lg:flex xl:p-10">
-            <div className="pointer-events-auto w-full max-w-xl">
-              <HeroCardContent />
-            </div>
-          </div>
         </div>
 
-        <div className="lg:hidden">
+        <div className="lg:col-span-4">
           <HeroCardContent />
         </div>
       </div>
