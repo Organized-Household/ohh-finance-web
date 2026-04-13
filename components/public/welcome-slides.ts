@@ -25,8 +25,8 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     fitModeMobile: "cover",
     scrimStrength: 0.34,
     phraseMaxWidth: "max-w-[46rem]",
-    phraseVerticalAlign: "top",    
-    phraseOffset: "justify-start pt-6 sm:pt-8 lg:pt-10 pl-4 sm:pl-6 lg:pl-8 text-left",
+    phraseVerticalAlign: "bottom",    
+    phraseOffset: "justify-start pb-6 sm:pb-8 lg:pb-10 pl-4 sm:pl-6 lg:pl-8 text-left",
   },
   {
     imageSrc: "/hero/welcome-new-car.png",
