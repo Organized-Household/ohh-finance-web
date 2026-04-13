@@ -11,6 +11,8 @@ import {
   WELCOME_TRANSITION_MS,
 } from "./welcome-slides";
 
+type TransitionPhase = "idle" | "prepare" | "running";
+
 function getNextAvailableIndex(current: number, available: number[]) {
   if (available.length === 0) {
     return 0;
@@ -27,10 +29,13 @@ function getNextAvailableIndex(current: number, available: number[]) {
 export default function WelcomeHeroSlideshow() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [nextIndex, setNextIndex] = useState<number | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionPhase, setTransitionPhase] = useState<TransitionPhase>("idle");
   const [phraseVisible, setPhraseVisible] = useState(false);
   const [failedIndices, setFailedIndices] = useState<Set<number>>(new Set());
   const [reducedMotion, setReducedMotion] = useState(false);
+
+  const rafOneRef = useRef<number | null>(null);
+  const rafTwoRef = useRef<number | null>(null);
   const transitionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -40,35 +45,6 @@ export default function WelcomeHeroSlideshow() {
 
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
-  }, []);
-
-  useEffect(() => {
-    let canceled = false;
-
-    WELCOME_SLIDES.forEach((slide, index) => {
-      const image = new window.Image();
-      image.onload = () => undefined;
-      image.onerror = () => {
-        if (canceled) {
-          return;
-        }
-
-        setFailedIndices((prev) => {
-          if (prev.has(index)) {
-            return prev;
-          }
-
-          const copy = new Set(prev);
-          copy.add(index);
-          return copy;
-        });
-      };
-      image.src = slide.imageSrc;
-    });
-
-    return () => {
-      canceled = true;
-    };
   }, []);
 
   const availableIndices = useMemo(() => {
@@ -84,17 +60,33 @@ export default function WelcomeHeroSlideshow() {
   }, [failedIndices]);
 
   const allImagesFailed = availableIndices.length === 0;
+
   const safeCurrentIndex = availableIndices.includes(currentIndex)
     ? currentIndex
     : (availableIndices[0] ?? 0);
+
   const activeSlide = WELCOME_SLIDES[safeCurrentIndex] ?? WELCOME_SLIDES[0];
+
+  const markSlideFailed = useCallback((index: number) => {
+    setFailedIndices((prev) => {
+      if (prev.has(index)) {
+        return prev;
+      }
+      const copy = new Set(prev);
+      copy.add(index);
+      return copy;
+    });
+  }, []);
 
   const handleAdvance = useCallback(() => {
     if (allImagesFailed) {
       return;
     }
 
-    const baseIndex = availableIndices.includes(currentIndex) ? currentIndex : availableIndices[0];
+    const baseIndex = availableIndices.includes(safeCurrentIndex)
+      ? safeCurrentIndex
+      : (availableIndices[0] ?? 0);
+
     const next = getNextAvailableIndex(baseIndex, availableIndices);
 
     if (next === baseIndex || availableIndices.length === 1) {
@@ -110,22 +102,48 @@ export default function WelcomeHeroSlideshow() {
     }
 
     setNextIndex(next);
-    setIsTransitioning(true);
+    setTransitionPhase("prepare");
+
+    if (rafOneRef.current != null) {
+      window.cancelAnimationFrame(rafOneRef.current);
+    }
+    if (rafTwoRef.current != null) {
+      window.cancelAnimationFrame(rafTwoRef.current);
+    }
+
+    rafOneRef.current = window.requestAnimationFrame(() => {
+      rafTwoRef.current = window.requestAnimationFrame(() => {
+        setTransitionPhase("running");
+      });
+    });
+  }, [allImagesFailed, availableIndices, reducedMotion, safeCurrentIndex]);
+
+  useEffect(() => {
+    if (transitionPhase !== "running" || nextIndex == null) {
+      return;
+    }
 
     if (transitionTimerRef.current != null) {
       window.clearTimeout(transitionTimerRef.current);
     }
 
     transitionTimerRef.current = window.setTimeout(() => {
-      setCurrentIndex(next);
+      setCurrentIndex(nextIndex);
       setNextIndex(null);
-      setIsTransitioning(false);
+      setTransitionPhase("idle");
       transitionTimerRef.current = null;
     }, WELCOME_TRANSITION_MS);
-  }, [allImagesFailed, availableIndices, currentIndex, reducedMotion]);
+
+    return () => {
+      if (transitionTimerRef.current != null) {
+        window.clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
+    };
+  }, [nextIndex, transitionPhase]);
 
   useEffect(() => {
-    if (allImagesFailed || isTransitioning) {
+    if (allImagesFailed || transitionPhase !== "idle") {
       return;
     }
 
@@ -146,10 +164,16 @@ export default function WelcomeHeroSlideshow() {
       window.clearTimeout(phraseOut);
       window.clearTimeout(advance);
     };
-  }, [allImagesFailed, handleAdvance, isTransitioning, safeCurrentIndex]);
+  }, [allImagesFailed, handleAdvance, safeCurrentIndex, transitionPhase]);
 
   useEffect(() => {
     return () => {
+      if (rafOneRef.current != null) {
+        window.cancelAnimationFrame(rafOneRef.current);
+      }
+      if (rafTwoRef.current != null) {
+        window.cancelAnimationFrame(rafTwoRef.current);
+      }
       if (transitionTimerRef.current != null) {
         window.clearTimeout(transitionTimerRef.current);
       }
@@ -159,7 +183,7 @@ export default function WelcomeHeroSlideshow() {
   const incomingSlide = nextIndex == null ? null : WELCOME_SLIDES[nextIndex];
 
   return (
-    <div className="relative h-[320px] overflow-hidden rounded-xl border border-slate-300 bg-slate-900 shadow-sm sm:h-[420px] lg:h-[640px]">
+    <div className="relative h-full min-h-[360px] overflow-hidden bg-slate-900 sm:min-h-[460px]">
       {allImagesFailed ? (
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700" />
       ) : (
@@ -167,33 +191,33 @@ export default function WelcomeHeroSlideshow() {
           <WelcomeSlideImage
             slide={activeSlide}
             priority
-            className={`will-change-transform will-change-opacity transition-all duration-700 ease-in-out ${
-              reducedMotion
-                ? isTransitioning
-                  ? "opacity-0"
-                  : "opacity-100"
-                : isTransitioning
-                  ? "-translate-x-full opacity-100"
-                  : "translate-x-0 opacity-100"
+            onError={() => markSlideFailed(safeCurrentIndex)}
+            className={`will-change-transform ${
+              transitionPhase === "running"
+                ? "-translate-x-[101%] transition-transform duration-700 ease-out"
+                : "translate-x-0 transition-none"
             }`}
           />
 
           {incomingSlide ? (
             <WelcomeSlideImage
               slide={incomingSlide}
-              className={`will-change-transform will-change-opacity transition-all duration-700 ease-in-out ${
-                reducedMotion
-                  ? isTransitioning
-                    ? "opacity-100"
-                    : "invisible opacity-0"
-                  : isTransitioning
-                    ? "translate-x-0 opacity-100"
-                    : "translate-x-full invisible opacity-0"
+              onError={() => {
+                if (nextIndex != null) {
+                  markSlideFailed(nextIndex);
+                }
+              }}
+              className={`will-change-transform ${
+                transitionPhase === "running"
+                  ? "translate-x-0 transition-transform duration-700 ease-out"
+                  : "translate-x-[101%] transition-none"
               }`}
             />
           ) : null}
         </>
       )}
+
+      <div aria-hidden="true" className="absolute inset-0 bg-slate-950/22" />
 
       {!allImagesFailed ? (
         <WelcomeSlidePhraseOverlay

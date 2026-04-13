@@ -3,22 +3,22 @@ import WelcomeHeroSlideshow from "./welcome-hero-slideshow";
 
 function HeroCardContent() {
   return (
-    <div className="w-full rounded-xl border border-slate-300 bg-white/95 p-6 shadow-lg backdrop-blur-sm sm:p-8">
+    <div className="w-full rounded-2xl border border-white/45 bg-white/70 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.25)] backdrop-blur-xl sm:p-8">
       <div className="space-y-6">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-700">
             Organized Household
           </p>
           <h1 className="text-3xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-4xl">
             Take Control of Your Household Finances - Together 💡
           </h1>
-          <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
+          <p className="max-w-2xl text-sm text-slate-700 sm:text-base">
             OHh-Finance helps your household plan, track, and understand your complete financial
             picture in one secure place.
           </p>
         </div>
 
-        <ul className="grid gap-2 text-sm text-slate-700">
+        <ul className="grid gap-2 text-sm text-slate-800">
           <li>Track income and expenses by month 📊</li>
           <li>Build budgets aligned with your financial goals 🎯</li>
           <li>Monitor savings, investments, and debts 💰</li>
@@ -26,7 +26,7 @@ function HeroCardContent() {
           <li>View a clear monthly snapshot of your financial progress 🗓️</li>
         </ul>
 
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-700">
           Designed for households, OHh-Finance brings clarity to everyday financial decisions -
           helping you stay organized and confident about where your money is going.
         </p>
@@ -46,13 +46,13 @@ function HeroCardContent() {
 
             <Link
               href="/login"
-              className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-400/80 bg-white/80 px-4 text-sm font-medium text-slate-800 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
             >
               Sign in
             </Link>
           </div>
 
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-600">
             Your household workspace is private and securely isolated.
           </p>
         </div>
@@ -63,15 +63,19 @@ function HeroCardContent() {
 
 export default function WelcomeScreen() {
   return (
-    <section className="w-full">
-      <div className="grid gap-4 lg:grid-cols-12 lg:items-stretch">
-        <div className="lg:col-span-8">
-          <WelcomeHeroSlideshow />
-        </div>
+    <section className="flex h-full w-full flex-col bg-slate-900">
+      <div className="relative min-h-[calc(100dvh-76px)] flex-1 overflow-hidden bg-slate-900">
+        <WelcomeHeroSlideshow />
 
-        <div className="lg:col-span-4">
-          <HeroCardContent />
+        <div className="pointer-events-none absolute inset-0 hidden items-center justify-end p-6 lg:flex xl:p-10">
+          <div className="pointer-events-auto w-full max-w-xl">
+            <HeroCardContent />
+          </div>
         </div>
+      </div>
+
+      <div className="mx-auto w-full max-w-2xl px-4 py-4 sm:px-6 lg:hidden">
+        <HeroCardContent />
       </div>
     </section>
   );

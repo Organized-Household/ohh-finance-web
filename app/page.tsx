@@ -3,10 +3,10 @@ import WelcomeScreen from "@/components/public/welcome-screen";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="flex min-h-screen flex-col bg-slate-900">
       <PublicBrandHeader current="welcome" />
 
-      <main className="mx-auto flex w-full flex-1 flex-col px-4 pb-10 pt-10 sm:pt-12 lg:px-6">
+      <main className="flex flex-1 flex-col">
         <WelcomeScreen />
       </main>
     </div>
