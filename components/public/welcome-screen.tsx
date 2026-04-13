@@ -1,4 +1,5 @@
-import Link from "next/link";
+﻿import Link from "next/link";
+import WelcomeHeroSlideshow from "./welcome-hero-slideshow";
 
 function HeroCardContent() {
   return (
@@ -26,7 +27,7 @@ function HeroCardContent() {
         </ul>
 
         <p className="text-sm text-slate-600">
-          Designed for households, OHh-Finance brings clarity to everyday financial decisions -
+          Designed for households, OHh-Finance brings clarity to everyday financial decisions —
           helping you stay organized and confident about where your money is going.
         </p>
 
@@ -64,13 +65,8 @@ export default function WelcomeScreen() {
   return (
     <section className="w-full">
       <div className="space-y-4 lg:space-y-0">
-        <div className="relative overflow-hidden rounded-xl border border-slate-300 bg-slate-900 shadow-sm">
-          <div
-            aria-hidden="true"
-            className="h-[280px] bg-cover bg-[position:34%_center] sm:h-[360px] lg:h-[620px] lg:bg-[position:28%_center]"
-            style={{ backgroundImage: "url('/hero/welcome-sunset-couple.png')" }}
-          />
-          <div aria-hidden="true" className="absolute inset-0 bg-slate-950/35" />
+        <div className="relative">
+          <WelcomeHeroSlideshow />
 
           <div className="pointer-events-none absolute inset-0 hidden items-center justify-end p-8 lg:flex xl:p-10">
             <div className="pointer-events-auto w-full max-w-xl">
