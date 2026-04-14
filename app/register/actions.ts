@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,6 +10,21 @@ type RegisterState = {
   error?: string;
   success?: string;
 };
+
+async function resolveEmailRedirectUrl(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+
+  if (host) {
+    return `${proto}://${host}/login`;
+  }
+
+  const fallback =
+    process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL ?? "http://localhost:3000";
+
+  return `${fallback.replace(/\/$/, "")}/login`;
+}
 
 async function bootstrapTenantMembership(params: {
   alias: string;
@@ -71,10 +87,14 @@ export async function registerAction(
   }
 
   const supabase = await createClient();
+  const emailRedirectTo = await resolveEmailRedirectUrl();
 
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
+    options: {
+      emailRedirectTo,
+    },
   });
 
   if (signUpError) {
