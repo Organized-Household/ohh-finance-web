@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useState } from "react";
 import {
@@ -12,6 +12,8 @@ type SavingsAccountRow = {
   id: string;
   purpose: string;
   account_number_last4: string | null;
+  target_amount: number | null;
+  target_date: string | null;
 };
 
 type SavingsAccountsTableProps = {
@@ -20,10 +22,40 @@ type SavingsAccountsTableProps = {
 
 function formatLast4(last4: string | null) {
   if (!last4) {
-    return "-";
+    return "—";
   }
 
   return `**** ${last4}`;
+}
+
+function formatCurrency(amount: number | null) {
+  if (amount === null || Number.isNaN(amount)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatDate(value: string | null) {
+  if (!value) {
+    return "—";
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return "—";
+  }
+
+  return parsed.toLocaleDateString("en-CA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 type EditableRowProps = {
@@ -37,8 +69,16 @@ function EditableRow({ row }: EditableRowProps) {
   const [draftAccountNumber, setDraftAccountNumber] = useState(
     row.account_number_last4 ?? ""
   );
-  const [lastSavedPurpose, setLastSavedPurpose] = useState<string | null>(null);
-  const [lastSavedLast4, setLastSavedLast4] = useState<string | null>(null);
+  const [draftTargetAmount, setDraftTargetAmount] = useState(
+    row.target_amount === null ? "" : row.target_amount.toFixed(2)
+  );
+  const [draftTargetDate, setDraftTargetDate] = useState(row.target_date ?? "");
+  const [lastSaved, setLastSaved] = useState<{
+    purpose: string;
+    account_number_last4: string | null;
+    target_amount: number | null;
+    target_date: string | null;
+  } | null>(null);
 
   const updateActionWithUiState = async (
     prevState: SavingsAccountFormState,
@@ -46,8 +86,12 @@ function EditableRow({ row }: EditableRowProps) {
   ) => {
     const nextState = await updateSavingsAccountFormAction(prevState, formData);
     if (nextState.message === "Saved." && !nextState.fieldErrors) {
-      setLastSavedPurpose(draftPurpose);
-      setLastSavedLast4(draftAccountNumber ? draftAccountNumber.slice(-4) : null);
+      setLastSaved({
+        purpose: draftPurpose,
+        account_number_last4: draftAccountNumber ? draftAccountNumber.slice(-4) : null,
+        target_amount: draftTargetAmount ? Number.parseFloat(draftTargetAmount) : null,
+        target_date: draftTargetDate ? draftTargetDate : null,
+      });
       setIsEditing(false);
       setIsConfirmingDelete(false);
     }
@@ -62,8 +106,13 @@ function EditableRow({ row }: EditableRowProps) {
     deleteSavingsAccountFormAction,
     initialSavingsAccountFormState
   );
-  const displayPurpose = lastSavedPurpose ?? row.purpose;
-  const displayLast4 = lastSavedLast4 ?? row.account_number_last4;
+
+  const display = {
+    purpose: lastSaved?.purpose ?? row.purpose,
+    account_number_last4: lastSaved?.account_number_last4 ?? row.account_number_last4,
+    target_amount: lastSaved?.target_amount ?? row.target_amount,
+    target_date: lastSaved?.target_date ?? row.target_date,
+  };
 
   return (
     <tr className="border-b border-slate-200">
@@ -79,7 +128,7 @@ function EditableRow({ row }: EditableRowProps) {
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          <span>{displayPurpose}</span>
+          <span>{display.purpose}</span>
         )}
       </td>
 
@@ -96,7 +145,40 @@ function EditableRow({ row }: EditableRowProps) {
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          formatLast4(displayLast4)
+          formatLast4(display.account_number_last4)
+        )}
+      </td>
+
+      <td className="px-3 py-2 align-top text-sm text-slate-700">
+        {isEditing ? (
+          <input
+            id={`target-amount-${row.id}`}
+            name={`savings-target-amount-${row.id}`}
+            type="number"
+            min="0"
+            step="0.01"
+            value={draftTargetAmount}
+            onChange={(event) => setDraftTargetAmount(event.target.value)}
+            placeholder="Target Amount"
+            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+          />
+        ) : (
+          formatCurrency(display.target_amount)
+        )}
+      </td>
+
+      <td className="px-3 py-2 align-top text-sm text-slate-700">
+        {isEditing ? (
+          <input
+            id={`target-date-${row.id}`}
+            name={`savings-target-date-${row.id}`}
+            type="date"
+            value={draftTargetDate}
+            onChange={(event) => setDraftTargetDate(event.target.value)}
+            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+          />
+        ) : (
+          formatDate(display.target_date)
         )}
       </td>
 
@@ -108,6 +190,8 @@ function EditableRow({ row }: EditableRowProps) {
                 <input type="hidden" name="id" value={row.id} />
                 <input type="hidden" name="purpose" value={draftPurpose} />
                 <input type="hidden" name="account_number" value={draftAccountNumber} />
+                <input type="hidden" name="target_amount" value={draftTargetAmount} />
+                <input type="hidden" name="target_date" value={draftTargetDate} />
                 <button
                   type="submit"
                   disabled={pending}
@@ -120,8 +204,12 @@ function EditableRow({ row }: EditableRowProps) {
                 type="button"
                 disabled={pending}
                 onClick={() => {
-                  setDraftPurpose(displayPurpose);
-                  setDraftAccountNumber(displayLast4 ?? "");
+                  setDraftPurpose(display.purpose);
+                  setDraftAccountNumber(display.account_number_last4 ?? "");
+                  setDraftTargetAmount(
+                    display.target_amount === null ? "" : display.target_amount.toFixed(2)
+                  );
+                  setDraftTargetDate(display.target_date ?? "");
                   setIsEditing(false);
                 }}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700 disabled:opacity-70"
@@ -156,8 +244,12 @@ function EditableRow({ row }: EditableRowProps) {
                 type="button"
                 onClick={() => {
                   setIsConfirmingDelete(false);
-                  setDraftPurpose(displayPurpose);
-                  setDraftAccountNumber(displayLast4 ?? "");
+                  setDraftPurpose(display.purpose);
+                  setDraftAccountNumber(display.account_number_last4 ?? "");
+                  setDraftTargetAmount(
+                    display.target_amount === null ? "" : display.target_amount.toFixed(2)
+                  );
+                  setDraftTargetDate(display.target_date ?? "");
                   setIsEditing(true);
                 }}
                 className="h-7 rounded border border-slate-300 px-2 text-xs font-medium text-slate-700"
@@ -185,6 +277,12 @@ function EditableRow({ row }: EditableRowProps) {
           <p className="mt-1 text-[11px] text-right text-rose-700">
             {state.fieldErrors.account_number}
           </p>
+        ) : null}
+        {state.fieldErrors?.target_amount ? (
+          <p className="mt-1 text-[11px] text-right text-rose-700">{state.fieldErrors.target_amount}</p>
+        ) : null}
+        {state.fieldErrors?.target_date ? (
+          <p className="mt-1 text-[11px] text-right text-rose-700">{state.fieldErrors.target_date}</p>
         ) : null}
         {state.message ? (
           <p
@@ -214,14 +312,20 @@ export default function SavingsAccountsTable({ rows }: SavingsAccountsTableProps
 
   return (
     <section className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
-      <table className="w-full border-collapse">
+      <table className="w-full table-fixed border-collapse">
         <thead className="bg-slate-900 text-white">
           <tr>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
-              Name
+            <th className="w-1/2 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
+              Purpose
             </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
-              Type
+            <th className="w-1/6 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
+              Account #
+            </th>
+            <th className="w-1/6 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
+              Target Amount
+            </th>
+            <th className="w-1/6 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
+              Target Date
             </th>
             <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">
               Actions

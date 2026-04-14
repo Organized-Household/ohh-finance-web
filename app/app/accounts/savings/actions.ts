@@ -11,7 +11,7 @@ import {
   updateSavingsAccountSchema,
 } from "@/lib/validation/savings-account";
 
-type SavingsField = "purpose" | "account_number";
+type SavingsField = "purpose" | "account_number" | "target_amount" | "target_date";
 
 export type SavingsAccountFormState = {
   message: string;
@@ -26,6 +26,9 @@ function buildFieldErrors(
   for (const issue of error.issues) {
     const key = issue.path[0];
     if ((key === "purpose" || key === "account_number") && !fieldErrors[key]) {
+      fieldErrors[key] = issue.message;
+    }
+    if ((key === "target_amount" || key === "target_date") && !fieldErrors[key]) {
       fieldErrors[key] = issue.message;
     }
   }
@@ -78,6 +81,8 @@ export async function createSavingsAccountFormAction(
     const parsed = createSavingsAccountSchema.safeParse({
       purpose: String(formData.get("purpose") ?? ""),
       account_number: String(formData.get("account_number") ?? ""),
+      target_amount: String(formData.get("target_amount") ?? ""),
+      target_date: String(formData.get("target_date") ?? ""),
     });
 
     if (!parsed.success) {
@@ -95,6 +100,8 @@ export async function createSavingsAccountFormAction(
       tenant_id: membership.tenant_id,
       purpose: parsed.data.purpose,
       account_number_last4: accountNumberLast4,
+      target_amount: parsed.data.target_amount,
+      target_date: parsed.data.target_date,
     });
 
     if (error) {
@@ -126,6 +133,8 @@ export async function updateSavingsAccountFormAction(
       id: String(formData.get("id") ?? ""),
       purpose: String(formData.get("purpose") ?? ""),
       account_number: String(formData.get("account_number") ?? ""),
+      target_amount: String(formData.get("target_amount") ?? ""),
+      target_date: String(formData.get("target_date") ?? ""),
     });
 
     if (!parsed.success) {
@@ -144,6 +153,8 @@ export async function updateSavingsAccountFormAction(
       .update({
         purpose: parsed.data.purpose,
         account_number_last4: accountNumberLast4,
+        target_amount: parsed.data.target_amount,
+        target_date: parsed.data.target_date,
         updated_at: new Date().toISOString(),
       })
       .eq("id", parsed.data.id)
