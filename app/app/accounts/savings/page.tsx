@@ -11,6 +11,8 @@ type SavingsAccountRow = {
   id: string;
   purpose: string;
   account_number_last4: string | null;
+  target_amount: number | null;
+  target_date: string | null;
 };
 
 export default async function SavingsAccountsPage() {
@@ -29,7 +31,7 @@ export default async function SavingsAccountsPage() {
 
   const { data, error } = await supabase
     .from("savings_accounts")
-    .select("id, purpose, account_number_last4")
+    .select("id, purpose, account_number_last4, target_amount, target_date")
     .eq("tenant_id", membership.tenant_id)
     .order("purpose", { ascending: true });
 
@@ -43,6 +45,13 @@ export default async function SavingsAccountsPage() {
     account_number_last4: row.account_number_last4
       ? String(row.account_number_last4)
       : null,
+    target_amount:
+      typeof row.target_amount === "number"
+        ? row.target_amount
+        : row.target_amount
+          ? Number(row.target_amount)
+          : null,
+    target_date: row.target_date ? String(row.target_date) : null,
   }));
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [

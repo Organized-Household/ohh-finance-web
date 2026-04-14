@@ -18,7 +18,7 @@ export default function SavingsAccountForm() {
 
       <form
         action={formAction}
-        className="mt-2 grid gap-2 md:grid-cols-[minmax(0,1fr)_12rem_auto]"
+        className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-[3fr_1fr_1fr_1fr_auto]"
       >
         <div>
           <label htmlFor="create-purpose" className="sr-only">
@@ -53,6 +53,40 @@ export default function SavingsAccountForm() {
             <p className="mt-1 text-[11px] text-rose-700">
               {state.fieldErrors.account_number}
             </p>
+          ) : null}
+        </div>
+
+        <div>
+          <label htmlFor="create-target-amount" className="sr-only">
+            Target Amount (optional)
+          </label>
+          <input
+            id="create-target-amount"
+            name="target_amount"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Target Amount"
+            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+          />
+          {state.fieldErrors?.target_amount ? (
+            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.target_amount}</p>
+          ) : null}
+        </div>
+
+        <div>
+          <label htmlFor="create-target-date" className="sr-only">
+            Target Date (optional)
+          </label>
+          <input
+            id="create-target-date"
+            name="target_date"
+            type="date"
+            placeholder="Target Date"
+            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+          />
+          {state.fieldErrors?.target_date ? (
+            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.target_date}</p>
           ) : null}
         </div>
 
