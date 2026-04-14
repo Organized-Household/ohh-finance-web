@@ -47,6 +47,33 @@ export default function WelcomeHeroSlideshow() {
     return () => query.removeEventListener("change", update);
   }, []);
 
+  useEffect(() => {
+    let canceled = false;
+
+    WELCOME_SLIDES.forEach((slide, index) => {
+      const probe = new window.Image();
+      probe.onload = () => undefined;
+      probe.onerror = () => {
+        if (canceled) {
+          return;
+        }
+        setFailedIndices((prev) => {
+          if (prev.has(index)) {
+            return prev;
+          }
+          const copy = new Set(prev);
+          copy.add(index);
+          return copy;
+        });
+      };
+      probe.src = slide.imageSrc;
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
   const availableIndices = useMemo(() => {
     const values: number[] = [];
 
@@ -66,17 +93,6 @@ export default function WelcomeHeroSlideshow() {
     : (availableIndices[0] ?? 0);
 
   const activeSlide = WELCOME_SLIDES[safeCurrentIndex] ?? WELCOME_SLIDES[0];
-
-  const markSlideFailed = useCallback((index: number) => {
-    setFailedIndices((prev) => {
-      if (prev.has(index)) {
-        return prev;
-      }
-      const copy = new Set(prev);
-      copy.add(index);
-      return copy;
-    });
-  }, []);
 
   const handleAdvance = useCallback(() => {
     if (allImagesFailed) {
@@ -191,7 +207,6 @@ export default function WelcomeHeroSlideshow() {
           <WelcomeSlideImage
             slide={activeSlide}
             priority
-            onError={() => markSlideFailed(safeCurrentIndex)}
             className={`will-change-transform ${
               transitionPhase === "running"
                 ? "-translate-x-[101%] transition-transform duration-700 ease-out"
@@ -202,11 +217,6 @@ export default function WelcomeHeroSlideshow() {
           {incomingSlide ? (
             <WelcomeSlideImage
               slide={incomingSlide}
-              onError={() => {
-                if (nextIndex != null) {
-                  markSlideFailed(nextIndex);
-                }
-              }}
               className={`will-change-transform ${
                 transitionPhase === "running"
                   ? "translate-x-0 transition-transform duration-700 ease-out"
