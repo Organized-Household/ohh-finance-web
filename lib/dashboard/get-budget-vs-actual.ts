@@ -5,7 +5,7 @@ export type BudgetVsActualRow = {
   categoryId: string;
   categoryName: string;
   categoryType: "income" | "expense";
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
   budgetedAmount: number;
   actualAmount: number;
   varianceAmount: number;
@@ -24,7 +24,7 @@ type CategoryRow = {
   id: string;
   name: string;
   category_type: "income" | "expense";
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
 };
 
 type BudgetRow = {

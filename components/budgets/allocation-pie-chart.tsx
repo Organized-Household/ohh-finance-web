@@ -28,6 +28,11 @@ const items: Array<{ key: BudgetBucketKey; label: string; color: string }> = [
     label: "Investment",
     color: "#6366f1",
   },
+  {
+    key: "debt_payment",
+    label: "Debt Payment",
+    color: "#f43f5e",
+  },
 ];
 
 const RADIUS = 28;

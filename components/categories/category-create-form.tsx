@@ -66,6 +66,7 @@ export default function CategoryCreateForm() {
             <option value="standard">Standard</option>
             <option value="savings">Savings</option>
             <option value="investment">Investment</option>
+            <option value="debt_payment">Debt Payment</option>
           </select>
           {state.fieldErrors?.tag ? (
             <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.tag}</p>

@@ -4,6 +4,7 @@ export const categoryTagSchema = z.enum([
   "standard",
   "savings",
   "investment",
+  "debt_payment",
 ]);
 
 export const categoryTypeSchema = z.enum([

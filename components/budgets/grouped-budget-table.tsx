@@ -1,7 +1,7 @@
 import BudgetSectionTable from "@/components/budgets/budget-section-table";
 
 export type GroupedBudgetSection = {
-  key: "income" | "standard" | "savings" | "investment";
+  key: "income" | "standard" | "savings" | "investment" | "debt_payment";
   title: string;
   rows: Array<{
     id: string;

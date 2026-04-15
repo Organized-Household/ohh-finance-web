@@ -10,7 +10,7 @@ import BudgetTotalsFooter from "@/components/budgets/budget-totals-footer";
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
   category_type: "income" | "expense";
 };
 
@@ -72,6 +72,10 @@ export default function BudgetTable({
       (category) =>
         category.category_type === "expense" && category.tag === "investment"
     );
+    const debtPaymentCategories = categories.filter(
+      (category) =>
+        category.category_type === "expense" && category.tag === "debt_payment"
+    );
 
     const buildSection = (
       key: GroupedBudgetSection["key"],
@@ -100,6 +104,7 @@ export default function BudgetTable({
       buildSection("standard", "Standard", standardCategories),
       buildSection("savings", "Savings", savingsCategories),
       buildSection("investment", "Investment", investmentCategories),
+      buildSection("debt_payment", "Debt Payment", debtPaymentCategories),
     ];
   }, [categories, values]);
 
@@ -112,9 +117,15 @@ export default function BudgetTable({
       groupedSections.find((section) => section.key === "savings")?.subtotal ?? 0;
     const investmentSubtotal =
       groupedSections.find((section) => section.key === "investment")?.subtotal ?? 0;
+    const debtPaymentSubtotal =
+      groupedSections.find((section) => section.key === "debt_payment")?.subtotal ??
+      0;
 
     const totalExpenses =
-      standardSubtotal + savingsSubtotal + investmentSubtotal;
+      standardSubtotal +
+      savingsSubtotal +
+      investmentSubtotal +
+      debtPaymentSubtotal;
 
     return {
       totalIncome: incomeSubtotal,

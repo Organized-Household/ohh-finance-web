@@ -10,7 +10,15 @@ import {
   updateTransactionSchema,
 } from "@/lib/validation/transaction";
 
-async function getTenantCategoryType({
+type CategoryTag = "standard" | "savings" | "investment" | "debt_payment";
+
+type TransactionLinkInput = {
+  savings_account_id: string | null;
+  investment_account_id: string | null;
+  debt_account_id: string | null;
+};
+
+async function getTenantCategory({
   categoryId,
   tenantId,
 }: {
@@ -20,7 +28,7 @@ async function getTenantCategoryType({
   const supabase = await createClient();
   const { data: category, error: categoryError } = await supabase
     .from("categories")
-    .select("id, category_type")
+    .select("id, category_type, tag")
     .eq("id", categoryId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -33,7 +41,88 @@ async function getTenantCategoryType({
     throw new Error("Category not found in current tenant");
   }
 
-  return category.category_type as "income" | "expense";
+  return {
+    categoryType: category.category_type as "income" | "expense",
+    categoryTag: category.tag as CategoryTag,
+  };
+}
+
+async function assertLinkedAccountBelongsToTenant({
+  supabase,
+  table,
+  accountId,
+  tenantId,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  table: "savings_accounts" | "investment_accounts" | "debt_accounts";
+  accountId: string | null;
+  tenantId: string;
+}) {
+  if (!accountId) {
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from(table)
+    .select("id")
+    .eq("id", accountId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to validate linked account: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error("Linked account not found in current tenant");
+  }
+}
+
+function assertCategoryCompatibleLink({
+  categoryType,
+  categoryTag,
+  links,
+}: {
+  categoryType: "income" | "expense";
+  categoryTag: CategoryTag;
+  links: TransactionLinkInput;
+}) {
+  const { savings_account_id, investment_account_id, debt_account_id } = links;
+
+  if (categoryType === "income" || categoryTag === "standard") {
+    if (savings_account_id || investment_account_id || debt_account_id) {
+      throw new Error(
+        "Linked accounts are allowed only for savings, investment, or debt payment expense categories."
+      );
+    }
+    return;
+  }
+
+  if (categoryTag === "savings") {
+    if (investment_account_id || debt_account_id) {
+      throw new Error(
+        "Savings categories may only link to a savings account."
+      );
+    }
+    return;
+  }
+
+  if (categoryTag === "investment") {
+    if (savings_account_id || debt_account_id) {
+      throw new Error(
+        "Investment categories may only link to an investment account."
+      );
+    }
+    return;
+  }
+
+  if (categoryTag === "debt_payment") {
+    if (savings_account_id || investment_account_id) {
+      throw new Error(
+        "Debt Payment categories may only link to a debt account."
+      );
+    }
+  }
 }
 
 function resolveMonthRedirectPath(month: unknown): string {
@@ -60,8 +149,39 @@ export async function createTransaction(input: unknown) {
     throw new Error("Authenticated user not found");
   }
 
-  const categoryType = await getTenantCategoryType({
+  const { categoryType, categoryTag } = await getTenantCategory({
     categoryId: parsed.category_id,
+    tenantId: membership.tenant_id,
+  });
+
+  assertCategoryCompatibleLink({
+    categoryType,
+    categoryTag,
+    links: {
+      savings_account_id: parsed.savings_account_id,
+      investment_account_id: parsed.investment_account_id,
+      debt_account_id: parsed.debt_account_id,
+    },
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "savings_accounts",
+    accountId: parsed.savings_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "investment_accounts",
+    accountId: parsed.investment_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "debt_accounts",
+    accountId: parsed.debt_account_id,
     tenantId: membership.tenant_id,
   });
 
@@ -73,6 +193,9 @@ export async function createTransaction(input: unknown) {
     amount: parsed.amount,
     transaction_date: parsed.transaction_date,
     transaction_type: categoryType,
+    savings_account_id: parsed.savings_account_id,
+    investment_account_id: parsed.investment_account_id,
+    debt_account_id: parsed.debt_account_id,
   });
 
   if (insertError) {
@@ -117,8 +240,39 @@ export async function updateTransaction(input: unknown) {
     throw new Error("Transaction not found in current tenant");
   }
 
-  const categoryType = await getTenantCategoryType({
+  const { categoryType, categoryTag } = await getTenantCategory({
     categoryId: parsed.category_id,
+    tenantId: membership.tenant_id,
+  });
+
+  assertCategoryCompatibleLink({
+    categoryType,
+    categoryTag,
+    links: {
+      savings_account_id: parsed.savings_account_id,
+      investment_account_id: parsed.investment_account_id,
+      debt_account_id: parsed.debt_account_id,
+    },
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "savings_accounts",
+    accountId: parsed.savings_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "investment_accounts",
+    accountId: parsed.investment_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "debt_accounts",
+    accountId: parsed.debt_account_id,
     tenantId: membership.tenant_id,
   });
 
@@ -130,6 +284,9 @@ export async function updateTransaction(input: unknown) {
       transaction_date: parsed.transaction_date,
       category_id: parsed.category_id,
       transaction_type: categoryType,
+      savings_account_id: parsed.savings_account_id,
+      investment_account_id: parsed.investment_account_id,
+      debt_account_id: parsed.debt_account_id,
     })
     .eq("id", parsed.id)
     .eq("tenant_id", membership.tenant_id);

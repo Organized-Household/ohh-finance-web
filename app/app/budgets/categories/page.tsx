@@ -10,7 +10,7 @@ import { getBudgetForMonth } from "../actions";
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
   category_type: "income" | "expense";
 };
 

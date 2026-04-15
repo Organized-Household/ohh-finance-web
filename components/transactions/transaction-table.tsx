@@ -6,19 +6,43 @@ type TransactionRow = {
   transaction_type: "income" | "expense";
   category_id: string;
   category_name: string;
-  category_tag: "standard" | "savings" | "investment";
+  category_tag: "standard" | "savings" | "investment" | "debt_payment";
+  savings_account_id: string | null;
+  investment_account_id: string | null;
+  debt_account_id: string | null;
+  linked_account_label: string | null;
 };
 
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
   category_type: "income" | "expense";
+};
+
+type SavingsAccountOption = {
+  id: string;
+  purpose: string;
+};
+
+type InvestmentAccountOption = {
+  id: string;
+  name: string;
+  account_type: string;
+};
+
+type DebtAccountOption = {
+  id: string;
+  name: string;
+  type: string;
 };
 
 type TransactionTableProps = {
   rows: TransactionRow[];
   categories: Category[];
+  savingsAccounts: SavingsAccountOption[];
+  investmentAccounts: InvestmentAccountOption[];
+  debtAccounts: DebtAccountOption[];
   selectedMonth: string;
   updateAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
@@ -36,6 +60,9 @@ function formatCurrency(amount: number) {
 export default function TransactionTable({
   rows,
   categories,
+  savingsAccounts,
+  investmentAccounts,
+  debtAccounts,
   selectedMonth,
   updateAction,
   deleteAction,
@@ -54,6 +81,10 @@ export default function TransactionTable({
   const investmentCategories = categories.filter(
     (category) =>
       category.category_type === "expense" && category.tag === "investment"
+  );
+  const debtPaymentCategories = categories.filter(
+    (category) =>
+      category.category_type === "expense" && category.tag === "debt_payment"
   );
 
   if (!rows.length) {
@@ -81,6 +112,9 @@ export default function TransactionTable({
             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
               Tag
             </th>
+            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
+              Linked Account
+            </th>
             <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">
               Amount
             </th>
@@ -106,7 +140,10 @@ export default function TransactionTable({
                 {row.category_name}
               </td>
               <td className="px-3 py-2 text-sm capitalize text-slate-700">
-                {row.category_tag}
+                {row.category_tag.replace("_", " ")}
+              </td>
+              <td className="px-3 py-2 text-sm text-slate-700">
+                {row.linked_account_label ?? "—"}
               </td>
               <td className="px-3 py-2 text-right text-sm font-medium tabular-nums text-slate-900">
                 {formatCurrency(row.amount)}
@@ -228,7 +265,82 @@ export default function TransactionTable({
                                 ))}
                               </optgroup>
                             ) : null}
+                            {debtPaymentCategories.length ? (
+                              <optgroup label="Debt Payment">
+                                {debtPaymentCategories.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
                           </select>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2">
+                          <div>
+                            <label
+                              htmlFor={`savings-account-${row.id}`}
+                              className="mb-1 block text-xs font-medium text-slate-700"
+                            >
+                              Linked Savings Account (optional)
+                            </label>
+                            <select
+                              id={`savings-account-${row.id}`}
+                              name="savings_account_id"
+                              defaultValue={row.savings_account_id ?? ""}
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                            >
+                              <option value="">None</option>
+                              {savingsAccounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.purpose}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label
+                              htmlFor={`investment-account-${row.id}`}
+                              className="mb-1 block text-xs font-medium text-slate-700"
+                            >
+                              Linked Investment Account (optional)
+                            </label>
+                            <select
+                              id={`investment-account-${row.id}`}
+                              name="investment_account_id"
+                              defaultValue={row.investment_account_id ?? ""}
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                            >
+                              <option value="">None</option>
+                              {investmentAccounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name} - {account.account_type}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label
+                              htmlFor={`debt-account-${row.id}`}
+                              className="mb-1 block text-xs font-medium text-slate-700"
+                            >
+                              Linked Debt Account (optional)
+                            </label>
+                            <select
+                              id={`debt-account-${row.id}`}
+                              name="debt_account_id"
+                              defaultValue={row.debt_account_id ?? ""}
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                            >
+                              <option value="">None</option>
+                              {debtAccounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name} - {account.type}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
                         <button
