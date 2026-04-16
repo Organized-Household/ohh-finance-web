@@ -11,6 +11,10 @@ type TransactionRow = {
   investment_account_id: string | null;
   debt_account_id: string | null;
   linked_account_label: string | null;
+  payment_savings_account_id: string | null;
+  payment_investment_account_id: string | null;
+  payment_debt_account_id: string | null;
+  payment_source_label: string | null;
 };
 
 type Category = {
@@ -115,6 +119,9 @@ export default function TransactionTable({
             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
               Linked Account
             </th>
+            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">
+              Payment Source
+            </th>
             <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide">
               Amount
             </th>
@@ -144,6 +151,9 @@ export default function TransactionTable({
               </td>
               <td className="px-3 py-2 text-sm text-slate-700">
                 {row.linked_account_label ?? "—"}
+              </td>
+              <td className="px-3 py-2 text-sm text-slate-700">
+                {row.payment_source_label ?? "—"}
               </td>
               <td className="px-3 py-2 text-right text-sm font-medium tabular-nums text-slate-900">
                 {formatCurrency(row.amount)}
@@ -316,6 +326,54 @@ export default function TransactionTable({
                               className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
                             >
                               <option value="">Linked Debt Account (optional)</option>
+                              {debtAccounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name} - {account.type}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2">
+                          <div>
+                            <select
+                              id={`payment-savings-account-${row.id}`}
+                              name="payment_savings_account_id"
+                              defaultValue={row.payment_savings_account_id ?? ""}
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                            >
+                              <option value="">Payment Savings Account (optional)</option>
+                              {savingsAccounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.purpose}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <select
+                              id={`payment-investment-account-${row.id}`}
+                              name="payment_investment_account_id"
+                              defaultValue={row.payment_investment_account_id ?? ""}
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                            >
+                              <option value="">Payment Investment Account (optional)</option>
+                              {investmentAccounts.map((account) => (
+                                <option key={account.id} value={account.id}>
+                                  {account.name} - {account.account_type}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <select
+                              id={`payment-debt-account-${row.id}`}
+                              name="payment_debt_account_id"
+                              defaultValue={row.payment_debt_account_id ?? ""}
+                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+                            >
+                              <option value="">Payment Debt Account (optional)</option>
                               {debtAccounts.map((account) => (
                                 <option key={account.id} value={account.id}>
                                   {account.name} - {account.type}
