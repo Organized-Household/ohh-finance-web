@@ -235,6 +235,56 @@ export default function TransactionForm({
               </select>
             </div>
           </div>
+
+          <div className="mt-2 grid gap-2 md:grid-cols-3">
+            <div>
+              <select
+                id="payment_savings_account_id"
+                name="payment_savings_account_id"
+                defaultValue=""
+                className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+              >
+                <option value="">Payment Savings Account (optional)</option>
+                {savingsAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.purpose}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <select
+                id="payment_investment_account_id"
+                name="payment_investment_account_id"
+                defaultValue=""
+                className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+              >
+                <option value="">Payment Investment Account (optional)</option>
+                {investmentAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} - {account.account_type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <select
+                id="payment_debt_account_id"
+                name="payment_debt_account_id"
+                defaultValue=""
+                className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
+              >
+                <option value="">Payment Debt Account (optional)</option>
+                {debtAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} - {account.type}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </form>
     </section>

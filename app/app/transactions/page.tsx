@@ -34,6 +34,9 @@ type Transaction = {
   savings_account_id: string | null;
   investment_account_id: string | null;
   debt_account_id: string | null;
+  payment_savings_account_id: string | null;
+  payment_investment_account_id: string | null;
+  payment_debt_account_id: string | null;
 };
 
 type SavingsAccountOption = {
@@ -189,7 +192,7 @@ export default async function TransactionsPage({
   const { data: transactionsData, error: transactionsError } = await supabase
     .from("transactions")
     .select(
-      "id, transaction_date, description, amount, transaction_type, category_id, savings_account_id, investment_account_id, debt_account_id"
+      "id, transaction_date, description, amount, transaction_type, category_id, savings_account_id, investment_account_id, debt_account_id, payment_savings_account_id, payment_investment_account_id, payment_debt_account_id"
     )
     .eq("tenant_id", membership.tenant_id)
     .gte("transaction_date", monthRange.start)
@@ -216,6 +219,18 @@ export default async function TransactionsPage({
         : null,
     debt_account_id:
       typeof row.debt_account_id === "string" ? row.debt_account_id : null,
+    payment_savings_account_id:
+      typeof row.payment_savings_account_id === "string"
+        ? row.payment_savings_account_id
+        : null,
+    payment_investment_account_id:
+      typeof row.payment_investment_account_id === "string"
+        ? row.payment_investment_account_id
+        : null,
+    payment_debt_account_id:
+      typeof row.payment_debt_account_id === "string"
+        ? row.payment_debt_account_id
+        : null,
   }));
 
   const categoryMap = new Map(categories.map((category) => [category.id, category]));
@@ -241,6 +256,13 @@ export default async function TransactionsPage({
         : transaction.debt_account_id
           ? debtAccountMap.get(transaction.debt_account_id) ?? null
           : null;
+    const paymentSourceLabel = transaction.payment_savings_account_id
+      ? savingsAccountMap.get(transaction.payment_savings_account_id) ?? null
+      : transaction.payment_investment_account_id
+        ? investmentAccountMap.get(transaction.payment_investment_account_id) ?? null
+        : transaction.payment_debt_account_id
+          ? debtAccountMap.get(transaction.payment_debt_account_id) ?? null
+          : null;
 
     return {
       id: transaction.id,
@@ -259,6 +281,10 @@ export default async function TransactionsPage({
       investment_account_id: transaction.investment_account_id,
       debt_account_id: transaction.debt_account_id,
       linked_account_label: linkedAccountLabel,
+      payment_savings_account_id: transaction.payment_savings_account_id,
+      payment_investment_account_id: transaction.payment_investment_account_id,
+      payment_debt_account_id: transaction.payment_debt_account_id,
+      payment_source_label: paymentSourceLabel,
     };
   });
 
@@ -436,6 +462,13 @@ export default async function TransactionsPage({
       savings_account_id: String(formData.get("savings_account_id") ?? ""),
       investment_account_id: String(formData.get("investment_account_id") ?? ""),
       debt_account_id: String(formData.get("debt_account_id") ?? ""),
+      payment_savings_account_id: String(
+        formData.get("payment_savings_account_id") ?? ""
+      ),
+      payment_investment_account_id: String(
+        formData.get("payment_investment_account_id") ?? ""
+      ),
+      payment_debt_account_id: String(formData.get("payment_debt_account_id") ?? ""),
     });
   };
 
@@ -452,6 +485,13 @@ export default async function TransactionsPage({
       savings_account_id: String(formData.get("savings_account_id") ?? ""),
       investment_account_id: String(formData.get("investment_account_id") ?? ""),
       debt_account_id: String(formData.get("debt_account_id") ?? ""),
+      payment_savings_account_id: String(
+        formData.get("payment_savings_account_id") ?? ""
+      ),
+      payment_investment_account_id: String(
+        formData.get("payment_investment_account_id") ?? ""
+      ),
+      payment_debt_account_id: String(formData.get("payment_debt_account_id") ?? ""),
     });
   };
 

@@ -18,6 +18,12 @@ type TransactionLinkInput = {
   debt_account_id: string | null;
 };
 
+type TransactionPaymentSourceInput = {
+  payment_savings_account_id: string | null;
+  payment_investment_account_id: string | null;
+  payment_debt_account_id: string | null;
+};
+
 async function getTenantCategory({
   categoryId,
   tenantId,
@@ -81,18 +87,42 @@ async function assertLinkedAccountBelongsToTenant({
 function assertCategoryCompatibleLink({
   categoryType,
   categoryTag,
-  links,
+  destinationLinks,
+  paymentSources,
 }: {
   categoryType: "income" | "expense";
   categoryTag: CategoryTag;
-  links: TransactionLinkInput;
+  destinationLinks: TransactionLinkInput;
+  paymentSources: TransactionPaymentSourceInput;
 }) {
-  const { savings_account_id, investment_account_id, debt_account_id } = links;
+  const { savings_account_id, investment_account_id, debt_account_id } =
+    destinationLinks;
+  const {
+    payment_savings_account_id,
+    payment_investment_account_id,
+    payment_debt_account_id,
+  } = paymentSources;
 
-  if (categoryType === "income" || categoryTag === "standard") {
+  if (categoryType === "income") {
+    if (
+      savings_account_id ||
+      investment_account_id ||
+      debt_account_id ||
+      payment_savings_account_id ||
+      payment_investment_account_id ||
+      payment_debt_account_id
+    ) {
+      throw new Error(
+        "Income transactions cannot include linked destination or payment source accounts."
+      );
+    }
+    return;
+  }
+
+  if (categoryTag === "standard") {
     if (savings_account_id || investment_account_id || debt_account_id) {
       throw new Error(
-        "Linked accounts are allowed only for savings, investment, or debt payment expense categories."
+        "Standard expense categories cannot include linked destination accounts."
       );
     }
     return;
@@ -122,6 +152,45 @@ function assertCategoryCompatibleLink({
         "Debt Payment categories may only link to a debt account."
       );
     }
+  }
+}
+
+function assertPaymentSourceNotSameAsDestination({
+  destinationLinks,
+  paymentSources,
+}: {
+  destinationLinks: TransactionLinkInput;
+  paymentSources: TransactionPaymentSourceInput;
+}) {
+  if (
+    destinationLinks.savings_account_id &&
+    paymentSources.payment_savings_account_id &&
+    destinationLinks.savings_account_id === paymentSources.payment_savings_account_id
+  ) {
+    throw new Error(
+      "Payment savings account cannot be the same as the destination savings account."
+    );
+  }
+
+  if (
+    destinationLinks.investment_account_id &&
+    paymentSources.payment_investment_account_id &&
+    destinationLinks.investment_account_id ===
+      paymentSources.payment_investment_account_id
+  ) {
+    throw new Error(
+      "Payment investment account cannot be the same as the destination investment account."
+    );
+  }
+
+  if (
+    destinationLinks.debt_account_id &&
+    paymentSources.payment_debt_account_id &&
+    destinationLinks.debt_account_id === paymentSources.payment_debt_account_id
+  ) {
+    throw new Error(
+      "Payment debt account cannot be the same as the destination debt account."
+    );
   }
 }
 
@@ -157,10 +226,28 @@ export async function createTransaction(input: unknown) {
   assertCategoryCompatibleLink({
     categoryType,
     categoryTag,
-    links: {
+    destinationLinks: {
       savings_account_id: parsed.savings_account_id,
       investment_account_id: parsed.investment_account_id,
       debt_account_id: parsed.debt_account_id,
+    },
+    paymentSources: {
+      payment_savings_account_id: parsed.payment_savings_account_id,
+      payment_investment_account_id: parsed.payment_investment_account_id,
+      payment_debt_account_id: parsed.payment_debt_account_id,
+    },
+  });
+
+  assertPaymentSourceNotSameAsDestination({
+    destinationLinks: {
+      savings_account_id: parsed.savings_account_id,
+      investment_account_id: parsed.investment_account_id,
+      debt_account_id: parsed.debt_account_id,
+    },
+    paymentSources: {
+      payment_savings_account_id: parsed.payment_savings_account_id,
+      payment_investment_account_id: parsed.payment_investment_account_id,
+      payment_debt_account_id: parsed.payment_debt_account_id,
     },
   });
 
@@ -185,6 +272,27 @@ export async function createTransaction(input: unknown) {
     tenantId: membership.tenant_id,
   });
 
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "savings_accounts",
+    accountId: parsed.payment_savings_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "investment_accounts",
+    accountId: parsed.payment_investment_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "debt_accounts",
+    accountId: parsed.payment_debt_account_id,
+    tenantId: membership.tenant_id,
+  });
+
   const { error: insertError } = await supabase.from("transactions").insert({
     tenant_id: membership.tenant_id,
     created_by_user_id: user.id,
@@ -196,6 +304,9 @@ export async function createTransaction(input: unknown) {
     savings_account_id: parsed.savings_account_id,
     investment_account_id: parsed.investment_account_id,
     debt_account_id: parsed.debt_account_id,
+    payment_savings_account_id: parsed.payment_savings_account_id,
+    payment_investment_account_id: parsed.payment_investment_account_id,
+    payment_debt_account_id: parsed.payment_debt_account_id,
   });
 
   if (insertError) {
@@ -248,10 +359,28 @@ export async function updateTransaction(input: unknown) {
   assertCategoryCompatibleLink({
     categoryType,
     categoryTag,
-    links: {
+    destinationLinks: {
       savings_account_id: parsed.savings_account_id,
       investment_account_id: parsed.investment_account_id,
       debt_account_id: parsed.debt_account_id,
+    },
+    paymentSources: {
+      payment_savings_account_id: parsed.payment_savings_account_id,
+      payment_investment_account_id: parsed.payment_investment_account_id,
+      payment_debt_account_id: parsed.payment_debt_account_id,
+    },
+  });
+
+  assertPaymentSourceNotSameAsDestination({
+    destinationLinks: {
+      savings_account_id: parsed.savings_account_id,
+      investment_account_id: parsed.investment_account_id,
+      debt_account_id: parsed.debt_account_id,
+    },
+    paymentSources: {
+      payment_savings_account_id: parsed.payment_savings_account_id,
+      payment_investment_account_id: parsed.payment_investment_account_id,
+      payment_debt_account_id: parsed.payment_debt_account_id,
     },
   });
 
@@ -276,6 +405,27 @@ export async function updateTransaction(input: unknown) {
     tenantId: membership.tenant_id,
   });
 
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "savings_accounts",
+    accountId: parsed.payment_savings_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "investment_accounts",
+    accountId: parsed.payment_investment_account_id,
+    tenantId: membership.tenant_id,
+  });
+
+  await assertLinkedAccountBelongsToTenant({
+    supabase,
+    table: "debt_accounts",
+    accountId: parsed.payment_debt_account_id,
+    tenantId: membership.tenant_id,
+  });
+
   const { error: updateError } = await supabase
     .from("transactions")
     .update({
@@ -287,6 +437,9 @@ export async function updateTransaction(input: unknown) {
       savings_account_id: parsed.savings_account_id,
       investment_account_id: parsed.investment_account_id,
       debt_account_id: parsed.debt_account_id,
+      payment_savings_account_id: parsed.payment_savings_account_id,
+      payment_investment_account_id: parsed.payment_investment_account_id,
+      payment_debt_account_id: parsed.payment_debt_account_id,
     })
     .eq("id", parsed.id)
     .eq("tenant_id", membership.tenant_id);
