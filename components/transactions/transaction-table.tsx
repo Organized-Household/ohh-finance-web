@@ -279,19 +279,13 @@ export default function TransactionTable({
 
                         <div className="grid grid-cols-1 gap-2">
                           <div>
-                            <label
-                              htmlFor={`savings-account-${row.id}`}
-                              className="mb-1 block text-xs font-medium text-slate-700"
-                            >
-                              Linked Savings Account (optional)
-                            </label>
                             <select
                               id={`savings-account-${row.id}`}
                               name="savings_account_id"
                               defaultValue={row.savings_account_id ?? ""}
                               className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
                             >
-                              <option value="">None</option>
+                              <option value="">Linked Savings Account (optional)</option>
                               {savingsAccounts.map((account) => (
                                 <option key={account.id} value={account.id}>
                                   {account.purpose}
@@ -300,19 +294,13 @@ export default function TransactionTable({
                             </select>
                           </div>
                           <div>
-                            <label
-                              htmlFor={`investment-account-${row.id}`}
-                              className="mb-1 block text-xs font-medium text-slate-700"
-                            >
-                              Linked Investment Account (optional)
-                            </label>
                             <select
                               id={`investment-account-${row.id}`}
                               name="investment_account_id"
                               defaultValue={row.investment_account_id ?? ""}
                               className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
                             >
-                              <option value="">None</option>
+                              <option value="">Linked Investment Account (optional)</option>
                               {investmentAccounts.map((account) => (
                                 <option key={account.id} value={account.id}>
                                   {account.name} - {account.account_type}
@@ -321,19 +309,13 @@ export default function TransactionTable({
                             </select>
                           </div>
                           <div>
-                            <label
-                              htmlFor={`debt-account-${row.id}`}
-                              className="mb-1 block text-xs font-medium text-slate-700"
-                            >
-                              Linked Debt Account (optional)
-                            </label>
                             <select
                               id={`debt-account-${row.id}`}
                               name="debt_account_id"
                               defaultValue={row.debt_account_id ?? ""}
                               className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
                             >
-                              <option value="">None</option>
+                              <option value="">Linked Debt Account (optional)</option>
                               {debtAccounts.map((account) => (
                                 <option key={account.id} value={account.id}>
                                   {account.name} - {account.type}

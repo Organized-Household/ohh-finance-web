@@ -188,19 +188,13 @@ export default function TransactionForm({
         <div className="md:col-span-5">
           <div className="mt-1 grid gap-2 md:grid-cols-3">
             <div>
-              <label
-                htmlFor="savings_account_id"
-                className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600"
-              >
-                Linked Savings Account (optional)
-              </label>
               <select
                 id="savings_account_id"
                 name="savings_account_id"
                 defaultValue=""
                 className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
               >
-                <option value="">None</option>
+                <option value="">Linked Savings Account (optional)</option>
                 {savingsAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.purpose}
@@ -210,19 +204,13 @@ export default function TransactionForm({
             </div>
 
             <div>
-              <label
-                htmlFor="investment_account_id"
-                className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600"
-              >
-                Linked Investment Account (optional)
-              </label>
               <select
                 id="investment_account_id"
                 name="investment_account_id"
                 defaultValue=""
                 className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
               >
-                <option value="">None</option>
+                <option value="">Linked Investment Account (optional)</option>
                 {investmentAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name} - {account.account_type}
@@ -232,19 +220,13 @@ export default function TransactionForm({
             </div>
 
             <div>
-              <label
-                htmlFor="debt_account_id"
-                className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-600"
-              >
-                Linked Debt Account (optional)
-              </label>
               <select
                 id="debt_account_id"
                 name="debt_account_id"
                 defaultValue=""
                 className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
               >
-                <option value="">None</option>
+                <option value="">Linked Debt Account (optional)</option>
                 {debtAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name} - {account.type}
