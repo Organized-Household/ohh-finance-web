@@ -30,10 +30,6 @@ function getCategoryAccentClass(row: BudgetVsActualRow) {
     return "text-indigo-700";
   }
 
-  if (row.tag === "debt_payment") {
-    return "text-rose-700";
-  }
-
   return "text-slate-700";
 }
 
@@ -54,7 +50,6 @@ const sectionOrder = [
   { key: "standard", label: "Standard" },
   { key: "savings", label: "Savings" },
   { key: "investment", label: "Investment" },
-  { key: "debt_payment", label: "Debt Payment" },
 ] as const;
 
 export default function BudgetVsActualTable({ data }: BudgetVsActualTableProps) {

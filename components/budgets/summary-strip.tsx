@@ -38,18 +38,12 @@ const items = [
     accentClass: "text-indigo-700",
     bgClass: "bg-indigo-50",
   },
-  {
-    key: "debt_payment",
-    label: "Debt Payment",
-    accentClass: "text-rose-700",
-    bgClass: "bg-rose-50",
-  },
 ] as const;
 
 export default function SummaryStrip({ metrics }: SummaryStripProps) {
   return (
     <section className="rounded-lg border border-slate-300 bg-white p-3">
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => (
           <div
             key={item.key}

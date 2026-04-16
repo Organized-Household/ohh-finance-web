@@ -5,7 +5,7 @@ type DistributionPercentListProps = {
 };
 
 const items: Array<{
-  key: "standard" | "savings" | "investment" | "debt_payment";
+  key: "standard" | "savings" | "investment";
   label: string;
   accentClass: string;
   barClass: string;
@@ -27,12 +27,6 @@ const items: Array<{
     label: "Investment",
     accentClass: "text-indigo-700",
     barClass: "bg-indigo-500",
-  },
-  {
-    key: "debt_payment",
-    label: "Debt Payment",
-    accentClass: "text-rose-700",
-    barClass: "bg-rose-500",
   },
 ];
 

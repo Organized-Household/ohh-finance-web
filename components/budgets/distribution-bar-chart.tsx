@@ -9,7 +9,6 @@ const colors = {
   standard: "#64748b",
   savings: "#14b8a6",
   investment: "#6366f1",
-  debt_payment: "#f43f5e",
 };
 
 function percent(value: number, maxValue: number): number {
@@ -28,7 +27,6 @@ export default function DistributionBarChart({ metrics }: DistributionBarChartPr
   const standardHeight = percent(metrics.totals.standard, maxValue);
   const savingsHeight = percent(metrics.totals.savings, maxValue);
   const investmentHeight = percent(metrics.totals.investment, maxValue);
-  const debtPaymentHeight = percent(metrics.totals.debt_payment, maxValue);
 
   return (
     <div className="space-y-3">
@@ -52,9 +50,6 @@ export default function DistributionBarChart({ metrics }: DistributionBarChartPr
           <div className="relative flex h-24 w-8 flex-col-reverse overflow-hidden rounded-t bg-slate-200">
             <div
               style={{ height: `${investmentHeight}%`, backgroundColor: colors.investment }}
-            />
-            <div
-              style={{ height: `${debtPaymentHeight}%`, backgroundColor: colors.debt_payment }}
             />
             <div style={{ height: `${savingsHeight}%`, backgroundColor: colors.savings }} />
             <div style={{ height: `${standardHeight}%`, backgroundColor: colors.standard }} />
@@ -103,13 +98,6 @@ export default function DistributionBarChart({ metrics }: DistributionBarChartPr
             style={{ backgroundColor: colors.investment }}
           />
           <span>Investment</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            className="inline-block size-2 rounded-full"
-            style={{ backgroundColor: colors.debt_payment }}
-          />
-          <span>Debt Payment</span>
         </div>
       </div>
     </div>
