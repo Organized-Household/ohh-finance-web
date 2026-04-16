@@ -3,7 +3,7 @@ import CategorySectionTable from "@/components/categories/category-section-table
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
   category_type: "income" | "expense";
 };
 
@@ -12,13 +12,14 @@ type GroupedCategoryTableProps = {
 };
 
 const sectionOrder: Array<{
-  key: "income" | "standard" | "savings" | "investment";
+  key: "income" | "standard" | "savings" | "investment" | "debt_payment";
   label: string;
 }> = [
   { key: "income", label: "Income" },
   { key: "standard", label: "Standard" },
   { key: "savings", label: "Savings" },
   { key: "investment", label: "Investment" },
+  { key: "debt_payment", label: "Debt Payment" },
 ];
 
 export default function GroupedCategoryTable({
@@ -74,10 +75,7 @@ export default function GroupedCategoryTable({
               );
             }
 
-            return (
-              category.category_type === "expense" &&
-              category.tag === "investment"
-            );
+            return category.category_type === "expense" && category.tag === section.key;
           })}
         />
       ))}

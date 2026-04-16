@@ -20,7 +20,7 @@ type SearchParams = Promise<{
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
   category_type: "income" | "expense";
 };
 
@@ -31,6 +31,26 @@ type Transaction = {
   amount: number;
   transaction_type: "income" | "expense";
   category_id: string;
+  savings_account_id: string | null;
+  investment_account_id: string | null;
+  debt_account_id: string | null;
+};
+
+type SavingsAccountOption = {
+  id: string;
+  purpose: string;
+};
+
+type InvestmentAccountOption = {
+  id: string;
+  name: string;
+  account_type: string;
+};
+
+type DebtAccountOption = {
+  id: string;
+  name: string;
+  type: string;
 };
 
 function getMonthRange(month: string) {
@@ -127,9 +147,50 @@ export default async function TransactionsPage({
 
   const categories: Category[] = (categoriesData ?? []) as Category[];
 
+  const { data: savingsAccountsData, error: savingsAccountsError } = await supabase
+    .from("savings_accounts")
+    .select("id, purpose")
+    .eq("tenant_id", membership.tenant_id)
+    .order("purpose", { ascending: true });
+
+  if (savingsAccountsError) {
+    throw new Error(`Failed to load savings accounts: ${savingsAccountsError.message}`);
+  }
+
+  const { data: investmentAccountsData, error: investmentAccountsError } =
+    await supabase
+      .from("investment_accounts")
+      .select("id, name, account_type")
+      .eq("tenant_id", membership.tenant_id)
+      .order("name", { ascending: true })
+      .order("account_type", { ascending: true });
+
+  if (investmentAccountsError) {
+    throw new Error(
+      `Failed to load investment accounts: ${investmentAccountsError.message}`
+    );
+  }
+
+  const { data: debtAccountsData, error: debtAccountsError } = await supabase
+    .from("debt_accounts")
+    .select("id, name, type")
+    .eq("tenant_id", membership.tenant_id)
+    .order("name", { ascending: true })
+    .order("type", { ascending: true });
+
+  if (debtAccountsError) {
+    throw new Error(`Failed to load debt accounts: ${debtAccountsError.message}`);
+  }
+
+  const savingsAccounts = (savingsAccountsData ?? []) as SavingsAccountOption[];
+  const investmentAccounts = (investmentAccountsData ?? []) as InvestmentAccountOption[];
+  const debtAccounts = (debtAccountsData ?? []) as DebtAccountOption[];
+
   const { data: transactionsData, error: transactionsError } = await supabase
     .from("transactions")
-    .select("id, transaction_date, description, amount, transaction_type, category_id")
+    .select(
+      "id, transaction_date, description, amount, transaction_type, category_id, savings_account_id, investment_account_id, debt_account_id"
+    )
     .eq("tenant_id", membership.tenant_id)
     .gte("transaction_date", monthRange.start)
     .lt("transaction_date", monthRange.end)
@@ -147,12 +208,39 @@ export default async function TransactionsPage({
     amount: Number(row.amount ?? 0),
     transaction_type: row.transaction_type as "income" | "expense",
     category_id: String(row.category_id),
+    savings_account_id:
+      typeof row.savings_account_id === "string" ? row.savings_account_id : null,
+    investment_account_id:
+      typeof row.investment_account_id === "string"
+        ? row.investment_account_id
+        : null,
+    debt_account_id:
+      typeof row.debt_account_id === "string" ? row.debt_account_id : null,
   }));
 
   const categoryMap = new Map(categories.map((category) => [category.id, category]));
+  const savingsAccountMap = new Map(
+    savingsAccounts.map((account) => [account.id, account.purpose])
+  );
+  const investmentAccountMap = new Map(
+    investmentAccounts.map((account) => [
+      account.id,
+      `${account.name} - ${account.account_type}`,
+    ])
+  );
+  const debtAccountMap = new Map(
+    debtAccounts.map((account) => [account.id, `${account.name} - ${account.type}`])
+  );
 
   const tableRows = transactions.map((transaction) => {
     const category = categoryMap.get(transaction.category_id);
+    const linkedAccountLabel = transaction.savings_account_id
+      ? savingsAccountMap.get(transaction.savings_account_id) ?? null
+      : transaction.investment_account_id
+        ? investmentAccountMap.get(transaction.investment_account_id) ?? null
+        : transaction.debt_account_id
+          ? debtAccountMap.get(transaction.debt_account_id) ?? null
+          : null;
 
     return {
       id: transaction.id,
@@ -165,7 +253,12 @@ export default async function TransactionsPage({
       category_tag: (category?.tag ?? "standard") as
         | "standard"
         | "savings"
-        | "investment",
+        | "investment"
+        | "debt_payment",
+      savings_account_id: transaction.savings_account_id,
+      investment_account_id: transaction.investment_account_id,
+      debt_account_id: transaction.debt_account_id,
+      linked_account_label: linkedAccountLabel,
     };
   });
 
@@ -192,12 +285,19 @@ export default async function TransactionsPage({
         row.transaction_type === "expense" && row.category_tag === "investment"
     )
     .reduce((sum, row) => sum + row.amount, 0);
+  const debtPaymentExpense = tableRows
+    .filter(
+      (row) =>
+        row.transaction_type === "expense" && row.category_tag === "debt_payment"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
 
   const maxValue = Math.max(monthIncome, monthExpense, 1);
   const incomeBarHeight = (monthIncome / maxValue) * 100;
   const standardBarHeight = (standardExpense / maxValue) * 100;
   const savingsBarHeight = (savingsExpense / maxValue) * 100;
   const investmentBarHeight = (investmentExpense / maxValue) * 100;
+  const debtPaymentBarHeight = (debtPaymentExpense / maxValue) * 100;
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
@@ -243,6 +343,12 @@ export default async function TransactionsPage({
                 {formatCurrency(investmentExpense)}
               </span>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-rose-700">Debt Payment</span>
+              <span className="font-medium tabular-nums text-rose-700">
+                {formatCurrency(debtPaymentExpense)}
+              </span>
+            </div>
           </div>
         </div>
       ),
@@ -266,6 +372,10 @@ export default async function TransactionsPage({
                 <div
                   className="bg-indigo-500"
                   style={{ height: `${investmentBarHeight}%` }}
+                />
+                <div
+                  className="bg-rose-500"
+                  style={{ height: `${debtPaymentBarHeight}%` }}
                 />
                 <div
                   className="bg-teal-500"
@@ -296,6 +406,10 @@ export default async function TransactionsPage({
               <span className="inline-block size-2 rounded-full bg-indigo-500" />
               <span>Investment</span>
             </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-rose-500" />
+              <span>Debt Payment</span>
+            </div>
           </div>
         </div>
       ),
@@ -319,6 +433,9 @@ export default async function TransactionsPage({
       amount: Number(formData.get("amount") ?? 0),
       transaction_date: String(formData.get("transaction_date") ?? ""),
       category_id: String(formData.get("category_id") ?? ""),
+      savings_account_id: String(formData.get("savings_account_id") ?? ""),
+      investment_account_id: String(formData.get("investment_account_id") ?? ""),
+      debt_account_id: String(formData.get("debt_account_id") ?? ""),
     });
   };
 
@@ -332,6 +449,9 @@ export default async function TransactionsPage({
       amount: Number(formData.get("amount") ?? 0),
       transaction_date: String(formData.get("transaction_date") ?? ""),
       category_id: String(formData.get("category_id") ?? ""),
+      savings_account_id: String(formData.get("savings_account_id") ?? ""),
+      investment_account_id: String(formData.get("investment_account_id") ?? ""),
+      debt_account_id: String(formData.get("debt_account_id") ?? ""),
     });
   };
 
@@ -361,6 +481,9 @@ export default async function TransactionsPage({
           <TransactionForm
             categories={categories}
             defaultDate={monthRange.start}
+            savingsAccounts={savingsAccounts}
+            investmentAccounts={investmentAccounts}
+            debtAccounts={debtAccounts}
             action={createAction}
           />
         ) : (
@@ -373,6 +496,9 @@ export default async function TransactionsPage({
         <TransactionTable
           rows={tableRows}
           categories={categories}
+          savingsAccounts={savingsAccounts}
+          investmentAccounts={investmentAccounts}
+          debtAccounts={debtAccounts}
           selectedMonth={selectedMonth}
           updateAction={updateAction}
           deleteAction={deleteAction}

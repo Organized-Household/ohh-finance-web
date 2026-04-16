@@ -12,7 +12,7 @@ type CategoryRow = {
   id: string;
   name: string;
   category_type: "income" | "expense";
-  tag: "standard" | "savings" | "investment";
+  tag: "standard" | "savings" | "investment" | "debt_payment";
 };
 
 type CategorySectionTableProps = {
@@ -116,9 +116,10 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
             <option value="standard">Standard</option>
             <option value="savings">Savings</option>
             <option value="investment">Investment</option>
+            <option value="debt_payment">Debt Payment</option>
           </select>
         ) : (
-          <span className="capitalize">{displayTag}</span>
+          <span className="capitalize">{displayTag.replace("_", " ")}</span>
         )}
       </td>
 
