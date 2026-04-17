@@ -1,47 +1,45 @@
 'use client'
 
 import type { MonthlyTrendPoint } from '@/lib/dashboard/get-dashboard-summary'
+import { buildSixMonthSlots } from '@/lib/dashboard/chartUtils'
 
 interface IncomeExpenseChartProps {
   trend: MonthlyTrendPoint[]
+  /** ISO YYYY-MM-01 for the selected month — used to anchor the 6-slot window */
+  currentMonthStart: string
 }
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+// Cap bar width so single-month data doesn't stretch the full group width
+const MAX_BAR_W = 32
 
-function monthAbbr(monthStart: string, isLast: boolean): string {
-  const month = new Date(monthStart + 'T00:00:00Z').getUTCMonth()
-  return isLast ? `${MONTH_ABBR[month]}*` : (MONTH_ABBR[month] ?? '')
-}
-
-export default function IncomeExpenseChart({ trend }: IncomeExpenseChartProps) {
-  if (!trend.length) {
-    return (
-      <div className="rounded-lg border border-slate-300 bg-white px-4 py-3">
-        <p className="text-xs text-slate-500">No trend data available.</p>
-      </div>
-    )
-  }
-
-  // Use up to 6 most recent months
-  const months = trend.slice(-6)
-  const n = months.length
+export default function IncomeExpenseChart({
+  trend,
+  currentMonthStart,
+}: IncomeExpenseChartProps) {
+  const months = buildSixMonthSlots(trend, currentMonthStart)
+  const N = months.length  // always 6
 
   // SVG coordinate system
   const VW = 600
-  const BAR_TOP = 8       // top of bar area
-  const BAR_BOTTOM = 62   // bottom of bar area (baseline)
-  const LABEL_Y = 76      // x-axis month labels
-  const VH = 82           // total SVG viewBox height
+  const BAR_TOP    = 6
+  const BAR_BOTTOM = 56
+  const LABEL_Y    = 70
+  const VH         = 76
 
-  const groupW = VW / n
-  const barW = Math.floor(groupW * 0.28)
-  const gap = Math.floor(groupW * 0.04)
+  const groupW = VW / N
+  const rawBarW = Math.floor(groupW * 0.28)
+  const barW = Math.min(rawBarW, MAX_BAR_W)
+  const gap = 3
 
-  const allValues = months.flatMap((m) => [m.income, m.expenses, Math.abs(m.income - m.expenses)])
+  const allValues = months.flatMap((m) => [
+    m.income,
+    m.expenses,
+    Math.abs(m.income - m.expenses),
+  ])
   const maxVal = Math.max(...allValues, 1)
 
-  function barHeight(value: number): number {
-    return ((value / maxVal) * (BAR_BOTTOM - BAR_TOP))
+  function barH(value: number): number {
+    return (value / maxVal) * (BAR_BOTTOM - BAR_TOP)
   }
 
   // Net line points
@@ -50,39 +48,33 @@ export default function IncomeExpenseChart({ trend }: IncomeExpenseChartProps) {
       const net = m.income - m.expenses
       const cx = i * groupW + groupW / 2
       const h = (Math.abs(net) / maxVal) * (BAR_BOTTOM - BAR_TOP)
-      // net >= 0: line above baseline; net < 0: line below baseline
       const cy = net >= 0 ? BAR_BOTTOM - h : BAR_BOTTOM + h
-      return `${cx.toFixed(1)},${Math.max(BAR_TOP, Math.min(BAR_BOTTOM + 10, cy)).toFixed(1)}`
+      return `${cx.toFixed(1)},${Math.max(BAR_TOP, Math.min(BAR_BOTTOM + 8, cy)).toFixed(1)}`
     })
     .join(' ')
 
   return (
-    <div className="rounded-lg border border-slate-300 bg-white px-4 py-3">
+    <div className="rounded-lg border border-slate-300 bg-white px-3 py-2">
       {/* Legend */}
-      <div className="mb-2 flex items-center gap-4 text-[11px] font-medium text-slate-600">
+      <div className="mb-1.5 flex items-center gap-3 text-[10px] font-medium text-slate-600">
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#1d9e75]" />
+          <span className="inline-block h-2 w-2 rounded-sm bg-[#1d9e75]" />
           Income
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#d85a30]" />
+          <span className="inline-block h-2 w-2 rounded-sm bg-[#d85a30]" />
           Expenses
         </span>
         <span className="flex items-center gap-1">
-          <svg width="18" height="10" className="inline-block">
-            <line
-              x1="0" y1="5" x2="18" y2="5"
-              stroke="#185fa5"
-              strokeWidth="1.5"
-              strokeDasharray="4 2"
-            />
+          <svg width="16" height="8" className="inline-block">
+            <line x1="0" y1="4" x2="16" y2="4" stroke="#185fa5" strokeWidth="1.5" strokeDasharray="3 2" />
           </svg>
           Net
         </span>
       </div>
 
-      {/* Chart — 90px wrapper */}
-      <div style={{ height: 90 }}>
+      {/* Chart — 80px wrapper */}
+      <div style={{ height: 80 }}>
         <svg
           viewBox={`0 0 ${VW} ${VH}`}
           width="100%"
@@ -92,86 +84,67 @@ export default function IncomeExpenseChart({ trend }: IncomeExpenseChartProps) {
           role="img"
         >
           {/* Baseline */}
-          <line
-            x1={0} y1={BAR_BOTTOM}
-            x2={VW} y2={BAR_BOTTOM}
-            stroke="#e2e8f0"
-            strokeWidth="1"
-          />
+          <line x1={0} y1={BAR_BOTTOM} x2={VW} y2={BAR_BOTTOM} stroke="#e2e8f0" strokeWidth="1" />
 
           {months.map((m, i) => {
-            const groupX = i * groupW
-            const centerX = groupX + groupW / 2
-            const incomeH = barHeight(m.income)
-            const expenseH = barHeight(m.expenses)
-            const incomeX = centerX - barW - gap / 2
-            const expenseX = centerX + gap / 2
-            const isLast = i === months.length - 1
+            const cx = i * groupW + groupW / 2
+            const incomeH = barH(m.income)
+            const expenseH = barH(m.expenses)
+            const incomeX = cx - barW - gap / 2
+            const expenseX = cx + gap / 2
+            const isCurrent = i === N - 1
 
             return (
-              <g key={m.month_start}>
-                {/* Income bar */}
+              <g key={m.key}>
                 {m.income > 0 && (
                   <rect
-                    x={incomeX}
-                    y={BAR_BOTTOM - incomeH}
-                    width={barW}
-                    height={incomeH}
-                    fill="#1d9e75"
-                    rx={1}
+                    x={incomeX} y={BAR_BOTTOM - incomeH}
+                    width={barW} height={incomeH}
+                    fill="#1d9e75" rx={1}
                   />
                 )}
-                {/* Expense bar */}
                 {m.expenses > 0 && (
                   <rect
-                    x={expenseX}
-                    y={BAR_BOTTOM - expenseH}
-                    width={barW}
-                    height={expenseH}
-                    fill="#d85a30"
-                    rx={1}
+                    x={expenseX} y={BAR_BOTTOM - expenseH}
+                    width={barW} height={expenseH}
+                    fill="#d85a30" rx={1}
                   />
                 )}
-                {/* Month label */}
                 <text
-                  x={centerX}
-                  y={LABEL_Y}
+                  x={cx} y={LABEL_Y}
                   textAnchor="middle"
                   fontSize={9}
-                  fill={isLast ? '#185fa5' : '#64748b'}
+                  fill={isCurrent ? '#185fa5' : '#64748b'}
                   fontFamily="inherit"
                 >
-                  {monthAbbr(m.month_start, isLast)}
+                  {m.label}
                 </text>
               </g>
             )
           })}
 
-          {/* Net savings dashed line */}
-          {months.length > 1 && (
-            <polyline
-              points={netPoints}
-              fill="none"
-              stroke="#185fa5"
-              strokeWidth="1.5"
-              strokeDasharray="4 2"
-              strokeLinejoin="round"
-            />
-          )}
+          {/* Net dashed line */}
+          <polyline
+            points={netPoints}
+            fill="none"
+            stroke="#185fa5"
+            strokeWidth="1.5"
+            strokeDasharray="4 2"
+            strokeLinejoin="round"
+          />
 
-          {/* Net dot per month */}
+          {/* Net dots */}
           {months.map((m, i) => {
             const net = m.income - m.expenses
             const cx = i * groupW + groupW / 2
             const h = (Math.abs(net) / maxVal) * (BAR_BOTTOM - BAR_TOP)
             const cy = net >= 0 ? BAR_BOTTOM - h : BAR_BOTTOM + h
-            const clampedCy = Math.max(BAR_TOP, Math.min(BAR_BOTTOM + 10, cy))
             return (
               <circle
-                key={m.month_start}
+                key={m.key}
                 cx={cx}
-                cy={clampedCy}
-                r={2.5}
+                cy={Math.max(BAR_TOP, Math.min(BAR_BOTTOM + 8, cy))}
+                r={2}
                 fill="#185fa5"
               />
             )

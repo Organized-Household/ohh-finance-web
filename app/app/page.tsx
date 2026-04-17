@@ -3,7 +3,7 @@ import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-le
 import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
 import KpiCard from "@/components/dashboard/KpiCard";
 import IncomeExpenseChart from "@/components/dashboard/IncomeExpenseChart";
-import BudgetVsActualTable from "@/components/dashboard/BudgetVsActualTable";
+import DashboardBvaRow from "@/components/dashboard/DashboardBvaRow";
 import AccountTile from "@/components/dashboard/AccountTile";
 import HouseholdMemberCard from "@/components/dashboard/HouseholdMemberCard";
 import { createClient } from "@/lib/supabase/server";
@@ -13,6 +13,7 @@ import { formatMonthStartDate } from "@/lib/db/month";
 import { getDashboardMonth } from "@/lib/dashboard/get-dashboard-month";
 import { getDashboardSummary } from "@/lib/dashboard/get-dashboard-summary";
 import {
+  computeMonthProgress,
   computeIncomeBadge,
   computeExpenseBadge,
   computeNetHealthBadge,
@@ -37,8 +38,13 @@ export default async function AppHomePage({
   const params = await searchParams;
   const resolvedMonth = getDashboardMonth(params);
   const monthStartIso = formatMonthStartDate(resolvedMonth.monthStart);
+  const selectedMonth = resolvedMonth.monthParam;
 
-  // Fetch user + membership + all dashboard data in parallel
+  // monthProgress: A = days elapsed ÷ days in month
+  // Computed once here; passed to all badge functions and client components
+  const monthProgress = computeMonthProgress(resolvedMonth.monthStart, new Date());
+
+  // Fetch user + membership + dashboard data in parallel
   const supabase = await createClient();
   const [
     { data: { user }, error: userError },
@@ -55,34 +61,40 @@ export default async function AppHomePage({
   }
 
   const displayName = getUserFirstName(user);
-  const selectedMonth = resolvedMonth.monthParam;
 
-  // KPI badges
-  const incomeBadge = computeIncomeBadge(summary.income_total, summary.budgeted_income);
-  const expenseBadge = computeExpenseBadge(summary.expense_total, summary.budgeted_expense);
+  // KPI badges — all pace-based
+  const incomeBadge = computeIncomeBadge(
+    summary.income_total,
+    summary.budgeted_income,
+    monthProgress
+  );
+  const expenseBadge = computeExpenseBadge(
+    summary.expense_total,
+    summary.budgeted_expense,
+    monthProgress
+  );
   const netBadge = computeNetHealthBadge({
     incomeActual: summary.income_total,
     incomeBudgeted: summary.budgeted_income,
     expenseActual: summary.expense_total,
     expenseBudgeted: summary.budgeted_expense,
+    monthProgress,
   });
 
   const netAmount = summary.income_total - summary.expense_total;
 
+  // Left panel: Household Member card only
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
-      title: "Month",
+      title: "Household",
       content: (
-        <div className="space-y-2 text-xs text-slate-700">
-          <div className="flex items-center justify-between">
-            <span>Selected</span>
-            <span className="font-semibold tabular-nums">{selectedMonth}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span>Window start</span>
-            <span className="font-medium tabular-nums">{monthStartIso}</span>
-          </div>
-        </div>
+        <HouseholdMemberCard
+          displayName={displayName}
+          role={membership.role as "admin" | "member"}
+          pendingReviewCount={summary.pending_review_count}
+          budgetIsSet={summary.budget_is_set}
+          lastImportDate={summary.last_transaction_date}
+        />
       ),
     },
   ];
@@ -94,16 +106,9 @@ export default async function AppHomePage({
       leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={selectedMonth} />}
     >
-      <div className="space-y-4">
-        {/* Row 1: Household member card + 3 KPI cards */}
-        <div className="grid grid-cols-4 gap-4">
-          <HouseholdMemberCard
-            displayName={displayName}
-            role={membership.role as "admin" | "member"}
-            pendingReviewCount={summary.pending_review_count}
-            budgetIsSet={summary.budget_is_set}
-            lastImportDate={summary.last_transaction_date}
-          />
+      <div className="space-y-2">
+        {/* Row 1: 3 KPI cards — full content width */}
+        <div className="grid grid-cols-3 gap-2">
           <KpiCard
             label="Income"
             value={formatCurrency(summary.income_total)}
@@ -127,39 +132,26 @@ export default async function AppHomePage({
           />
         </div>
 
-        {/* Row 2: 6-month income vs expenses chart */}
-        <IncomeExpenseChart trend={summary.monthly_trend ?? []} />
+        {/* Row 2: 6-month chart */}
+        <IncomeExpenseChart
+          trend={summary.monthly_trend ?? []}
+          currentMonthStart={monthStartIso}
+        />
 
-        {/* Row 3: Budget vs actual table (60%) + Savings / Investments tiles (40%) */}
-        <div className="flex gap-4" style={{ minHeight: "320px" }}>
-          {/* Left column — BVA table fills the height of this flex row */}
-          <div className="flex flex-col min-h-0" style={{ flex: "3" }}>
-            <BudgetVsActualTable rows={summary.budget_vs_actual ?? []} />
-          </div>
-
-          {/* Right column — Savings + Investments stacked */}
-          <div className="flex flex-col gap-4" style={{ flex: "2" }}>
-            <AccountTile
-              kind="savings"
-              accounts={summary.savings_accounts ?? []}
-            />
-            <AccountTile
-              kind="investment"
-              accounts={summary.investment_accounts ?? []}
-            />
-          </div>
-        </div>
+        {/* Row 3: BVA table (60%) + Savings/Investments tiles (40%)
+            DashboardBvaRow is a client component that owns the rightColRef
+            so BudgetVsActualTable can height-lock to the right column */}
+        <DashboardBvaRow
+          bvaRows={summary.budget_vs_actual ?? []}
+          savingsAccounts={summary.savings_accounts ?? []}
+          investmentAccounts={summary.investment_accounts ?? []}
+          monthProgress={monthProgress}
+        />
 
         {/* Row 4: Debts (50%) + Credit Cards (50%) */}
-        <div className="grid grid-cols-2 gap-4">
-          <AccountTile
-            kind="debt"
-            accounts={summary.debt_accounts ?? []}
-          />
-          <AccountTile
-            kind="credit_card"
-            accounts={summary.credit_card_accounts ?? []}
-          />
+        <div className="grid grid-cols-2 gap-2">
+          <AccountTile kind="debt" accounts={summary.debt_accounts ?? []} />
+          <AccountTile kind="credit_card" accounts={summary.credit_card_accounts ?? []} />
         </div>
       </div>
     </WorkspaceShell>
