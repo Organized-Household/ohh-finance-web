@@ -2,7 +2,7 @@ import WorkspaceShell from "@/components/layout/workspace-shell";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
 import KpiCard from "@/components/dashboard/KpiCard";
-import IncomeExpenseChart from "@/components/dashboard/IncomeExpenseChart";
+import ChartStrip from "@/components/dashboard/ChartStrip";
 import DashboardBvaRow from "@/components/dashboard/DashboardBvaRow";
 import AccountTile from "@/components/dashboard/AccountTile";
 import HouseholdMemberCard from "@/components/dashboard/HouseholdMemberCard";
@@ -132,9 +132,11 @@ export default async function AppHomePage({
           />
         </div>
 
-        {/* Row 2: 6-month chart */}
-        <IncomeExpenseChart
-          trend={summary.monthly_trend ?? []}
+        {/* Row 2: Three-chart strip (3fr / 4fr / 3fr) */}
+        <ChartStrip
+          investmentTrend={summary.investment_trend}
+          trend={summary.monthly_trend}
+          savingsGoals={summary.savings_goals}
           currentMonthStart={monthStartIso}
         />
 

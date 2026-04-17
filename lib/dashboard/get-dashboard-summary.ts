@@ -30,6 +30,19 @@ export type DashboardAccount = {
   payment_this_month?: number
 }
 
+export type InvestmentTrendPoint = {
+  month_start: string
+  monthly_contributions: number
+}
+
+export type SavingsGoal = {
+  id: string
+  name: string
+  target_amount: number
+  target_date: string | null
+  contributed_all_time: number
+}
+
 export type DashboardSummary = {
   income_total: number
   expense_total: number
@@ -41,6 +54,8 @@ export type DashboardSummary = {
   investment_accounts: DashboardAccount[] | null
   debt_accounts: DashboardAccount[] | null
   credit_card_accounts: DashboardAccount[] | null
+  investment_trend: InvestmentTrendPoint[] | null
+  savings_goals: SavingsGoal[] | null
   pending_review_count: number
   budget_is_set: boolean
   last_transaction_date: string | null
@@ -59,7 +74,6 @@ export async function getDashboardSummary(
     throw new Error(`[getDashboardSummary] RPC failed: ${error.message}`)
   }
 
-  // Supabase returns the json column as a parsed object
   const summary = data as DashboardSummary
 
   return {
@@ -73,6 +87,8 @@ export async function getDashboardSummary(
     investment_accounts: summary.investment_accounts ?? null,
     debt_accounts: summary.debt_accounts ?? null,
     credit_card_accounts: summary.credit_card_accounts ?? null,
+    investment_trend: summary.investment_trend ?? null,
+    savings_goals: summary.savings_goals ?? null,
     pending_review_count: Number(summary.pending_review_count ?? 0),
     budget_is_set: Boolean(summary.budget_is_set),
     last_transaction_date: summary.last_transaction_date ?? null,
