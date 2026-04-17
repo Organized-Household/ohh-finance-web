@@ -1,6 +1,5 @@
 'use client'
 
-import { useRef } from 'react'
 import BudgetVsActualTable from '@/components/dashboard/BudgetVsActualTable'
 import AccountTile from '@/components/dashboard/AccountTile'
 import type { BudgetVsActualRpcRow, DashboardAccount } from '@/lib/dashboard/get-dashboard-summary'
@@ -19,23 +18,18 @@ export default function DashboardBvaRow({
   investmentAccounts,
   monthProgress,
 }: DashboardBvaRowProps) {
-  const rightColRef = useRef<HTMLDivElement>(null)
-
   return (
-    <div className="flex gap-2" style={{ alignItems: 'stretch' }}>
-      {/* BVA table — 60%: display:flex so child can be height:100% */}
-      <div style={{ flex: 3, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <BudgetVsActualTable
-          rows={bvaRows}
-          rightColRef={rightColRef}
-          monthProgress={monthProgress}
-        />
-      </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '10px', alignItems: 'start' }}>
+      {/* BVA table — 3fr: maxHeight set dynamically to match right column */}
+      <BudgetVsActualTable
+        rows={bvaRows}
+        monthProgress={monthProgress}
+      />
 
-      {/* Right column — 40%: Savings + Investments stacked */}
+      {/* Right column — 2fr: Savings + Investments stacked; id used by BVA to measure height */}
       <div
-        ref={rightColRef}
-        style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '8px' }}
+        id="bva-right-col-anchor"
+        style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}
       >
         <AccountTile kind="savings" accounts={savingsAccounts} />
         <AccountTile kind="investment" accounts={investmentAccounts} />
