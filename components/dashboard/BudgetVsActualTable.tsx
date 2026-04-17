@@ -1,14 +1,11 @@
 'use client'
 
-import { Fragment } from 'react'
-import type { RefObject } from 'react'
+import { Fragment, useEffect, useRef } from 'react'
 import type { BudgetVsActualRpcRow } from '@/lib/dashboard/get-dashboard-summary'
 import { computeCategoryBadge } from '@/lib/dashboard/healthBadge'
 
 interface BudgetVsActualTableProps {
   rows: BudgetVsActualRpcRow[]
-  /** Ref attached to the right-column wrapper (kept for API compatibility) */
-  rightColRef: RefObject<HTMLDivElement | null>
   /** A = days elapsed ÷ days in month; 0 = future, 1 = historical */
   monthProgress: number
 }
@@ -70,14 +67,31 @@ function ColGroup() {
 
 export default function BudgetVsActualTable({
   rows,
-  rightColRef: _rightColRef,
   monthProgress,
 }: BudgetVsActualTableProps) {
+  const bvaCardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const rightCol = document.getElementById('bva-right-col-anchor')
+    if (!rightCol || !bvaCardRef.current) return
+
+    const setHeight = () => {
+      const h = rightCol.getBoundingClientRect().height
+      if (h > 0 && bvaCardRef.current) {
+        bvaCardRef.current.style.maxHeight = `${h}px`
+      }
+    }
+
+    setHeight()
+    window.addEventListener('resize', setHeight)
+    return () => window.removeEventListener('resize', setHeight)
+  }, [])
+
   if (!rows.length) {
     return (
       <div
+        ref={bvaCardRef}
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
-        style={{ flex: 1, minHeight: 0 }}
       >
         <div className="flex-shrink-0" style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
           <h2 style={{ fontSize: 11, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
@@ -108,8 +122,8 @@ export default function BudgetVsActualTable({
       `}</style>
 
       <div
+        ref={bvaCardRef}
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
-        style={{ flex: 1, minHeight: 0 }}
       >
         {/* Card header */}
         <div className="flex-shrink-0">
