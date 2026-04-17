@@ -80,31 +80,29 @@ export default function BudgetVsActualTable({
 
   // Height-lock to right column via ResizeObserver
   useLayoutEffect(() => {
-    const el = rightColRef.current
-    if (!el) return
+    const rightCol = rightColRef.current
+    if (!rightCol) return
 
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const totalH = entry.contentRect.height
-        if (bvaCardRef.current) {
-          bvaCardRef.current.style.height = `${totalH}px`
-        }
-        if (
-          bvaScrollRef.current &&
-          bvaHeaderRef.current &&
-          bvaFooterRef.current
-        ) {
-          const scrollH =
-            totalH -
-            bvaHeaderRef.current.offsetHeight -
-            bvaFooterRef.current.offsetHeight
-          bvaScrollRef.current.style.maxHeight = `${Math.max(0, scrollH)}px`
-          bvaScrollRef.current.style.overflowY = 'auto'
-        }
+    const applyHeight = () => {
+      const totalH = rightCol.getBoundingClientRect().height
+      if (!bvaCardRef.current) return
+      bvaCardRef.current.style.height = `${totalH}px`
+
+      const headerH = bvaHeaderRef.current?.offsetHeight ?? 0
+      const footerH = bvaFooterRef.current?.offsetHeight ?? 0
+      const scrollH = totalH - headerH - footerH
+
+      if (bvaScrollRef.current && scrollH > 0) {
+        bvaScrollRef.current.style.maxHeight = `${scrollH}px`
+        bvaScrollRef.current.style.overflowY = 'auto'
       }
-    })
+    }
 
-    observer.observe(el)
+    // Apply immediately on mount — don't wait for first ResizeObserver fire
+    applyHeight()
+
+    const observer = new ResizeObserver(applyHeight)
+    observer.observe(rightCol)
     return () => observer.disconnect()
   }, [rightColRef])
 
