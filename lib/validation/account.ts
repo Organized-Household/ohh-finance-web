@@ -9,8 +9,10 @@ function normalizeOptionalText(value: string | null | undefined) {
   return trimmed.length ? trimmed : null;
 }
 
+// --- Savings ---
+
 export const savingsAccountInputSchema = z.object({
-  purpose: z
+  name: z
     .string()
     .trim()
     .min(1, "Purpose is required")
@@ -31,7 +33,6 @@ export const savingsAccountInputSchema = z.object({
       if (!normalized) {
         return null;
       }
-
       const parsed = Number.parseFloat(normalized);
       return Number.isFinite(parsed) ? parsed : Number.NaN;
     })
@@ -43,7 +44,10 @@ export const savingsAccountInputSchema = z.object({
     .string()
     .optional()
     .transform((value) => normalizeOptionalText(value))
-    .refine((value) => value === null || !Number.isNaN(Date.parse(value)), "Target date is invalid"),
+    .refine(
+      (value) => value === null || !Number.isNaN(Date.parse(value)),
+      "Target date is invalid"
+    ),
 });
 
 export const createSavingsAccountSchema = savingsAccountInputSchema;
@@ -60,6 +64,55 @@ export function toAccountNumberLast4(accountNumberDigits: string): string | null
   if (!accountNumberDigits) {
     return null;
   }
-
   return accountNumberDigits.slice(-4);
 }
+
+// --- Investment ---
+
+export const investmentAccountInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .max(120, "Name must be 120 characters or less"),
+  account_subtype: z
+    .string()
+    .trim()
+    .min(1, "Type is required")
+    .max(80, "Type must be 80 characters or less"),
+});
+
+export const createInvestmentAccountSchema = investmentAccountInputSchema;
+
+export const updateInvestmentAccountSchema = investmentAccountInputSchema.extend({
+  id: z.string().uuid(),
+});
+
+export const deleteInvestmentAccountSchema = z.object({
+  id: z.string().uuid(),
+});
+
+// --- Debt ---
+
+export const debtAccountInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .max(120, "Name must be 120 characters or less"),
+  account_subtype: z
+    .string()
+    .trim()
+    .min(1, "Type is required")
+    .max(80, "Type must be 80 characters or less"),
+});
+
+export const createDebtAccountSchema = debtAccountInputSchema;
+
+export const updateDebtAccountSchema = debtAccountInputSchema.extend({
+  id: z.string().uuid(),
+});
+
+export const deleteDebtAccountSchema = z.object({
+  id: z.string().uuid(),
+});

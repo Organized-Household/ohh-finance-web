@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { createInvestmentAccountFormAction } from "@/app/app/accounts/investments/actions";
-import { initialInvestmentAccountFormState } from "@/app/app/accounts/investments/form-state";
+import { createInvestmentAccountFormAction } from "@/lib/actions/accounts";
+import { initialInvestmentFormState } from "@/app/app/accounts/investments/form-state";
 
 export default function InvestmentAccountForm() {
   const [state, formAction, pending] = useActionState(
     createInvestmentAccountFormAction,
-    initialInvestmentAccountFormState
+    initialInvestmentFormState
   );
 
   return (
@@ -41,14 +41,14 @@ export default function InvestmentAccountForm() {
           </label>
           <input
             id="create-investment-type"
-            name="type"
+            name="account_subtype"
             type="text"
             required
             placeholder="RRSP, TFSA, Stocks..."
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
-          {state.fieldErrors?.type ? (
-            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.type}</p>
+          {state.fieldErrors?.account_subtype ? (
+            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.account_subtype}</p>
           ) : null}
         </div>
 

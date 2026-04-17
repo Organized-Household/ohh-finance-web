@@ -9,7 +9,7 @@ import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 
 type SavingsAccountRow = {
   id: string;
-  purpose: string;
+  name: string;
   account_number_last4: string | null;
   target_amount: number | null;
   target_date: string | null;
@@ -30,10 +30,12 @@ export default async function SavingsAccountsPage() {
   const membership = await getCurrentTenantMembership();
 
   const { data, error } = await supabase
-    .from("savings_accounts")
-    .select("id, purpose, account_number_last4, target_amount, target_date")
+    .from("accounts")
+    .select("id, name, account_number_last4, target_amount, target_date")
     .eq("tenant_id", membership.tenant_id)
-    .order("purpose", { ascending: true });
+    .eq("account_kind", "savings")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load savings accounts: ${error.message}`);
@@ -41,7 +43,7 @@ export default async function SavingsAccountsPage() {
 
   const rows: SavingsAccountRow[] = (data ?? []).map((row) => ({
     id: String(row.id),
-    purpose: String(row.purpose),
+    name: String(row.name),
     account_number_last4: row.account_number_last4
       ? String(row.account_number_last4)
       : null,

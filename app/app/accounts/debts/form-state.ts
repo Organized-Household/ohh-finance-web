@@ -1,5 +1,4 @@
-import type { DebtAccountFormState } from "@/app/app/accounts/debts/actions";
+import { type AccountFormState } from "@/lib/actions/accounts";
 
-export const initialDebtAccountFormState: DebtAccountFormState = {
-  message: "",
-};
+export type { AccountFormState as DebtFormState };
+export const initialDebtFormState: AccountFormState = { message: "" };
