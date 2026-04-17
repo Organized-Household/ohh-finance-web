@@ -45,14 +45,20 @@ export default function DebtAccountForm() {
           >
             Type
           </label>
-          <input
+          <select
             id="create-debt-type"
             name="account_subtype"
-            type="text"
             required
-            placeholder="Credit Card, Mortgage..."
-            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-          />
+            defaultValue="credit_card"
+            className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-sm"
+          >
+            <option value="credit_card">Credit Card</option>
+            <option value="mortgage">Mortgage</option>
+            <option value="heloc">HELOC</option>
+            <option value="car_loan">Car Loan</option>
+            <option value="personal_loan">Personal Loan</option>
+            <option value="other">Other</option>
+          </select>
           {state.fieldErrors?.account_subtype ? (
             <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.account_subtype}</p>
           ) : null}

@@ -8,6 +8,19 @@ import {
 } from "@/lib/actions/accounts";
 import { initialDebtFormState } from "@/app/app/accounts/debts/form-state";
 
+const SUBTYPE_LABELS: Record<string, string> = {
+  credit_card: 'Credit Card',
+  mortgage: 'Mortgage',
+  heloc: 'HELOC',
+  car_loan: 'Car Loan',
+  personal_loan: 'Personal Loan',
+  other: 'Other',
+}
+
+function subtypeLabel(value: string): string {
+  return SUBTYPE_LABELS[value] ?? value
+}
+
 type DebtAccountRow = {
   id: string;
   name: string;
@@ -76,17 +89,23 @@ function EditableRow({ row }: EditableRowProps) {
 
       <td className="px-3 py-2 align-top text-sm text-slate-700">
         {isEditing ? (
-          <input
+          <select
             id={`debt-type-${row.id}`}
             name={`debt-type-${row.id}`}
-            type="text"
             value={draftType}
             onChange={(event) => setDraftType(event.target.value)}
             required
-            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-          />
+            className="h-8 w-full rounded border border-slate-300 bg-white px-2 text-sm"
+          >
+            <option value="credit_card">Credit Card</option>
+            <option value="mortgage">Mortgage</option>
+            <option value="heloc">HELOC</option>
+            <option value="car_loan">Car Loan</option>
+            <option value="personal_loan">Personal Loan</option>
+            <option value="other">Other</option>
+          </select>
         ) : (
-          displayType
+          subtypeLabel(displayType)
         )}
       </td>
 
