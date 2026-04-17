@@ -1,11 +1,16 @@
 'use client'
 
-import { Fragment } from 'react'
+import { Fragment, useLayoutEffect, useRef } from 'react'
+import type { RefObject } from 'react'
 import type { BudgetVsActualRpcRow } from '@/lib/dashboard/get-dashboard-summary'
 import { computeCategoryBadge } from '@/lib/dashboard/healthBadge'
 
 interface BudgetVsActualTableProps {
   rows: BudgetVsActualRpcRow[]
+  /** Ref attached to the right-column wrapper (Savings + Investments tiles) */
+  rightColRef: RefObject<HTMLDivElement | null>
+  /** A = days elapsed ÷ days in month; 0 = future, 1 = historical */
+  monthProgress: number
 }
 
 function formatCurrency(amount: number): string {
@@ -17,193 +22,275 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-const progressBarColor: Record<ReturnType<typeof computeCategoryBadge>, string> = {
-  green: 'bg-emerald-500',
-  amber: 'bg-amber-400',
-  red: 'bg-rose-500',
+function ProgressBar({ pct }: { pct: number }) {
+  const filled = Math.min(pct, 100)
+  const color = pct > 100 ? '#e24b4a' : pct >= 80 ? '#ef9f27' : '#1d9e75'
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '6px',
+        border: '1px solid #e2e8f0',
+        borderRadius: '3px',
+        overflow: 'hidden',
+        backgroundColor: 'transparent',
+      }}
+    >
+      <div
+        style={{
+          width: `${filled}%`,
+          height: '100%',
+          backgroundColor: color,
+          borderRadius: '2px',
+        }}
+      />
+    </div>
+  )
 }
 
 const sectionOrder = [
-  { key: 'income' as const, label: 'Income', matchType: 'income' as const },
-  { key: 'standard', label: 'Standard', matchTag: 'standard' },
-  { key: 'savings', label: 'Savings', matchTag: 'savings' },
-  { key: 'investment', label: 'Investment', matchTag: 'investment' },
-]
+  { key: 'income',     label: 'Income',     isIncome: true  },
+  { key: 'standard',   label: 'Standard',   isIncome: false },
+  { key: 'savings',    label: 'Savings',    isIncome: false },
+  { key: 'investment', label: 'Investment', isIncome: false },
+] as const
 
-export default function BudgetVsActualTable({ rows }: BudgetVsActualTableProps) {
+// Shared col-width percentages (must be identical in header, body, footer tables)
+const COL_W = ['30%', '18%', '17%', '17%', '18%']
+
+function ColGroup() {
+  return (
+    <colgroup>
+      {COL_W.map((w, i) => (
+        <col key={i} style={{ width: w }} />
+      ))}
+    </colgroup>
+  )
+}
+
+export default function BudgetVsActualTable({
+  rows,
+  rightColRef,
+  monthProgress,
+}: BudgetVsActualTableProps) {
+  const bvaCardRef   = useRef<HTMLDivElement>(null)
+  const bvaHeaderRef = useRef<HTMLDivElement>(null)
+  const bvaScrollRef = useRef<HTMLDivElement>(null)
+  const bvaFooterRef = useRef<HTMLDivElement>(null)
+
+  // Height-lock to right column via ResizeObserver
+  useLayoutEffect(() => {
+    const el = rightColRef.current
+    if (!el) return
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const totalH = entry.contentRect.height
+        if (bvaCardRef.current) {
+          bvaCardRef.current.style.height = `${totalH}px`
+        }
+        if (
+          bvaScrollRef.current &&
+          bvaHeaderRef.current &&
+          bvaFooterRef.current
+        ) {
+          const scrollH =
+            totalH -
+            bvaHeaderRef.current.offsetHeight -
+            bvaFooterRef.current.offsetHeight
+          bvaScrollRef.current.style.maxHeight = `${Math.max(0, scrollH)}px`
+          bvaScrollRef.current.style.overflowY = 'auto'
+        }
+      }
+    })
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [rightColRef])
+
   if (!rows.length) {
     return (
-      <div className="flex h-full flex-col rounded-lg border border-slate-300 bg-white">
-        <div className="border-b border-slate-300 bg-slate-50 px-3 py-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+      <div
+        ref={bvaCardRef}
+        className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
+      >
+        <div ref={bvaHeaderRef} className="flex-shrink-0 border-b border-slate-300 bg-slate-50 px-3 py-1.5">
+          <h2 className="text-[9px] font-semibold uppercase tracking-wide text-slate-600">
             Budget vs Actual
           </h2>
         </div>
-        <div className="flex flex-1 items-center justify-center px-3 py-6 text-sm text-slate-500">
+        <div className="flex flex-1 items-center justify-center px-3 py-4 text-xs text-slate-500">
           No budget data for this month.
         </div>
+        <div ref={bvaFooterRef} />
       </div>
     )
   }
 
   const totals = rows.reduce(
-    (acc, row) => {
-      acc.budgeted += row.budgeted
-      acc.actual += row.actual
-      return acc
-    },
+    (acc, row) => { acc.budgeted += row.budgeted; acc.actual += row.actual; return acc },
     { budgeted: 0, actual: 0 }
   )
-
-  const totalsBadge = computeCategoryBadge(totals.actual, totals.budgeted)
-
-  // Shared column width classes for alignment between header/body/footer tables
-  const colCategory = 'w-[44%]'
-  const colBudgeted = 'w-[20%]'
-  const colActual = 'w-[20%]'
-  const colProgress = 'w-[16%]'
+  const totalVariance = totals.budgeted - totals.actual
+  const totalPct = totals.budgeted > 0 ? Math.round((totals.actual / totals.budgeted) * 100) : 0
 
   return (
-    <div className="flex h-full flex-col rounded-lg border border-slate-300 bg-white overflow-hidden">
-      {/* Section header */}
-      <div className="flex-shrink-0 border-b border-slate-300 bg-slate-50 px-3 py-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-          Budget vs Actual
-        </h2>
+    <>
+      {/* Scoped scrollbar styles */}
+      <style>{`
+        .bva-scroll::-webkit-scrollbar { width: 4px; }
+        .bva-scroll::-webkit-scrollbar-track { background: transparent; }
+        .bva-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+      `}</style>
+
+      <div
+        ref={bvaCardRef}
+        className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
+      >
+        {/* Card header */}
+        <div
+          ref={bvaHeaderRef}
+          className="flex-shrink-0"
+        >
+          <div className="border-b border-slate-300 bg-slate-50 px-3 py-1.5">
+            <h2 className="text-[9px] font-semibold uppercase tracking-wide text-slate-600">
+              Budget vs Actual
+            </h2>
+          </div>
+          {/* Column headers */}
+          <table className="w-full table-fixed border-collapse bg-slate-900 text-white">
+            <ColGroup />
+            <thead>
+              <tr>
+                <th className="px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
+                  Category
+                </th>
+                <th className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
+                  Progress
+                </th>
+                <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide">
+                  Budgeted
+                </th>
+                <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide">
+                  Actual
+                </th>
+                <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide">
+                  Variance
+                </th>
+              </tr>
+            </thead>
+          </table>
+        </div>
+
+        {/* Scrollable body */}
+        <div ref={bvaScrollRef} className="bva-scroll min-h-0 flex-1">
+          <table className="w-full table-fixed border-collapse">
+            <ColGroup />
+            <tbody>
+              {sectionOrder.map((section) => {
+                const sectionRows = rows.filter((row) =>
+                  section.key === 'income'
+                    ? row.category_type === 'income'
+                    : row.category_type === 'expense' && row.tag === section.key
+                )
+                if (!sectionRows.length) return null
+
+                return (
+                  <Fragment key={section.key}>
+                    <tr className="border-b border-slate-200 bg-slate-100">
+                      <td
+                        colSpan={5}
+                        className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600"
+                      >
+                        {section.label}
+                      </td>
+                    </tr>
+
+                    {sectionRows.map((row) => {
+                      const badge = computeCategoryBadge(
+                        row.actual,
+                        row.budgeted,
+                        monthProgress,
+                        section.isIncome
+                      )
+                      const pct =
+                        row.budgeted > 0
+                          ? Math.round((row.actual / row.budgeted) * 100)
+                          : 0
+                      const variance = row.budgeted - row.actual
+                      const isOver = badge === 'red'
+
+                      return (
+                        <tr key={row.category_id} className="border-b border-slate-100">
+                          <td
+                            className={`px-3 py-1.5 text-[11px] ${
+                              isOver ? 'font-medium text-[#d85a30]' : 'text-slate-700'
+                            }`}
+                          >
+                            {row.category_name}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            {row.budgeted > 0 ? (
+                              <ProgressBar pct={pct} />
+                            ) : (
+                              <span className="text-[10px] text-slate-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-[11px] tabular-nums text-slate-500">
+                            {formatCurrency(row.budgeted)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-[11px] tabular-nums text-slate-700">
+                            {formatCurrency(row.actual)}
+                          </td>
+                          <td
+                            className={`px-3 py-1.5 text-right text-[11px] font-medium tabular-nums ${
+                              variance >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                            }`}
+                          >
+                            {variance >= 0 ? '+' : ''}{formatCurrency(variance)}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pinned totals row */}
+        <div ref={bvaFooterRef} className="flex-shrink-0 border-t border-slate-300">
+          <table className="w-full table-fixed border-collapse bg-slate-50">
+            <ColGroup />
+            <tbody>
+              <tr>
+                <td className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                  Totals
+                </td>
+                <td className="px-2 py-1.5">
+                  {totals.budgeted > 0 ? (
+                    <ProgressBar pct={totalPct} />
+                  ) : null}
+                </td>
+                <td className="px-3 py-1.5 text-right text-[11px] font-semibold tabular-nums text-slate-800">
+                  {formatCurrency(totals.budgeted)}
+                </td>
+                <td className="px-3 py-1.5 text-right text-[11px] font-semibold tabular-nums text-slate-800">
+                  {formatCurrency(totals.actual)}
+                </td>
+                <td
+                  className={`px-3 py-1.5 text-right text-[11px] font-semibold tabular-nums ${
+                    totalVariance >= 0 ? 'text-emerald-700' : 'text-rose-700'
+                  }`}
+                >
+                  {totalVariance >= 0 ? '+' : ''}{formatCurrency(totalVariance)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      {/* Sticky column headers */}
-      <div className="flex-shrink-0">
-        <table className="w-full table-fixed border-collapse">
-          <colgroup>
-            <col className={colCategory} />
-            <col className={colBudgeted} />
-            <col className={colActual} />
-            <col className={colProgress} />
-          </colgroup>
-          <thead className="bg-slate-900 text-white">
-            <tr>
-              <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide">
-                Category
-              </th>
-              <th className="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide">
-                Budgeted
-              </th>
-              <th className="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide">
-                Actual
-              </th>
-              <th className="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide">
-                Used
-              </th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      {/* Scrollable body */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <table className="w-full table-fixed border-collapse">
-          <colgroup>
-            <col className={colCategory} />
-            <col className={colBudgeted} />
-            <col className={colActual} />
-            <col className={colProgress} />
-          </colgroup>
-          <tbody>
-            {sectionOrder.map((section) => {
-              const sectionRows = rows.filter((row) => {
-                if (section.key === 'income') return row.category_type === 'income'
-                return row.category_type === 'expense' && row.tag === section.matchTag
-              })
-
-              if (!sectionRows.length) return null
-
-              return (
-                <Fragment key={section.key}>
-                  <tr className="border-b border-slate-200 bg-slate-100">
-                    <td
-                      colSpan={4}
-                      className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600"
-                    >
-                      {section.label}
-                    </td>
-                  </tr>
-
-                  {sectionRows.map((row) => {
-                    const badge = computeCategoryBadge(row.actual, row.budgeted)
-                    const pct =
-                      row.budgeted > 0
-                        ? Math.min(100, Math.round((row.actual / row.budgeted) * 100))
-                        : 0
-                    const overBudget = row.actual > row.budgeted && row.budgeted > 0
-
-                    return (
-                      <tr key={row.category_id} className="border-b border-slate-200">
-                        <td
-                          className={`px-3 py-2 text-sm ${
-                            overBudget
-                              ? 'font-medium text-[#d85a30]'
-                              : 'text-slate-700'
-                          }`}
-                        >
-                          {row.category_name}
-                          {row.budgeted > 0 && (
-                            <div className="mt-1 h-1 w-full rounded-full bg-slate-100">
-                              <div
-                                className={`h-1 rounded-full ${progressBarColor[badge]}`}
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-right text-sm tabular-nums text-slate-600">
-                          {formatCurrency(row.budgeted)}
-                        </td>
-                        <td className="px-3 py-2 text-right text-sm tabular-nums text-slate-700">
-                          {formatCurrency(row.actual)}
-                        </td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums text-slate-500">
-                          {row.budgeted > 0 ? `${pct}%` : '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </Fragment>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pinned totals row */}
-      <div className="flex-shrink-0 border-t border-slate-300">
-        <table className="w-full table-fixed border-collapse">
-          <colgroup>
-            <col className={colCategory} />
-            <col className={colBudgeted} />
-            <col className={colActual} />
-            <col className={colProgress} />
-          </colgroup>
-          <tbody>
-            <tr className="bg-slate-50">
-              <td className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700">
-                Totals
-              </td>
-              <td className="px-3 py-2 text-right text-sm font-semibold tabular-nums text-slate-900">
-                {formatCurrency(totals.budgeted)}
-              </td>
-              <td className="px-3 py-2 text-right text-sm font-semibold tabular-nums text-slate-900">
-                {formatCurrency(totals.actual)}
-              </td>
-              <td className="px-3 py-2 text-right text-xs font-semibold tabular-nums text-slate-600">
-                {totals.budgeted > 0
-                  ? `${Math.round((totals.actual / totals.budgeted) * 100)}%`
-                  : '—'}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+    </>
   )
 }
