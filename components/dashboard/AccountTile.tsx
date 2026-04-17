@@ -19,83 +19,105 @@ function formatRate(rate: number | null | undefined): string | null {
   return `${(rate * 100).toFixed(2)}% p.a.`
 }
 
+// Decision Log: "Current Balance" for savings/investments, "Balance Owed" for debts/credit cards
 const kindConfig = {
   savings: {
-    label: 'Savings',
-    labelColor: 'text-emerald-700',
-    headerBg: 'bg-emerald-50',
-    headerBorder: 'border-emerald-200',
-    col2: 'In',
-    col3: 'Out',
+    label:        'Savings',
+    titleBg:      '#d1fae5',
+    titleBorder:  '#a7f3d0',
+    titleColor:   '#065f46',
+    balanceLabel: 'Current Balance',
+    col2Label:    'In',
+    col3Label:    'Out',
   },
   investment: {
-    label: 'Investments',
-    labelColor: 'text-indigo-700',
-    headerBg: 'bg-indigo-50',
-    headerBorder: 'border-indigo-200',
-    col2: 'In',
-    col3: 'Out',
+    label:        'Investments',
+    titleBg:      '#dbeafe',
+    titleBorder:  '#bfdbfe',
+    titleColor:   '#1e40af',
+    balanceLabel: 'Current Balance',
+    col2Label:    'In',
+    col3Label:    'Out',
   },
   debt: {
-    label: 'Debts',
-    labelColor: 'text-rose-700',
-    headerBg: 'bg-rose-50',
-    headerBorder: 'border-rose-200',
-    col2: 'Paid',    // money paid INTO debt (reducing balance)
-    col3: 'Spent',   // money spent VIA debt account (charges)
+    label:        'Debts',
+    titleBg:      '#fee2e2',
+    titleBorder:  '#fecaca',
+    titleColor:   '#991b1b',
+    balanceLabel: 'Balance Owed',
+    col2Label:    'Paid',   // linked_account_id — money reducing the balance
+    col3Label:    'Spent',  // payment_source_account_id — charges via the account
   },
   credit_card: {
-    label: 'Credit Cards',
-    labelColor: 'text-purple-700',
-    headerBg: 'bg-purple-50',
-    headerBorder: 'border-purple-200',
-    col2: 'Charged',
-    col3: 'Payment',
+    label:        'Credit Cards',
+    titleBg:      '#ede9fe',
+    titleBorder:  '#ddd6fe',
+    titleColor:   '#5b21b6',
+    balanceLabel: 'Balance Owed',
+    col2Label:    'Payment',  // linked_account_id — paying down the card
+    col3Label:    'Charged',  // payment_source_account_id — expenses on the card
   },
 } as const
 
-// Grid: account-name (flex-1) | balance (90px) | col2 (70px) | col3 (70px)
-const GRID_COLS = '1fr 90px 70px 70px'
+// Grid: account-name (flex-1) | balance (80px) | col2 (65px) | col3 (65px)
+const GRID_COLS = '1fr 80px 65px 65px'
+
+// Column header row style — light grey, bold 9px dark text (same as BVA)
+const colHeaderStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: GRID_COLS,
+  background: '#f1f5f9',
+  borderBottom: '1px solid #e2e8f0',
+  padding: '4px 12px',
+  fontSize: 9,
+  fontWeight: 700,
+  color: '#374151',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+}
 
 export default function AccountTile({ kind, accounts }: AccountTileProps) {
   const config = kindConfig[kind]
   const isCreditCard = kind === 'credit_card'
   const isDebt = kind === 'debt'
 
+  function accountCol2(a: DashboardAccount): number {
+    if (isCreditCard) return a.payment_this_month ?? 0  // Payment (paying down card)
+    if (isDebt)       return a.paid_this_month ?? 0     // Paid (reducing debt balance)
+    return a.in_this_month
+  }
+  function accountCol3(a: DashboardAccount): number {
+    if (isCreditCard) return a.charged_this_month ?? 0  // Charged (spending on card)
+    if (isDebt)       return a.in_this_month            // Spent (charges via debt account)
+    return a.out_this_month
+  }
+
   const totals = accounts.reduce(
     (acc, a) => {
       acc.balance += a.opening_balance ?? 0
-      if (isCreditCard) {
-        acc.col2 += a.charged_this_month ?? 0
-        acc.col3 += a.payment_this_month ?? 0
-      } else if (isDebt) {
-        acc.col2 += a.paid_this_month ?? 0
-        acc.col3 += a.in_this_month  // "Spent" = payment_source charges
-      } else {
-        acc.col2 += a.in_this_month
-        acc.col3 += a.out_this_month
-      }
+      acc.col2    += accountCol2(a)
+      acc.col3    += accountCol3(a)
       return acc
     },
     { balance: 0, col2: 0, col3: 0 }
   )
 
-  function accountCol2(a: DashboardAccount): number {
-    if (isCreditCard) return a.charged_this_month ?? 0
-    if (isDebt) return a.paid_this_month ?? 0
-    return a.in_this_month
-  }
-  function accountCol3(a: DashboardAccount): number {
-    if (isCreditCard) return a.payment_this_month ?? 0
-    if (isDebt) return a.in_this_month  // "Spent" uses in_this_month for debts
-    return a.out_this_month
-  }
-
   return (
     <div className="overflow-hidden rounded-lg border border-slate-300 bg-white">
-      {/* Tile header */}
-      <div className={`border-b ${config.headerBorder} ${config.headerBg} px-3 py-1.5`}>
-        <h3 className={`text-[9px] font-semibold uppercase tracking-wide ${config.labelColor}`}>
+      {/* Pastel title bar */}
+      <div style={{
+        background:   config.titleBg,
+        borderBottom: `1px solid ${config.titleBorder}`,
+        padding:      '6px 12px',
+      }}>
+        <h3 style={{
+          fontSize:      9,
+          fontWeight:    600,
+          color:         config.titleColor,
+          textTransform: 'uppercase',
+          letterSpacing: '0.06em',
+          margin:        0,
+        }}>
           {config.label}
         </h3>
       </div>
@@ -106,45 +128,35 @@ export default function AccountTile({ kind, accounts }: AccountTileProps) {
         </p>
       ) : (
         <>
-          {/* Column headers */}
-          <div className="border-b border-slate-200 bg-slate-50 px-3 py-1">
-            <div
-              className="text-[10px] font-semibold uppercase tracking-wide text-slate-500"
-              style={{ display: 'grid', gridTemplateColumns: GRID_COLS }}
-            >
-              <span>Account</span>
-              <span className="text-right">Balance</span>
-              <span className="text-right">{config.col2}</span>
-              <span className="text-right">{config.col3}</span>
-            </div>
+          {/* Column header row */}
+          <div style={colHeaderStyle}>
+            <span>Account</span>
+            <span style={{ textAlign: 'right' }}>{config.balanceLabel}</span>
+            <span style={{ textAlign: 'right' }}>{config.col2Label}</span>
+            <span style={{ textAlign: 'right' }}>{config.col3Label}</span>
           </div>
 
           {/* Account rows */}
           {accounts.map((account) => {
             const rate = formatRate(account.interest_rate)
             return (
-              <div key={account.id} className="border-b border-slate-100 px-3 py-1.5">
-                <div
-                  className="items-baseline text-[11px]"
-                  style={{ display: 'grid', gridTemplateColumns: GRID_COLS }}
-                >
-                  <span className="font-medium leading-tight text-slate-700">
+              <div key={account.id} style={{ borderBottom: '1px solid #f1f5f9', padding: '5px 12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'baseline', fontSize: 11 }}>
+                  <span style={{ fontWeight: 500, color: '#374151', lineHeight: 1.3 }}>
                     {account.name}
                     {rate && (
-                      <span className="ml-1 text-[9px] font-normal text-slate-400">
+                      <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 400, color: '#94a3b8' }}>
                         {rate}
                       </span>
                     )}
                   </span>
-                  <span className="text-right tabular-nums text-slate-600">
-                    {account.opening_balance != null
-                      ? formatCurrency(account.opening_balance)
-                      : '—'}
+                  <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#4b5563' }}>
+                    {account.opening_balance != null ? formatCurrency(account.opening_balance) : '—'}
                   </span>
-                  <span className="text-right tabular-nums text-emerald-600">
+                  <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#059669' }}>
                     {formatCurrency(accountCol2(account))}
                   </span>
-                  <span className="text-right tabular-nums text-slate-600">
+                  <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#4b5563' }}>
                     {formatCurrency(accountCol3(account))}
                   </span>
                 </div>
@@ -153,19 +165,18 @@ export default function AccountTile({ kind, accounts }: AccountTileProps) {
           })}
 
           {/* Totals row */}
-          <div className="px-3 py-1.5">
-            <div
-              className="text-[11px] font-semibold"
-              style={{ display: 'grid', gridTemplateColumns: GRID_COLS }}
-            >
-              <span className="text-[10px] uppercase tracking-wide text-slate-500">Total</span>
-              <span className="text-right tabular-nums text-slate-800">
+          <div style={{ background: '#f8fafc', padding: '5px 12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, fontSize: 11, fontWeight: 600 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748b' }}>
+                Total
+              </span>
+              <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#1e293b' }}>
                 {formatCurrency(totals.balance)}
               </span>
-              <span className="text-right tabular-nums text-emerald-700">
+              <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#059669' }}>
                 {formatCurrency(totals.col2)}
               </span>
-              <span className="text-right tabular-nums text-slate-700">
+              <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#374151' }}>
                 {formatCurrency(totals.col3)}
               </span>
             </div>

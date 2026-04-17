@@ -114,8 +114,8 @@ export default function BudgetVsActualTable({
         ref={bvaCardRef}
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
       >
-        <div ref={bvaHeaderRef} className="flex-shrink-0 border-b border-slate-300 bg-slate-50 px-3 py-1.5">
-          <h2 className="text-[9px] font-semibold uppercase tracking-wide text-slate-600">
+        <div ref={bvaHeaderRef} className="flex-shrink-0" style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
+          <h2 style={{ fontSize: 11, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
             Budget vs Actual
           </h2>
         </div>
@@ -152,29 +152,30 @@ export default function BudgetVsActualTable({
           ref={bvaHeaderRef}
           className="flex-shrink-0"
         >
-          <div className="border-b border-slate-300 bg-slate-50 px-3 py-1.5">
-            <h2 className="text-[9px] font-semibold uppercase tracking-wide text-slate-600">
+          {/* Pastel yellow title bar */}
+          <div style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
+            <h2 style={{ fontSize: 11, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
               Budget vs Actual
             </h2>
           </div>
-          {/* Column headers */}
-          <table className="w-full table-fixed border-collapse bg-slate-900 text-white">
+          {/* Light grey column header bar */}
+          <table className="w-full table-fixed border-collapse" style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
             <ColGroup />
             <thead>
               <tr>
-                <th className="px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
+                <th className="px-3 py-1.5 text-left" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Category
                 </th>
-                <th className="px-2 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide">
+                <th className="px-2 py-1.5 text-left" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Progress
                 </th>
-                <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide">
+                <th className="px-3 py-1.5 text-right" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Budgeted
                 </th>
-                <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide">
+                <th className="px-3 py-1.5 text-right" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Actual
                 </th>
-                <th className="px-3 py-1.5 text-right text-[10px] font-semibold uppercase tracking-wide">
+                <th className="px-3 py-1.5 text-right" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Variance
                 </th>
               </tr>
