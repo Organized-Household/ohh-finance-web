@@ -42,7 +42,7 @@ export default function CreditCardExpensesByAccountSection({
           </thead>
           <tbody className="divide-y divide-slate-200">
             {data.rows.map((row) => (
-              <tr key={row.debtAccountId}>
+              <tr key={row.accountId}>
                 <td className="px-3 py-2 text-sm text-slate-900">{row.accountName}</td>
                 <td className="px-3 py-2 text-right text-sm font-medium tabular-nums text-rose-700">
                   {formatCurrency(row.totalAmount)}
