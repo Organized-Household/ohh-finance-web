@@ -19,7 +19,7 @@ type DebtAccountRow = {
 };
 
 type TransactionRow = {
-  linked_account_id: string | null;
+  payment_source_account_id: string | null;
   amount: number | string | null;
 };
 
@@ -78,12 +78,12 @@ export async function getCreditCardExpensesByAccount(
 
   const { data: transactionsData, error: transactionsError } = await supabase
     .from("transactions")
-    .select("linked_account_id, amount")
+    .select("payment_source_account_id, amount")
     .eq("tenant_id", membership.tenant_id)
     .eq("transaction_type", "expense")
     .gte("transaction_date", monthStartIso)
     .lt("transaction_date", nextMonthStartIso)
-    .in("linked_account_id", creditCardIds);
+    .in("payment_source_account_id", creditCardIds);
 
   if (transactionsError) {
     throw new Error(
@@ -94,7 +94,7 @@ export async function getCreditCardExpensesByAccount(
   const totalsByAccount = new Map<string, number>();
 
   for (const row of (transactionsData ?? []) as TransactionRow[]) {
-    if (!row.linked_account_id) {
+    if (!row.payment_source_account_id) {
       continue;
     }
 
@@ -103,8 +103,8 @@ export async function getCreditCardExpensesByAccount(
       continue;
     }
 
-    const existingTotal = totalsByAccount.get(row.linked_account_id) ?? 0;
-    totalsByAccount.set(row.linked_account_id, existingTotal + Math.abs(amount));
+    const existingTotal = totalsByAccount.get(row.payment_source_account_id) ?? 0;
+    totalsByAccount.set(row.payment_source_account_id, existingTotal + Math.abs(amount));
   }
 
   const rows: CreditCardExpenseRow[] = Array.from(totalsByAccount.entries())
