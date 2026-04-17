@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { createDebtAccountFormAction } from "@/app/app/accounts/debts/actions";
-import { initialDebtAccountFormState } from "@/app/app/accounts/debts/form-state";
+import { createDebtAccountFormAction } from "@/lib/actions/accounts";
+import { initialDebtFormState } from "@/app/app/accounts/debts/form-state";
 
 export default function DebtAccountForm() {
   const [state, formAction, pending] = useActionState(
     createDebtAccountFormAction,
-    initialDebtAccountFormState
+    initialDebtFormState
   );
 
   return (
@@ -47,14 +47,14 @@ export default function DebtAccountForm() {
           </label>
           <input
             id="create-debt-type"
-            name="type"
+            name="account_subtype"
             type="text"
             required
             placeholder="Credit Card, Mortgage..."
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
-          {state.fieldErrors?.type ? (
-            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.type}</p>
+          {state.fieldErrors?.account_subtype ? (
+            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.account_subtype}</p>
           ) : null}
         </div>
 

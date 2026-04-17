@@ -1,5 +1,4 @@
-import type { SavingsAccountFormState } from "@/app/app/accounts/savings/actions";
+import { type AccountFormState } from "@/lib/actions/accounts";
 
-export const initialSavingsAccountFormState: SavingsAccountFormState = {
-  message: "",
-};
+export type { AccountFormState as SavingsFormState };
+export const initialSavingsFormState: AccountFormState = { message: "" };

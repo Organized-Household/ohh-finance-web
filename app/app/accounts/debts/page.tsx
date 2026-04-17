@@ -10,7 +10,7 @@ import DebtAccountsTable from "@/components/debt-accounts/debt-accounts-table";
 type DebtAccountRow = {
   id: string;
   name: string;
-  type: string;
+  account_subtype: string;
 };
 
 export default async function DebtAccountsPage() {
@@ -28,11 +28,13 @@ export default async function DebtAccountsPage() {
   const membership = await getCurrentTenantMembership();
 
   const { data, error } = await supabase
-    .from("debt_accounts")
-    .select("id, name, type")
+    .from("accounts")
+    .select("id, name, account_subtype")
     .eq("tenant_id", membership.tenant_id)
+    .eq("account_kind", "debt")
+    .eq("is_active", true)
     .order("name", { ascending: true })
-    .order("type", { ascending: true });
+    .order("account_subtype", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load debt accounts: ${error.message}`);
@@ -41,7 +43,7 @@ export default async function DebtAccountsPage() {
   const rows: DebtAccountRow[] = (data ?? []).map((row) => ({
     id: String(row.id),
     name: String(row.name),
-    type: String(row.type),
+    account_subtype: String(row.account_subtype),
   }));
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [

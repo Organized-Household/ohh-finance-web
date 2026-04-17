@@ -1,15 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import {
-  createSavingsAccountFormAction,
-} from "@/app/app/accounts/savings/actions";
-import { initialSavingsAccountFormState } from "@/app/app/accounts/savings/form-state";
+import { createSavingsAccountFormAction } from "@/lib/actions/accounts";
+import { initialSavingsFormState } from "@/app/app/accounts/savings/form-state";
 
 export default function SavingsAccountForm() {
   const [state, formAction, pending] = useActionState(
     createSavingsAccountFormAction,
-    initialSavingsAccountFormState
+    initialSavingsFormState
   );
 
   return (
@@ -26,14 +24,14 @@ export default function SavingsAccountForm() {
           </label>
           <input
             id="create-purpose"
-            name="purpose"
+            name="name"
             type="text"
             required
             placeholder="Purpose"
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
-          {state.fieldErrors?.purpose ? (
-            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.purpose}</p>
+          {state.fieldErrors?.name ? (
+            <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.name}</p>
           ) : null}
         </div>
 

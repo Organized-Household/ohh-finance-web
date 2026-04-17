@@ -2,16 +2,16 @@
 
 import { useActionState, useState } from "react";
 import {
-  type InvestmentAccountFormState,
+  type AccountFormState as InvestmentFormState,
   deleteInvestmentAccountFormAction,
   updateInvestmentAccountFormAction,
-} from "@/app/app/accounts/investments/actions";
-import { initialInvestmentAccountFormState } from "@/app/app/accounts/investments/form-state";
+} from "@/lib/actions/accounts";
+import { initialInvestmentFormState } from "@/app/app/accounts/investments/form-state";
 
 type InvestmentAccountRow = {
   id: string;
   name: string;
-  account_type: string;
+  account_subtype: string;
 };
 
 type InvestmentAccountsTableProps = {
@@ -26,12 +26,12 @@ function EditableRow({ row }: EditableRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [draftName, setDraftName] = useState(row.name);
-  const [draftType, setDraftType] = useState(row.account_type);
+  const [draftType, setDraftType] = useState(row.account_subtype);
   const [lastSavedName, setLastSavedName] = useState<string | null>(null);
   const [lastSavedType, setLastSavedType] = useState<string | null>(null);
 
   const updateActionWithUiState = async (
-    prevState: InvestmentAccountFormState,
+    prevState: InvestmentFormState,
     formData: FormData
   ) => {
     const nextState = await updateInvestmentAccountFormAction(prevState, formData);
@@ -46,14 +46,14 @@ function EditableRow({ row }: EditableRowProps) {
 
   const [state, updateAction, pending] = useActionState(
     updateActionWithUiState,
-    initialInvestmentAccountFormState
+    initialInvestmentFormState
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteInvestmentAccountFormAction,
-    initialInvestmentAccountFormState
+    initialInvestmentFormState
   );
   const displayName = lastSavedName ?? row.name;
-  const displayType = lastSavedType ?? row.account_type;
+  const displayType = lastSavedType ?? row.account_subtype;
 
   return (
     <tr className="border-b border-slate-200">
@@ -96,7 +96,7 @@ function EditableRow({ row }: EditableRowProps) {
               <form action={updateAction} className="inline">
                 <input type="hidden" name="id" value={row.id} />
                 <input type="hidden" name="name" value={draftName} />
-                <input type="hidden" name="type" value={draftType} />
+                <input type="hidden" name="account_subtype" value={draftType} />
                 <button
                   type="submit"
                   disabled={pending}
@@ -170,8 +170,8 @@ function EditableRow({ row }: EditableRowProps) {
         {state.fieldErrors?.name ? (
           <p className="mt-1 text-[11px] text-right text-rose-700">{state.fieldErrors.name}</p>
         ) : null}
-        {state.fieldErrors?.type ? (
-          <p className="mt-1 text-[11px] text-right text-rose-700">{state.fieldErrors.type}</p>
+        {state.fieldErrors?.account_subtype ? (
+          <p className="mt-1 text-[11px] text-right text-rose-700">{state.fieldErrors.account_subtype}</p>
         ) : null}
         {state.message ? (
           <p

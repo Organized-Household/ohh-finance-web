@@ -10,7 +10,7 @@ import InvestmentAccountsTable from "@/components/investment-accounts/investment
 type InvestmentAccountRow = {
   id: string;
   name: string;
-  account_type: string;
+  account_subtype: string;
 };
 
 export default async function InvestmentAccountsPage() {
@@ -28,11 +28,13 @@ export default async function InvestmentAccountsPage() {
   const membership = await getCurrentTenantMembership();
 
   const { data, error } = await supabase
-    .from("investment_accounts")
-    .select("id, name, account_type")
+    .from("accounts")
+    .select("id, name, account_subtype")
     .eq("tenant_id", membership.tenant_id)
+    .eq("account_kind", "investment")
+    .eq("is_active", true)
     .order("name", { ascending: true })
-    .order("account_type", { ascending: true });
+    .order("account_subtype", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load investment accounts: ${error.message}`);
@@ -41,7 +43,7 @@ export default async function InvestmentAccountsPage() {
   const rows: InvestmentAccountRow[] = (data ?? []).map((row) => ({
     id: String(row.id),
     name: String(row.name),
-    account_type: String(row.account_type),
+    account_subtype: String(row.account_subtype),
   }));
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [

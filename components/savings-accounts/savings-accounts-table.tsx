@@ -1,16 +1,16 @@
-﻿"use client";
+"use client";
 
 import { useActionState, useState } from "react";
 import {
-  type SavingsAccountFormState,
+  type AccountFormState as SavingsFormState,
   deleteSavingsAccountFormAction,
   updateSavingsAccountFormAction,
-} from "@/app/app/accounts/savings/actions";
-import { initialSavingsAccountFormState } from "@/app/app/accounts/savings/form-state";
+} from "@/lib/actions/accounts";
+import { initialSavingsFormState } from "@/app/app/accounts/savings/form-state";
 
 type SavingsAccountRow = {
   id: string;
-  purpose: string;
+  name: string;
   account_number_last4: string | null;
   target_amount: number | null;
   target_date: string | null;
@@ -65,7 +65,7 @@ type EditableRowProps = {
 function EditableRow({ row }: EditableRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const [draftPurpose, setDraftPurpose] = useState(row.purpose);
+  const [draftName, setDraftName] = useState(row.name);
   const [draftAccountNumber, setDraftAccountNumber] = useState(
     row.account_number_last4 ?? ""
   );
@@ -74,20 +74,20 @@ function EditableRow({ row }: EditableRowProps) {
   );
   const [draftTargetDate, setDraftTargetDate] = useState(row.target_date ?? "");
   const [lastSaved, setLastSaved] = useState<{
-    purpose: string;
+    name: string;
     account_number_last4: string | null;
     target_amount: number | null;
     target_date: string | null;
   } | null>(null);
 
   const updateActionWithUiState = async (
-    prevState: SavingsAccountFormState,
+    prevState: SavingsFormState,
     formData: FormData
   ) => {
     const nextState = await updateSavingsAccountFormAction(prevState, formData);
     if (nextState.message === "Saved." && !nextState.fieldErrors) {
       setLastSaved({
-        purpose: draftPurpose,
+        name: draftName,
         account_number_last4: draftAccountNumber ? draftAccountNumber.slice(-4) : null,
         target_amount: draftTargetAmount ? Number.parseFloat(draftTargetAmount) : null,
         target_date: draftTargetDate ? draftTargetDate : null,
@@ -100,15 +100,15 @@ function EditableRow({ row }: EditableRowProps) {
 
   const [state, updateAction, pending] = useActionState(
     updateActionWithUiState,
-    initialSavingsAccountFormState
+    initialSavingsFormState
   );
   const [deleteState, deleteAction, deletePending] = useActionState(
     deleteSavingsAccountFormAction,
-    initialSavingsAccountFormState
+    initialSavingsFormState
   );
 
   const display = {
-    purpose: lastSaved?.purpose ?? row.purpose,
+    name: lastSaved?.name ?? row.name,
     account_number_last4: lastSaved?.account_number_last4 ?? row.account_number_last4,
     target_amount: lastSaved?.target_amount ?? row.target_amount,
     target_date: lastSaved?.target_date ?? row.target_date,
@@ -122,13 +122,13 @@ function EditableRow({ row }: EditableRowProps) {
             id={`purpose-${row.id}`}
             name={`savings-purpose-${row.id}`}
             type="text"
-            value={draftPurpose}
-            onChange={(event) => setDraftPurpose(event.target.value)}
+            value={draftName}
+            onChange={(event) => setDraftName(event.target.value)}
             required
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           />
         ) : (
-          <span>{display.purpose}</span>
+          <span>{display.name}</span>
         )}
       </td>
 
@@ -188,7 +188,7 @@ function EditableRow({ row }: EditableRowProps) {
             <>
               <form action={updateAction} className="inline">
                 <input type="hidden" name="id" value={row.id} />
-                <input type="hidden" name="purpose" value={draftPurpose} />
+                <input type="hidden" name="name" value={draftName} />
                 <input type="hidden" name="account_number" value={draftAccountNumber} />
                 <input type="hidden" name="target_amount" value={draftTargetAmount} />
                 <input type="hidden" name="target_date" value={draftTargetDate} />
@@ -204,7 +204,7 @@ function EditableRow({ row }: EditableRowProps) {
                 type="button"
                 disabled={pending}
                 onClick={() => {
-                  setDraftPurpose(display.purpose);
+                  setDraftName(display.name);
                   setDraftAccountNumber(display.account_number_last4 ?? "");
                   setDraftTargetAmount(
                     display.target_amount === null ? "" : display.target_amount.toFixed(2)
@@ -244,7 +244,7 @@ function EditableRow({ row }: EditableRowProps) {
                 type="button"
                 onClick={() => {
                   setIsConfirmingDelete(false);
-                  setDraftPurpose(display.purpose);
+                  setDraftName(display.name);
                   setDraftAccountNumber(display.account_number_last4 ?? "");
                   setDraftTargetAmount(
                     display.target_amount === null ? "" : display.target_amount.toFixed(2)
@@ -270,8 +270,8 @@ function EditableRow({ row }: EditableRowProps) {
           )}
         </div>
 
-        {state.fieldErrors?.purpose ? (
-          <p className="mt-1 text-[11px] text-right text-rose-700">{state.fieldErrors.purpose}</p>
+        {state.fieldErrors?.name ? (
+          <p className="mt-1 text-[11px] text-right text-rose-700">{state.fieldErrors.name}</p>
         ) : null}
         {state.fieldErrors?.account_number ? (
           <p className="mt-1 text-[11px] text-right text-rose-700">

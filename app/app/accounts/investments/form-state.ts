@@ -1,5 +1,4 @@
-import type { InvestmentAccountFormState } from "@/app/app/accounts/investments/actions";
+import { type AccountFormState } from "@/lib/actions/accounts";
 
-export const initialInvestmentAccountFormState: InvestmentAccountFormState = {
-  message: "",
-};
+export type { AccountFormState as InvestmentFormState };
+export const initialInvestmentFormState: AccountFormState = { message: "" };
