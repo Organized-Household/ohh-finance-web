@@ -1,13 +1,13 @@
 'use client'
 
-import { Fragment, useLayoutEffect, useRef } from 'react'
+import { Fragment } from 'react'
 import type { RefObject } from 'react'
 import type { BudgetVsActualRpcRow } from '@/lib/dashboard/get-dashboard-summary'
 import { computeCategoryBadge } from '@/lib/dashboard/healthBadge'
 
 interface BudgetVsActualTableProps {
   rows: BudgetVsActualRpcRow[]
-  /** Ref attached to the right-column wrapper (Savings + Investments tiles) */
+  /** Ref attached to the right-column wrapper (kept for API compatibility) */
   rightColRef: RefObject<HTMLDivElement | null>
   /** A = days elapsed ÷ days in month; 0 = future, 1 = historical */
   monthProgress: number
@@ -70,49 +70,16 @@ function ColGroup() {
 
 export default function BudgetVsActualTable({
   rows,
-  rightColRef,
+  rightColRef: _rightColRef,
   monthProgress,
 }: BudgetVsActualTableProps) {
-  const bvaCardRef   = useRef<HTMLDivElement>(null)
-  const bvaHeaderRef = useRef<HTMLDivElement>(null)
-  const bvaScrollRef = useRef<HTMLDivElement>(null)
-  const bvaFooterRef = useRef<HTMLDivElement>(null)
-
-  // Height-lock to right column via ResizeObserver
-  useLayoutEffect(() => {
-    const rightCol = rightColRef.current
-    if (!rightCol) return
-
-    const applyHeight = () => {
-      const totalH = rightCol.getBoundingClientRect().height
-      if (!bvaCardRef.current) return
-      bvaCardRef.current.style.height = `${totalH}px`
-
-      const headerH = bvaHeaderRef.current?.offsetHeight ?? 0
-      const footerH = bvaFooterRef.current?.offsetHeight ?? 0
-      const scrollH = totalH - headerH - footerH
-
-      if (bvaScrollRef.current && scrollH > 0) {
-        bvaScrollRef.current.style.maxHeight = `${scrollH}px`
-        bvaScrollRef.current.style.overflowY = 'auto'
-      }
-    }
-
-    // Apply immediately on mount — don't wait for first ResizeObserver fire
-    applyHeight()
-
-    const observer = new ResizeObserver(applyHeight)
-    observer.observe(rightCol)
-    return () => observer.disconnect()
-  }, [rightColRef])
-
   if (!rows.length) {
     return (
       <div
-        ref={bvaCardRef}
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
+        style={{ flex: 1, minHeight: 0 }}
       >
-        <div ref={bvaHeaderRef} className="flex-shrink-0" style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
+        <div className="flex-shrink-0" style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
           <h2 style={{ fontSize: 11, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
             Budget vs Actual
           </h2>
@@ -120,7 +87,6 @@ export default function BudgetVsActualTable({
         <div className="flex flex-1 items-center justify-center px-3 py-4 text-xs text-slate-500">
           No budget data for this month.
         </div>
-        <div ref={bvaFooterRef} />
       </div>
     )
   }
@@ -142,14 +108,11 @@ export default function BudgetVsActualTable({
       `}</style>
 
       <div
-        ref={bvaCardRef}
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
+        style={{ flex: 1, minHeight: 0 }}
       >
         {/* Card header */}
-        <div
-          ref={bvaHeaderRef}
-          className="flex-shrink-0"
-        >
+        <div className="flex-shrink-0">
           {/* Pastel yellow title bar */}
           <div style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
             <h2 style={{ fontSize: 11, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
@@ -182,7 +145,7 @@ export default function BudgetVsActualTable({
         </div>
 
         {/* Scrollable body */}
-        <div ref={bvaScrollRef} className="bva-scroll min-h-0 flex-1">
+        <div className="bva-scroll min-h-0 flex-1" style={{ overflowY: 'auto' }}>
           <table className="w-full table-fixed border-collapse">
             <ColGroup />
             <tbody>
@@ -259,7 +222,7 @@ export default function BudgetVsActualTable({
         </div>
 
         {/* Pinned totals row */}
-        <div ref={bvaFooterRef} className="flex-shrink-0 border-t border-slate-300">
+        <div className="flex-shrink-0 border-t border-slate-300">
           <table className="w-full table-fixed border-collapse bg-slate-50">
             <ColGroup />
             <tbody>

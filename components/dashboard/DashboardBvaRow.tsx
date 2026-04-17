@@ -22,9 +22,9 @@ export default function DashboardBvaRow({
   const rightColRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className="flex gap-2">
-      {/* BVA table — 60% */}
-      <div style={{ flex: 3, minWidth: 0 }}>
+    <div className="flex gap-2" style={{ alignItems: 'stretch' }}>
+      {/* BVA table — 60%: display:flex so child can be height:100% */}
+      <div style={{ flex: 3, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <BudgetVsActualTable
           rows={bvaRows}
           rightColRef={rightColRef}
