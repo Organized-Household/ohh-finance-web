@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 
 export type CreditCardExpenseRow = {
-  debtAccountId: string;
+  accountId: string;
   accountName: string;
   totalAmount: number;
 };
@@ -15,11 +15,11 @@ export type CreditCardExpensesByAccount = {
 type DebtAccountRow = {
   id: string;
   name: string | null;
-  type: string | null;
+  account_subtype: string | null;
 };
 
 type TransactionRow = {
-  debt_account_id: string | null;
+  linked_account_id: string | null;
   amount: number | string | null;
 };
 
@@ -44,9 +44,11 @@ export async function getCreditCardExpensesByAccount(
   const membership = await getCurrentTenantMembership();
 
   const { data: debtAccountsData, error: debtAccountsError } = await supabase
-    .from("debt_accounts")
-    .select("id, name, type")
+    .from("accounts")
+    .select("id, name, account_subtype")
     .eq("tenant_id", membership.tenant_id)
+    .eq("account_kind", "debt")
+    .eq("is_active", true)
     .order("name", { ascending: true });
 
   if (debtAccountsError) {
@@ -57,7 +59,7 @@ export async function getCreditCardExpensesByAccount(
 
   const creditCardAccounts = (debtAccountsData ?? [])
     .map((row) => row as DebtAccountRow)
-    .filter((row) => isCreditCardDebtType(row.type));
+    .filter((row) => isCreditCardDebtType(row.account_subtype));
 
   if (!creditCardAccounts.length) {
     return {
@@ -76,12 +78,12 @@ export async function getCreditCardExpensesByAccount(
 
   const { data: transactionsData, error: transactionsError } = await supabase
     .from("transactions")
-    .select("debt_account_id, amount")
+    .select("linked_account_id, amount")
     .eq("tenant_id", membership.tenant_id)
     .eq("transaction_type", "expense")
     .gte("transaction_date", monthStartIso)
     .lt("transaction_date", nextMonthStartIso)
-    .in("debt_account_id", creditCardIds);
+    .in("linked_account_id", creditCardIds);
 
   if (transactionsError) {
     throw new Error(
@@ -92,7 +94,7 @@ export async function getCreditCardExpensesByAccount(
   const totalsByAccount = new Map<string, number>();
 
   for (const row of (transactionsData ?? []) as TransactionRow[]) {
-    if (!row.debt_account_id) {
+    if (!row.linked_account_id) {
       continue;
     }
 
@@ -101,14 +103,14 @@ export async function getCreditCardExpensesByAccount(
       continue;
     }
 
-    const existingTotal = totalsByAccount.get(row.debt_account_id) ?? 0;
-    totalsByAccount.set(row.debt_account_id, existingTotal + Math.abs(amount));
+    const existingTotal = totalsByAccount.get(row.linked_account_id) ?? 0;
+    totalsByAccount.set(row.linked_account_id, existingTotal + Math.abs(amount));
   }
 
   const rows: CreditCardExpenseRow[] = Array.from(totalsByAccount.entries())
-    .map(([debtAccountId, totalAmount]) => ({
-      debtAccountId,
-      accountName: accountNameById.get(debtAccountId) ?? "Unknown credit card",
+    .map(([accountId, totalAmount]) => ({
+      accountId,
+      accountName: accountNameById.get(accountId) ?? "Unknown credit card",
       totalAmount,
     }))
     .sort((a, b) => a.accountName.localeCompare(b.accountName));
