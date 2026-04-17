@@ -5,38 +5,24 @@ type Category = {
   category_type: "income" | "expense";
 };
 
-type SavingsAccountOption = {
-  id: string;
-  purpose: string;
-};
-
-type InvestmentAccountOption = {
+type AccountOption = {
   id: string;
   name: string;
-  account_type: string;
-};
-
-type DebtAccountOption = {
-  id: string;
-  name: string;
-  type: string;
+  account_kind: string;
+  account_subtype: string | null;
 };
 
 type TransactionFormProps = {
   categories: Category[];
   defaultDate: string;
-  savingsAccounts: SavingsAccountOption[];
-  investmentAccounts: InvestmentAccountOption[];
-  debtAccounts: DebtAccountOption[];
+  accounts: AccountOption[];
   action: (formData: FormData) => Promise<void>;
 };
 
 export default function TransactionForm({
   categories,
   defaultDate,
-  savingsAccounts,
-  investmentAccounts,
-  debtAccounts,
+  accounts,
   action,
 }: TransactionFormProps) {
   const incomeCategories = categories.filter(
@@ -186,18 +172,20 @@ export default function TransactionForm({
         </button>
 
         <div className="md:col-span-5">
-          <div className="mt-1 grid gap-2 md:grid-cols-3">
+          <div className="mt-1 grid gap-2 md:grid-cols-2">
             <div>
               <select
-                id="savings_account_id"
-                name="savings_account_id"
+                id="linked_account_id"
+                name="linked_account_id"
                 defaultValue=""
                 className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
               >
-                <option value="">Linked Savings Account (optional)</option>
-                {savingsAccounts.map((account) => (
+                <option value="">Linked Account (optional)</option>
+                {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.purpose}
+                    {account.account_subtype
+                      ? `${account.name} - ${account.account_subtype}`
+                      : account.name}
                   </option>
                 ))}
               </select>
@@ -205,81 +193,17 @@ export default function TransactionForm({
 
             <div>
               <select
-                id="investment_account_id"
-                name="investment_account_id"
+                id="payment_source_account_id"
+                name="payment_source_account_id"
                 defaultValue=""
                 className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
               >
-                <option value="">Linked Investment Account (optional)</option>
-                {investmentAccounts.map((account) => (
+                <option value="">Payment Source (optional)</option>
+                {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.name} - {account.account_type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <select
-                id="debt_account_id"
-                name="debt_account_id"
-                defaultValue=""
-                className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-              >
-                <option value="">Linked Debt Account (optional)</option>
-                {debtAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name} - {account.type}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-2 grid gap-2 md:grid-cols-3">
-            <div>
-              <select
-                id="payment_savings_account_id"
-                name="payment_savings_account_id"
-                defaultValue=""
-                className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-              >
-                <option value="">Payment Savings Account (optional)</option>
-                {savingsAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.purpose}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <select
-                id="payment_investment_account_id"
-                name="payment_investment_account_id"
-                defaultValue=""
-                className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-              >
-                <option value="">Payment Investment Account (optional)</option>
-                {investmentAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name} - {account.account_type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <select
-                id="payment_debt_account_id"
-                name="payment_debt_account_id"
-                defaultValue=""
-                className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-              >
-                <option value="">Payment Debt Account (optional)</option>
-                {debtAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name} - {account.type}
+                    {account.account_subtype
+                      ? `${account.name} - ${account.account_subtype}`
+                      : account.name}
                   </option>
                 ))}
               </select>

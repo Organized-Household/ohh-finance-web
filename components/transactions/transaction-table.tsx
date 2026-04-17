@@ -7,13 +7,9 @@ type TransactionRow = {
   category_id: string;
   category_name: string;
   category_tag: "standard" | "savings" | "investment" | "debt_payment";
-  savings_account_id: string | null;
-  investment_account_id: string | null;
-  debt_account_id: string | null;
+  linked_account_id: string | null;
+  payment_source_account_id: string | null;
   linked_account_label: string | null;
-  payment_savings_account_id: string | null;
-  payment_investment_account_id: string | null;
-  payment_debt_account_id: string | null;
   payment_source_label: string | null;
 };
 
@@ -24,29 +20,17 @@ type Category = {
   category_type: "income" | "expense";
 };
 
-type SavingsAccountOption = {
-  id: string;
-  purpose: string;
-};
-
-type InvestmentAccountOption = {
+type AccountOption = {
   id: string;
   name: string;
-  account_type: string;
-};
-
-type DebtAccountOption = {
-  id: string;
-  name: string;
-  type: string;
+  account_kind: string;
+  account_subtype: string | null;
 };
 
 type TransactionTableProps = {
   rows: TransactionRow[];
   categories: Category[];
-  savingsAccounts: SavingsAccountOption[];
-  investmentAccounts: InvestmentAccountOption[];
-  debtAccounts: DebtAccountOption[];
+  accounts: AccountOption[];
   selectedMonth: string;
   updateAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
@@ -64,9 +48,7 @@ function formatCurrency(amount: number) {
 export default function TransactionTable({
   rows,
   categories,
-  savingsAccounts,
-  investmentAccounts,
-  debtAccounts,
+  accounts,
   selectedMonth,
   updateAction,
   deleteAction,
@@ -290,93 +272,34 @@ export default function TransactionTable({
                         <div className="grid grid-cols-1 gap-2">
                           <div>
                             <select
-                              id={`savings-account-${row.id}`}
-                              name="savings_account_id"
-                              defaultValue={row.savings_account_id ?? ""}
+                              id={`linked-account-${row.id}`}
+                              name="linked_account_id"
+                              defaultValue={row.linked_account_id ?? ""}
                               className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
                             >
-                              <option value="">Linked Savings Account (optional)</option>
-                              {savingsAccounts.map((account) => (
+                              <option value="">Linked Account (optional)</option>
+                              {accounts.map((account) => (
                                 <option key={account.id} value={account.id}>
-                                  {account.purpose}
+                                  {account.account_subtype
+                                    ? `${account.name} - ${account.account_subtype}`
+                                    : account.name}
                                 </option>
                               ))}
                             </select>
                           </div>
                           <div>
                             <select
-                              id={`investment-account-${row.id}`}
-                              name="investment_account_id"
-                              defaultValue={row.investment_account_id ?? ""}
+                              id={`payment-source-${row.id}`}
+                              name="payment_source_account_id"
+                              defaultValue={row.payment_source_account_id ?? ""}
                               className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
                             >
-                              <option value="">Linked Investment Account (optional)</option>
-                              {investmentAccounts.map((account) => (
+                              <option value="">Payment Source (optional)</option>
+                              {accounts.map((account) => (
                                 <option key={account.id} value={account.id}>
-                                  {account.name} - {account.account_type}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <select
-                              id={`debt-account-${row.id}`}
-                              name="debt_account_id"
-                              defaultValue={row.debt_account_id ?? ""}
-                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-                            >
-                              <option value="">Linked Debt Account (optional)</option>
-                              {debtAccounts.map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.name} - {account.type}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-2">
-                          <div>
-                            <select
-                              id={`payment-savings-account-${row.id}`}
-                              name="payment_savings_account_id"
-                              defaultValue={row.payment_savings_account_id ?? ""}
-                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-                            >
-                              <option value="">Payment Savings Account (optional)</option>
-                              {savingsAccounts.map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.purpose}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <select
-                              id={`payment-investment-account-${row.id}`}
-                              name="payment_investment_account_id"
-                              defaultValue={row.payment_investment_account_id ?? ""}
-                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-                            >
-                              <option value="">Payment Investment Account (optional)</option>
-                              {investmentAccounts.map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.name} - {account.account_type}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <select
-                              id={`payment-debt-account-${row.id}`}
-                              name="payment_debt_account_id"
-                              defaultValue={row.payment_debt_account_id ?? ""}
-                              className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-                            >
-                              <option value="">Payment Debt Account (optional)</option>
-                              {debtAccounts.map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.name} - {account.type}
+                                  {account.account_subtype
+                                    ? `${account.name} - ${account.account_subtype}`
+                                    : account.name}
                                 </option>
                               ))}
                             </select>
