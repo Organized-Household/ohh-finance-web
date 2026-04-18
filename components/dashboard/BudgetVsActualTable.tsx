@@ -94,7 +94,7 @@ export default function BudgetVsActualTable({
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
       >
         <div className="flex-shrink-0" style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
-          <h2 style={{ fontSize: 11, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
             Budget vs Actual
           </h2>
         </div>
@@ -129,7 +129,7 @@ export default function BudgetVsActualTable({
         <div className="flex-shrink-0">
           {/* Pastel yellow title bar */}
           <div style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
-            <h2 style={{ fontSize: 11, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
+            <h2 style={{ fontSize: 12, fontWeight: 500, color: '#854d0e', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
               Budget vs Actual
             </h2>
           </div>
@@ -138,19 +138,19 @@ export default function BudgetVsActualTable({
             <ColGroup />
             <thead>
               <tr>
-                <th className="px-3 py-1.5 text-left" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th className="px-3 py-1.5 text-left" style={{ fontSize: 10, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Category
                 </th>
-                <th className="px-2 py-1.5 text-left" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th className="px-2 py-1.5 text-left" style={{ fontSize: 10, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Progress
                 </th>
-                <th className="px-3 py-1.5 text-right" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th className="px-3 py-1.5 text-right" style={{ fontSize: 10, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Budgeted
                 </th>
-                <th className="px-3 py-1.5 text-right" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th className="px-3 py-1.5 text-right" style={{ fontSize: 10, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Actual
                 </th>
-                <th className="px-3 py-1.5 text-right" style={{ fontSize: 9, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th className="px-3 py-1.5 text-right" style={{ fontSize: 10, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Variance
                 </th>
               </tr>
@@ -176,7 +176,7 @@ export default function BudgetVsActualTable({
                     <tr className="border-b border-slate-200 bg-slate-100">
                       <td
                         colSpan={5}
-                        className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600"
+                        className="px-3 py-1 text-[13px] font-semibold uppercase tracking-wide text-slate-600"
                       >
                         {section.label}
                       </td>
@@ -199,7 +199,7 @@ export default function BudgetVsActualTable({
                       return (
                         <tr key={row.category_id} className="border-b border-slate-100">
                           <td
-                            className={`px-3 py-1.5 text-[11px] ${
+                            className={`px-3 py-1.5 text-[13px] ${
                               isOver ? 'font-medium text-[#d85a30]' : 'text-slate-700'
                             }`}
                           >
@@ -212,14 +212,14 @@ export default function BudgetVsActualTable({
                               <span className="text-[10px] text-slate-400">—</span>
                             )}
                           </td>
-                          <td className="px-3 py-1.5 text-right text-[11px] tabular-nums text-slate-500">
+                          <td className="px-3 py-1.5 text-right text-[13px] tabular-nums text-slate-500">
                             {formatCurrency(row.budgeted)}
                           </td>
-                          <td className="px-3 py-1.5 text-right text-[11px] tabular-nums text-slate-700">
+                          <td className="px-3 py-1.5 text-right text-[13px] tabular-nums text-slate-700">
                             {formatCurrency(row.actual)}
                           </td>
                           <td
-                            className={`px-3 py-1.5 text-right text-[11px] font-medium tabular-nums ${
+                            className={`px-3 py-1.5 text-right text-[13px] font-medium tabular-nums ${
                               variance >= 0 ? 'text-emerald-600' : 'text-rose-600'
                             }`}
                           >
@@ -241,7 +241,7 @@ export default function BudgetVsActualTable({
             <ColGroup />
             <tbody>
               <tr>
-                <td className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                <td className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
                   Totals
                 </td>
                 <td className="px-2 py-1.5">
@@ -249,14 +249,14 @@ export default function BudgetVsActualTable({
                     <ProgressBar pct={totalPct} />
                   ) : null}
                 </td>
-                <td className="px-3 py-1.5 text-right text-[11px] font-semibold tabular-nums text-slate-800">
+                <td className="px-3 py-1.5 text-right text-[13px] font-semibold tabular-nums text-slate-800">
                   {formatCurrency(totals.budgeted)}
                 </td>
-                <td className="px-3 py-1.5 text-right text-[11px] font-semibold tabular-nums text-slate-800">
+                <td className="px-3 py-1.5 text-right text-[13px] font-semibold tabular-nums text-slate-800">
                   {formatCurrency(totals.actual)}
                 </td>
                 <td
-                  className={`px-3 py-1.5 text-right text-[11px] font-semibold tabular-nums ${
+                  className={`px-3 py-1.5 text-right text-[13px] font-semibold tabular-nums ${
                     totalVariance >= 0 ? 'text-emerald-700' : 'text-rose-700'
                   }`}
                 >

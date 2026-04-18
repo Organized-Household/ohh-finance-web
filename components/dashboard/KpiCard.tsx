@@ -31,11 +31,11 @@ export default function KpiCard({
     <div className="flex items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
       {/* Left: label + badge */}
       <div className="flex flex-shrink-0 flex-col gap-1.5">
-        <span className="text-[9px] font-semibold uppercase tracking-widest text-slate-500">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">
           {label}
         </span>
         <span
-          className={`self-start rounded-full px-2 py-0.5 text-[10px] font-semibold leading-tight ${badgeClasses[badge.status]}`}
+          className={`self-start rounded-full px-2 py-0.5 text-[11px] font-semibold leading-tight ${badgeClasses[badge.status]}`}
         >
           {badge.label}
         </span>
@@ -47,12 +47,12 @@ export default function KpiCard({
       {/* Right: value + sub */}
       <div className="min-w-0 text-right">
         <p
-          className="text-[17px] font-medium tabular-nums leading-tight"
+          className="text-[22px] font-medium tabular-nums leading-tight"
           style={{ color: valueColorMap[valueColor] }}
         >
           {value}
         </p>
-        <p className="mt-0.5 truncate text-[10px] text-slate-500">{sub}</p>
+        <p className="mt-0.5 truncate text-[11px] text-slate-500">{sub}</p>
       </div>
     </div>
   )

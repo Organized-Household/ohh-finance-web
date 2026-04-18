@@ -30,7 +30,7 @@ export default function HouseholdMemberCard({
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-800">{displayName}</p>
-          <p className="text-[11px] capitalize text-slate-500">{role}</p>
+          <p className="text-[13px] capitalize text-slate-500">{role}</p>
         </div>
       </div>
 
@@ -40,7 +40,7 @@ export default function HouseholdMemberCard({
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-500">Pending review</span>
           <span
-            className={`font-semibold tabular-nums ${
+            className={`text-[13px] font-semibold tabular-nums ${
               pendingReviewCount > 0 ? 'text-amber-600' : 'text-slate-400'
             }`}
           >
@@ -52,16 +52,16 @@ export default function HouseholdMemberCard({
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-500">Budget set</span>
           {budgetIsSet ? (
-            <span className="font-semibold text-emerald-600">Yes</span>
+            <span className="text-[13px] font-semibold text-emerald-600">Yes</span>
           ) : (
-            <span className="font-semibold text-rose-600">No</span>
+            <span className="text-[13px] font-semibold text-rose-600">No</span>
           )}
         </div>
 
         {/* Last import */}
         <div className="flex items-center justify-between text-xs">
           <span className="text-slate-500">Last import</span>
-          <span className="tabular-nums text-slate-600">
+          <span className="text-[13px] tabular-nums text-slate-600">
             {lastImportDate ?? '—'}
           </span>
         </div>
