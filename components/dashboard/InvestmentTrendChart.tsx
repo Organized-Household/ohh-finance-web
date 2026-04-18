@@ -111,7 +111,7 @@ export default function InvestmentTrendChart({
                 key={m.key}
                 x={cx} y={LABEL_Y}
                 textAnchor="middle"
-                fontSize={9}
+                fontSize={10}
                 fill={isCurrent ? '#185fa5' : '#64748b'}
                 fontFamily="inherit"
               >

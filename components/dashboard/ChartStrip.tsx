@@ -23,7 +23,7 @@ function ChartCard({
 }) {
   return (
     <div className="rounded-lg border border-slate-300 bg-white px-3 py-2">
-      <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-widest text-slate-500">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
         {title}
       </p>
       {children}

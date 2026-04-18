@@ -56,7 +56,7 @@ export default function IncomeExpenseChart({
   return (
     <div className="rounded-lg border border-slate-300 bg-white px-3 py-2">
       {/* Legend */}
-      <div className="mb-1.5 flex items-center gap-3 text-[10px] font-medium text-slate-600">
+      <div className="mb-1.5 flex items-center gap-3 text-[11px] font-medium text-slate-600">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-sm bg-[#1d9e75]" />
           Income
@@ -113,7 +113,7 @@ export default function IncomeExpenseChart({
                 <text
                   x={cx} y={LABEL_Y}
                   textAnchor="middle"
-                  fontSize={9}
+                  fontSize={10}
                   fill={isCurrent ? '#185fa5' : '#64748b'}
                   fontFamily="inherit"
                 >

@@ -69,7 +69,7 @@ const colHeaderStyle: React.CSSProperties = {
   background: '#f1f5f9',
   borderBottom: '1px solid #e2e8f0',
   padding: '4px 12px',
-  fontSize: 9,
+  fontSize: 10,
   fontWeight: 700,
   color: '#374151',
   textTransform: 'uppercase',
@@ -111,7 +111,7 @@ export default function AccountTile({ kind, accounts }: AccountTileProps) {
         padding:      '6px 12px',
       }}>
         <h3 style={{
-          fontSize:      9,
+          fontSize:      10,
           fontWeight:    600,
           color:         config.titleColor,
           textTransform: 'uppercase',
@@ -141,11 +141,11 @@ export default function AccountTile({ kind, accounts }: AccountTileProps) {
             const rate = formatRate(account.interest_rate)
             return (
               <div key={account.id} style={{ borderBottom: '1px solid #f1f5f9', padding: '5px 12px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'baseline', fontSize: 11 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'baseline', fontSize: 13 }}>
                   <span style={{ fontWeight: 500, color: '#374151', lineHeight: 1.3 }}>
                     {account.name}
                     {rate && (
-                      <span style={{ marginLeft: 4, fontSize: 9, fontWeight: 400, color: '#94a3b8' }}>
+                      <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>
                         {rate}
                       </span>
                     )}
@@ -166,8 +166,8 @@ export default function AccountTile({ kind, accounts }: AccountTileProps) {
 
           {/* Totals row */}
           <div style={{ background: '#f8fafc', padding: '5px 12px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, fontSize: 11, fontWeight: 600 }}>
-              <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748b' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, fontSize: 13, fontWeight: 600 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748b' }}>
                 Total
               </span>
               <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#1e293b' }}>
