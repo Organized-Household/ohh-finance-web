@@ -2,108 +2,99 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
-type SidebarItem = {
+// ---------------------------------------------------------------------------
+// Icons
+// ---------------------------------------------------------------------------
+
+function HomeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path d="M3.75 10.5 12 3.75l8.25 6.75v9a.75.75 0 0 1-.75.75h-4.5v-6h-6v6h-4.5a.75.75 0 0 1-.75-.75v-9Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CategoriesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path d="M4.5 4.5h6.75v6.75H4.5V4.5Zm8.25 0h6.75v6.75h-6.75V4.5ZM4.5 12.75h6.75v6.75H4.5v-6.75Zm8.25 0h6.75v6.75h-6.75v-6.75Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function BudgetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path d="M4.5 5.25h15a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-.75.75h-15a.75.75 0 0 1-.75-.75V6a.75.75 0 0 1 .75-.75Zm2.25 3a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Zm0 3.75a.75.75 0 0 0 0 1.5h9a.75.75 0 0 0 0-1.5h-9Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TransactionsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path d="M5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 17.25V6.75A2.25 2.25 0 0 1 5.25 4.5Zm1.5 3a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H6.75Zm0 3.75a.75.75 0 0 0 0 1.5h6.75a.75.75 0 0 0 0-1.5H6.75Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function AccountsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path d="M12 3.75a6.75 6.75 0 1 0 6.75 6.75A6.758 6.758 0 0 0 12 3.75Zm.75 10.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-.75a2.25 2.25 0 0 1 0-4.5h2.25a.75.75 0 1 0 0-1.5h-2.25a.75.75 0 0 1 0-1.5h.75v-1.5a.75.75 0 0 1 1.5 0v1.5h.75a2.25 2.25 0 0 1 0 4.5h-2.25a.75.75 0 1 0 0 1.5h2.25a.75.75 0 0 1 0 1.5h-.75Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Types & data
+// ---------------------------------------------------------------------------
+
+type MainNavItem = {
   href: string;
   label: string;
   icon: ReactNode;
   isActive: (pathname: string) => boolean;
 };
 
-const navItems: SidebarItem[] = [
+const mainNavItems: MainNavItem[] = [
   {
     href: "/app",
     label: "Home",
-    icon: (
-      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-        <path
-          d="M3.75 10.5 12 3.75l8.25 6.75v9a.75.75 0 0 1-.75.75h-4.5v-6h-6v6h-4.5a.75.75 0 0 1-.75-.75v-9Z"
-          fill="currentColor"
-        />
-      </svg>
-    ),
-    isActive: (pathname) => pathname === "/app",
-  },
-  {
-    href: "/app/budgets",
-    label: "Budget",
-    icon: (
-      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-        <path
-          d="M4.5 5.25h15a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-.75.75h-15a.75.75 0 0 1-.75-.75V6a.75.75 0 0 1 .75-.75Zm2.25 3a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Zm0 3.75a.75.75 0 0 0 0 1.5h9a.75.75 0 0 0 0-1.5h-9Z"
-          fill="currentColor"
-        />
-      </svg>
-    ),
-    isActive: (pathname) => pathname === "/app/budgets",
+    icon: <HomeIcon />,
+    isActive: (p) => p === "/app",
   },
   {
     href: "/app/budgets/categories",
     label: "Categories",
-    icon: (
-      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-        <path
-          d="M4.5 4.5h6.75v6.75H4.5V4.5Zm8.25 0h6.75v6.75h-6.75V4.5ZM4.5 12.75h6.75v6.75H4.5v-6.75Zm8.25 0h6.75v6.75h-6.75v-6.75Z"
-          fill="currentColor"
-        />
-      </svg>
-    ),
-    isActive: (pathname) => pathname.startsWith("/app/budgets/categories"),
+    icon: <CategoriesIcon />,
+    isActive: (p) => p.startsWith("/app/budgets/categories"),
+  },
+  {
+    href: "/app/budgets",
+    label: "Budget",
+    icon: <BudgetIcon />,
+    isActive: (p) => p === "/app/budgets",
   },
   {
     href: "/app/transactions",
     label: "Transactions",
-    icon: (
-      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-        <path
-          d="M5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 17.25V6.75A2.25 2.25 0 0 1 5.25 4.5Zm1.5 3a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H6.75Zm0 3.75a.75.75 0 0 0 0 1.5h6.75a.75.75 0 0 0 0-1.5H6.75Z"
-          fill="currentColor"
-        />
-      </svg>
-    ),
-    isActive: (pathname) => pathname.startsWith("/app/transactions"),
-  },
-  {
-    href: "/app/accounts/savings",
-    label: "Savings",
-    icon: (
-      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-        <path
-          d="M12 3.75a6.75 6.75 0 1 0 6.75 6.75A6.758 6.758 0 0 0 12 3.75Zm.75 10.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-.75a2.25 2.25 0 0 1 0-4.5h2.25a.75.75 0 1 0 0-1.5h-2.25a.75.75 0 0 1 0-1.5h.75v-1.5a.75.75 0 0 1 1.5 0v1.5h.75a2.25 2.25 0 0 1 0 4.5h-2.25a.75.75 0 1 0 0 1.5h2.25a.75.75 0 0 1 0 1.5h-.75Z"
-          fill="currentColor"
-        />
-      </svg>
-    ),
-    isActive: (pathname) => pathname.startsWith("/app/accounts/savings"),
-  },
-  {
-    href: "/app/accounts/investments",
-    label: "Investments",
-    icon: (
-      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-        <path
-          d="M4.5 17.25h15v1.5h-15v-1.5Zm1.5-2.25h2.25v-4.5H6V15Zm4.875 0h2.25V9.75h-2.25V15Zm4.875 0H18v-7.5h-2.25V15ZM4.5 5.25h5.25v1.5H7.56l3.69 3.69 2.19-2.19h4.56v1.5h-3.94l-2.81 2.81-4.75-4.75v2.19H4.5V5.25Z"
-          fill="currentColor"
-        />
-      </svg>
-    ),
-    isActive: (pathname) => pathname.startsWith("/app/accounts/investments"),
-  },
-  {
-    href: "/app/accounts/debts",
-    label: "Debts",
-    icon: (
-      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
-        <path
-          d="M4.5 5.25h15a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-.75.75h-15a.75.75 0 0 1-.75-.75V6a.75.75 0 0 1 .75-.75Zm2.25 2.25a.75.75 0 0 0 0 1.5h6a.75.75 0 0 0 0-1.5h-6Zm0 3a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H6.75Zm0 3a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H6.75Z"
-          fill="currentColor"
-        />
-      </svg>
-    ),
-    isActive: (pathname) => pathname.startsWith("/app/accounts/debts"),
+    icon: <TransactionsIcon />,
+    isActive: (p) => p.startsWith("/app/transactions"),
   },
 ];
+
+const accountSubItems = [
+  { href: "/app/accounts/savings",     label: "Savings" },
+  { href: "/app/accounts/investments", label: "Investments" },
+  { href: "/app/accounts/debts",       label: "Debts" },
+];
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 type AppSidebarProps = {
   collapsed: boolean;
@@ -112,6 +103,8 @@ type AppSidebarProps = {
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
+  const isOnAccountsRoute = pathname.startsWith("/app/accounts");
+  const [accountsOpen, setAccountsOpen] = useState(isOnAccountsRoute);
 
   return (
     <aside
@@ -120,6 +113,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       }`}
     >
       <div className="flex h-full flex-col">
+        {/* Header */}
         <div className="flex h-16 items-center justify-between border-b border-slate-700 px-3">
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex size-8 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-slate-900">
@@ -149,11 +143,12 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           </button>
         </div>
 
+        {/* Nav */}
         <nav className="flex-1 px-2 py-4">
           <ul className="space-y-1.5">
-            {navItems.map((item) => {
+            {/* Main nav items: Home, Categories, Budget, Transactions */}
+            {mainNavItems.map((item) => {
               const active = item.isActive(pathname);
-
               return (
                 <li key={item.href}>
                   <Link
@@ -173,6 +168,80 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 </li>
               );
             })}
+
+            {/* Divider */}
+            <li aria-hidden="true">
+              <hr style={{
+                border: "none",
+                borderTop: "0.5px solid rgba(255,255,255,0.1)",
+                margin: "8px 4px",
+              }} />
+            </li>
+
+            {/* Accounts group */}
+            <li>
+              {collapsed ? (
+                /* Collapsed sidebar: single icon navigates to Savings */
+                <Link
+                  href="/app/accounts/savings"
+                  className={`flex items-center justify-center rounded-md px-2.5 py-2 text-sm font-medium transition ${
+                    isOnAccountsRoute
+                      ? "bg-slate-100 text-slate-900"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
+                  aria-label="Accounts"
+                >
+                  <AccountsIcon />
+                </Link>
+              ) : (
+                /* Expanded sidebar: collapsible group */
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setAccountsOpen((prev) => !prev)}
+                    className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition ${
+                      isOnAccountsRoute
+                        ? "text-slate-100"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <AccountsIcon />
+                    <span className="flex-1 text-left">Accounts</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="size-3.5 transition-transform"
+                      style={{ transform: accountsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                      aria-hidden="true"
+                    >
+                      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </button>
+
+                  {accountsOpen && (
+                    <ul className="mt-1 space-y-1 pl-8">
+                      {accountSubItems.map((sub) => {
+                        const active = pathname.startsWith(sub.href);
+                        return (
+                          <li key={sub.href}>
+                            <Link
+                              href={sub.href}
+                              className={`flex items-center rounded-md px-2.5 py-1.5 text-sm transition ${
+                                active
+                                  ? "bg-slate-100 font-medium text-slate-900"
+                                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                              }`}
+                              aria-current={active ? "page" : undefined}
+                            >
+                              {sub.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              )}
+            </li>
           </ul>
         </nav>
       </div>
