@@ -7,10 +7,12 @@ import SavingsAccountsTable from "@/components/savings-accounts/savings-accounts
 import HouseholdMemberCard from "@/components/layout/household-member-card";
 import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 
-type SavingsAccountRow = {
+export type SavingsAccountRow = {
   id: string;
   name: string;
   account_number_last4: string | null;
+  opening_balance: number | null;
+  interest_rate: number | null;
   target_amount: number | null;
   target_date: string | null;
 };
@@ -31,7 +33,7 @@ export default async function SavingsAccountsPage() {
 
   const { data, error } = await supabase
     .from("accounts")
-    .select("id, name, account_number_last4, target_amount, target_date")
+    .select("id, name, account_number_last4, opening_balance, interest_rate, target_amount, target_date")
     .eq("tenant_id", membership.tenant_id)
     .eq("account_kind", "savings")
     .eq("is_active", true)
@@ -41,18 +43,16 @@ export default async function SavingsAccountsPage() {
     throw new Error(`Failed to load savings accounts: ${error.message}`);
   }
 
+  const toNum = (v: unknown): number | null =>
+    v == null ? null : typeof v === "number" ? v : Number.isFinite(Number(v)) ? Number(v) : null;
+
   const rows: SavingsAccountRow[] = (data ?? []).map((row) => ({
     id: String(row.id),
     name: String(row.name),
-    account_number_last4: row.account_number_last4
-      ? String(row.account_number_last4)
-      : null,
-    target_amount:
-      typeof row.target_amount === "number"
-        ? row.target_amount
-        : row.target_amount
-          ? Number(row.target_amount)
-          : null,
+    account_number_last4: row.account_number_last4 ? String(row.account_number_last4) : null,
+    opening_balance: toNum(row.opening_balance),
+    interest_rate: toNum(row.interest_rate),
+    target_amount: toNum(row.target_amount),
     target_date: row.target_date ? String(row.target_date) : null,
   }));
 
@@ -75,7 +75,7 @@ export default async function SavingsAccountsPage() {
   return (
     <WorkspaceShell
       title="Savings Accounts"
-      description="Manage tenant savings accounts with optional account number reference."
+      description="Manage savings accounts with balance, rate, and savings targets."
       leftPanelSections={leftPanelSections}
       topbarControls={
         <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-600">

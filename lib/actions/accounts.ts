@@ -83,6 +83,8 @@ export async function createSavingsAccountFormAction(
     const parsed = createSavingsAccountSchema.safeParse({
       name: String(formData.get("name") ?? ""),
       account_number: String(formData.get("account_number") ?? ""),
+      opening_balance: String(formData.get("opening_balance") ?? ""),
+      interest_rate: String(formData.get("interest_rate") ?? ""),
       target_amount: String(formData.get("target_amount") ?? ""),
       target_date: String(formData.get("target_date") ?? ""),
     });
@@ -104,6 +106,8 @@ export async function createSavingsAccountFormAction(
       name: parsed.data.name,
       account_subtype: null,
       account_number_last4: accountNumberLast4,
+      opening_balance: parsed.data.opening_balance,
+      interest_rate: parsed.data.interest_rate,
       target_amount: parsed.data.target_amount,
       target_date: parsed.data.target_date,
     });
@@ -141,6 +145,8 @@ export async function updateSavingsAccountFormAction(
       id: String(formData.get("id") ?? ""),
       name: String(formData.get("name") ?? ""),
       account_number: String(formData.get("account_number") ?? ""),
+      opening_balance: String(formData.get("opening_balance") ?? ""),
+      interest_rate: String(formData.get("interest_rate") ?? ""),
       target_amount: String(formData.get("target_amount") ?? ""),
       target_date: String(formData.get("target_date") ?? ""),
     });
@@ -161,6 +167,8 @@ export async function updateSavingsAccountFormAction(
       .update({
         name: parsed.data.name,
         account_number_last4: accountNumberLast4,
+        opening_balance: parsed.data.opening_balance,
+        interest_rate: parsed.data.interest_rate,
         target_amount: parsed.data.target_amount,
         target_date: parsed.data.target_date,
         updated_at: new Date().toISOString(),
@@ -248,6 +256,8 @@ export async function createInvestmentAccountFormAction(
     const parsed = createInvestmentAccountSchema.safeParse({
       name: String(formData.get("name") ?? ""),
       account_subtype: String(formData.get("account_subtype") ?? ""),
+      opening_balance: String(formData.get("opening_balance") ?? ""),
+      interest_rate: String(formData.get("interest_rate") ?? ""),
     });
 
     if (!parsed.success) {
@@ -265,6 +275,8 @@ export async function createInvestmentAccountFormAction(
       account_kind: "investment",
       name: parsed.data.name,
       account_subtype: parsed.data.account_subtype,
+      opening_balance: parsed.data.opening_balance,
+      interest_rate: parsed.data.interest_rate,
     });
 
     if (error) {
@@ -300,6 +312,8 @@ export async function updateInvestmentAccountFormAction(
       id: String(formData.get("id") ?? ""),
       name: String(formData.get("name") ?? ""),
       account_subtype: String(formData.get("account_subtype") ?? ""),
+      opening_balance: String(formData.get("opening_balance") ?? ""),
+      interest_rate: String(formData.get("interest_rate") ?? ""),
     });
 
     if (!parsed.success) {
@@ -317,6 +331,8 @@ export async function updateInvestmentAccountFormAction(
       .update({
         name: parsed.data.name,
         account_subtype: parsed.data.account_subtype,
+        opening_balance: parsed.data.opening_balance,
+        interest_rate: parsed.data.interest_rate,
         updated_at: new Date().toISOString(),
       })
       .eq("id", parsed.data.id)
@@ -402,6 +418,8 @@ export async function createDebtAccountFormAction(
     const parsed = createDebtAccountSchema.safeParse({
       name: String(formData.get("name") ?? ""),
       account_subtype: String(formData.get("account_subtype") ?? ""),
+      opening_balance: String(formData.get("opening_balance") ?? ""),
+      interest_rate: String(formData.get("interest_rate") ?? ""),
     });
 
     if (!parsed.success) {
@@ -419,6 +437,8 @@ export async function createDebtAccountFormAction(
       account_kind: "debt",
       name: parsed.data.name,
       account_subtype: parsed.data.account_subtype,
+      opening_balance: parsed.data.opening_balance,
+      interest_rate: parsed.data.interest_rate,
     });
 
     if (error) {
@@ -454,6 +474,8 @@ export async function updateDebtAccountFormAction(
       id: String(formData.get("id") ?? ""),
       name: String(formData.get("name") ?? ""),
       account_subtype: String(formData.get("account_subtype") ?? ""),
+      opening_balance: String(formData.get("opening_balance") ?? ""),
+      interest_rate: String(formData.get("interest_rate") ?? ""),
     });
 
     if (!parsed.success) {
@@ -471,6 +493,8 @@ export async function updateDebtAccountFormAction(
       .update({
         name: parsed.data.name,
         account_subtype: parsed.data.account_subtype,
+        opening_balance: parsed.data.opening_balance,
+        interest_rate: parsed.data.interest_rate,
         updated_at: new Date().toISOString(),
       })
       .eq("id", parsed.data.id)

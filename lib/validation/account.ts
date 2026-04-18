@@ -9,6 +9,39 @@ function normalizeOptionalText(value: string | null | undefined) {
   return trimmed.length ? trimmed : null;
 }
 
+function parseOptionalDecimal(value: string | null | undefined): number | null | typeof Number.NaN {
+  const normalized = normalizeOptionalText(value);
+  if (!normalized) return null;
+  const parsed = Number.parseFloat(normalized);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+// --- Shared optional numeric fields ---
+
+const openingBalanceField = z
+  .string()
+  .optional()
+  .transform((value) => parseOptionalDecimal(value))
+  .refine(
+    (value) => value === null || (Number.isFinite(value) && (value as number) >= 0),
+    "Balance must be a number greater than or equal to 0"
+  );
+
+// User enters percent (e.g. 4.89); stored as decimal (0.0489)
+const interestRateField = z
+  .string()
+  .optional()
+  .transform((value) => {
+    const n = parseOptionalDecimal(value);
+    if (n === null) return null;
+    if (!Number.isFinite(n)) return Number.NaN;
+    return (n as number) / 100;
+  })
+  .refine(
+    (value) => value === null || (Number.isFinite(value) && (value as number) >= 0 && (value as number) <= 1),
+    "Interest rate must be between 0 and 100"
+  );
+
 // --- Savings ---
 
 export const savingsAccountInputSchema = z.object({
@@ -25,19 +58,14 @@ export const savingsAccountInputSchema = z.object({
       (digits) => digits.length === 0 || (digits.length >= 4 && digits.length <= 34),
       "Account number must be between 4 and 34 digits"
     ),
+  opening_balance: openingBalanceField,
+  interest_rate: interestRateField,
   target_amount: z
     .string()
     .optional()
-    .transform((value) => {
-      const normalized = normalizeOptionalText(value);
-      if (!normalized) {
-        return null;
-      }
-      const parsed = Number.parseFloat(normalized);
-      return Number.isFinite(parsed) ? parsed : Number.NaN;
-    })
+    .transform((value) => parseOptionalDecimal(value))
     .refine(
-      (value) => value === null || (Number.isFinite(value) && value >= 0),
+      (value) => value === null || (Number.isFinite(value) && (value as number) >= 0),
       "Target amount must be a number greater than or equal to 0"
     ),
   target_date: z
@@ -69,17 +97,21 @@ export function toAccountNumberLast4(accountNumberDigits: string): string | null
 
 // --- Investment ---
 
+const investmentSubtypeValues = [
+  "rrsp", "tfsa", "stocks", "etf", "gic", "pension", "gsop", "rpp", "other",
+] as const;
+
 export const investmentAccountInputSchema = z.object({
   name: z
     .string()
     .trim()
     .min(1, "Name is required")
     .max(120, "Name must be 120 characters or less"),
-  account_subtype: z
-    .string()
-    .trim()
-    .min(1, "Type is required")
-    .max(80, "Type must be 80 characters or less"),
+  account_subtype: z.enum(investmentSubtypeValues, {
+    error: "Please select a valid investment type",
+  }),
+  opening_balance: openingBalanceField,
+  interest_rate: interestRateField,
 });
 
 export const createInvestmentAccountSchema = investmentAccountInputSchema;
@@ -94,17 +126,21 @@ export const deleteInvestmentAccountSchema = z.object({
 
 // --- Debt ---
 
+const debtSubtypeValues = [
+  "credit_card", "mortgage", "heloc", "car_loan", "personal_loan", "other",
+] as const;
+
 export const debtAccountInputSchema = z.object({
   name: z
     .string()
     .trim()
     .min(1, "Name is required")
     .max(120, "Name must be 120 characters or less"),
-  account_subtype: z
-    .string()
-    .trim()
-    .min(1, "Type is required")
-    .max(80, "Type must be 80 characters or less"),
+  account_subtype: z.enum(debtSubtypeValues, {
+    error: "Please select a valid debt type",
+  }),
+  opening_balance: openingBalanceField,
+  interest_rate: interestRateField,
 });
 
 export const createDebtAccountSchema = debtAccountInputSchema;

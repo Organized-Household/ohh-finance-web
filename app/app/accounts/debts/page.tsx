@@ -7,10 +7,12 @@ import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import DebtAccountForm from "@/components/debt-accounts/debt-account-form";
 import DebtAccountsTable from "@/components/debt-accounts/debt-accounts-table";
 
-type DebtAccountRow = {
+export type DebtAccountRow = {
   id: string;
   name: string;
   account_subtype: string;
+  opening_balance: number | null;
+  interest_rate: number | null;
 };
 
 export default async function DebtAccountsPage() {
@@ -29,21 +31,25 @@ export default async function DebtAccountsPage() {
 
   const { data, error } = await supabase
     .from("accounts")
-    .select("id, name, account_subtype")
+    .select("id, name, account_subtype, opening_balance, interest_rate")
     .eq("tenant_id", membership.tenant_id)
     .eq("account_kind", "debt")
     .eq("is_active", true)
-    .order("name", { ascending: true })
-    .order("account_subtype", { ascending: true });
+    .order("name", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load debt accounts: ${error.message}`);
   }
 
+  const toNum = (v: unknown): number | null =>
+    v == null ? null : typeof v === "number" ? v : Number.isFinite(Number(v)) ? Number(v) : null;
+
   const rows: DebtAccountRow[] = (data ?? []).map((row) => ({
     id: String(row.id),
     name: String(row.name),
-    account_subtype: String(row.account_subtype),
+    account_subtype: String(row.account_subtype ?? ""),
+    opening_balance: toNum(row.opening_balance),
+    interest_rate: toNum(row.interest_rate),
   }));
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
@@ -65,7 +71,7 @@ export default async function DebtAccountsPage() {
   return (
     <WorkspaceShell
       title="Debt Accounts"
-      description="Manage tenant debt accounts with name and type."
+      description="Manage debt accounts with type, balance owed, and interest rate."
       leftPanelSections={leftPanelSections}
       topbarControls={
         <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-600">

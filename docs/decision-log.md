@@ -284,7 +284,70 @@ and passed to all badge computations. Not recomputed per-component.
 
 ---
 
-## "Budget Set" Logic
+## Navigation / Sidebar Decisions
+
+### Decision: Sidebar stays collapsed on nav item click
+**Date:** 2026-04-17
+**Decision:** Clicking a nav item navigates but does NOT expand the sidebar.
+Only the toggle button (chevron) changes collapsed/expanded state.
+Route changes must not trigger sidebar expansion.
+
+### Decision: Menu structure (confirmed)
+**Date:** 2026-04-17
+**Order:**
+1. Home
+2. Categories
+3. Budget
+4. Transactions
+5. (divider)
+6. Accounts (collapsible group)
+   - Savings
+   - Investments
+   - Debts
+
+"Accounts" is a group label, not a navigation link. Sub-items are indented.
+Group starts expanded if any sub-route is active.
+In collapsed sidebar, show single Accounts icon defaulting to Savings.
+
+---
+
+## Account Page Field Decisions
+
+### Decision: Current Balance label and storage
+**Date:** 2026-04-17
+**DB column:** `opening_balance` — name stays as-is in DB
+**UI label:** "Current Balance" for Savings and Investments
+**UI label:** "Current Balance Owed" for Debts
+**Display:** `$X,XXX.XX` or `—` if null
+**v1 scope:** Display only. No running balance computation.
+
+### Decision: Interest Rate storage convention
+**Date:** 2026-04-17
+**User enters:** `4.89` (percent)
+**Stored in DB:** `0.0489` (divide by 100 on save)
+**Displayed as:** `4.89%` (multiply by 100 for display)
+**Applies to:** All account kinds — savings, investment, debt
+
+### Decision: Investment account subtype — dropdown values
+**Date:** 2026-04-17
+**Canonical values (stored lowercase):**
+`rrsp`, `tfsa`, `stocks`, `etf`, `gic`, `pension`, `gsop`, `rpp`, `other`
+**Migration:** Normalise existing free-text values to lowercase via migration.
+**Display labels:** RRSP, TFSA, Stocks, ETF, GIC, Pension, GSOP, RPP, Other
+
+### Decision: Savings account fields (complete list)
+**Date:** 2026-04-17
+Fields: Purpose (name), Account # last4 (optional), Current Balance (optional),
+Interest Rate % (optional), Target Amount (optional), Target Date (optional)
+
+### Decision: Investments account fields (complete list)
+**Date:** 2026-04-17
+Fields: Name, Type (dropdown), Current Balance (optional), Interest Rate % (optional)
+
+### Decision: Debts account fields (complete list)
+**Date:** 2026-04-17
+Fields: Name, Type (dropdown — credit_card/mortgage/heloc/car_loan/personal_loan/other),
+Current Balance Owed (optional), Interest Rate % (optional)
 
 ### Decision: Definition of "Budget Set = Yes"
 **Date:** 2026-04-17
