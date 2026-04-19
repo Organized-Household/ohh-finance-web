@@ -98,8 +98,26 @@ export function toAccountNumberLast4(accountNumberDigits: string): string | null
 // --- Investment ---
 
 const investmentSubtypeValues = [
-  "rrsp", "tfsa", "stocks", "etf", "gic", "pension", "gsop", "rpp", "other",
+  "rrsp", "tfsa", "resp", "stocks", "etf", "gic", "pension", "gsop", "rpp", "other",
 ] as const;
+
+const targetAmountField = z
+  .string()
+  .optional()
+  .transform((value) => parseOptionalDecimal(value))
+  .refine(
+    (value) => value === null || (Number.isFinite(value) && (value as number) >= 0),
+    "Target amount must be a number greater than or equal to 0"
+  );
+
+const targetDateField = z
+  .string()
+  .optional()
+  .transform((value) => normalizeOptionalText(value))
+  .refine(
+    (value) => value === null || !Number.isNaN(Date.parse(value)),
+    "Target date is invalid"
+  );
 
 export const investmentAccountInputSchema = z.object({
   name: z
@@ -112,6 +130,8 @@ export const investmentAccountInputSchema = z.object({
   }),
   opening_balance: openingBalanceField,
   interest_rate: interestRateField,
+  target_amount: targetAmountField,
+  target_date: targetDateField,
 });
 
 export const createInvestmentAccountSchema = investmentAccountInputSchema;
@@ -141,6 +161,8 @@ export const debtAccountInputSchema = z.object({
   }),
   opening_balance: openingBalanceField,
   interest_rate: interestRateField,
+  target_amount: targetAmountField,
+  target_date: targetDateField,
 });
 
 export const createDebtAccountSchema = debtAccountInputSchema;

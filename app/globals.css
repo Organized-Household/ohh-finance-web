@@ -29,3 +29,35 @@ body {
 .bva-scroll::-webkit-scrollbar { width: 4px; }
 .bva-scroll::-webkit-scrollbar-track { background: transparent; }
 .bva-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+
+/* Sidebar collapsed — CSS-only hover tooltips (right of icon, visible only when collapsed) */
+.sidebar-collapsed .nav-item-wrapper[data-tooltip] { position: relative; }
+
+.sidebar-collapsed .nav-item-wrapper[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.sidebar-collapsed .nav-item-wrapper[data-tooltip]:hover::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
+  border: 4px solid transparent;
+  border-right-color: #1e293b;
+  pointer-events: none;
+  z-index: 9999;
+}
