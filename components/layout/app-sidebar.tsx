@@ -109,7 +109,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   return (
     <aside
       className={`border-r border-slate-300 bg-slate-900 text-slate-100 transition-all duration-200 ${
-        collapsed ? "w-20" : "w-64"
+        collapsed ? "w-20 sidebar-collapsed" : "w-64"
       }`}
     >
       <div className="flex h-full flex-col">
@@ -150,7 +150,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             {mainNavItems.map((item) => {
               const active = item.isActive(pathname);
               return (
-                <li key={item.href}>
+                <li key={item.href} className="nav-item-wrapper" data-tooltip={item.label}>
                   <Link
                     href={item.href}
                     className={`flex items-center rounded-md px-2.5 py-2 text-sm font-medium transition ${
@@ -179,7 +179,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             </li>
 
             {/* Accounts group */}
-            <li>
+            <li className="nav-item-wrapper" data-tooltip="Accounts">
               {collapsed ? (
                 /* Collapsed sidebar: single icon navigates to Savings */
                 <Link

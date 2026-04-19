@@ -13,6 +13,8 @@ export type InvestmentAccountRow = {
   account_subtype: string;
   opening_balance: number | null;
   interest_rate: number | null;
+  target_amount: number | null;
+  target_date: string | null;
 };
 
 export default async function InvestmentAccountsPage() {
@@ -31,7 +33,7 @@ export default async function InvestmentAccountsPage() {
 
   const { data, error } = await supabase
     .from("accounts")
-    .select("id, name, account_subtype, opening_balance, interest_rate")
+    .select("id, name, account_subtype, opening_balance, interest_rate, target_amount, target_date")
     .eq("tenant_id", membership.tenant_id)
     .eq("account_kind", "investment")
     .eq("is_active", true)
@@ -50,6 +52,8 @@ export default async function InvestmentAccountsPage() {
     account_subtype: String(row.account_subtype ?? ""),
     opening_balance: toNum(row.opening_balance),
     interest_rate: toNum(row.interest_rate),
+    target_amount: toNum(row.target_amount),
+    target_date: row.target_date ? String(row.target_date) : null,
   }));
 
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
