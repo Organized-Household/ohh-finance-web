@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useRef } from 'react'
+import { Fragment } from 'react'
 import type { BudgetVsActualRpcRow } from '@/lib/dashboard/get-dashboard-summary'
 import { computeCategoryBadge } from '@/lib/dashboard/healthBadge'
 
@@ -69,28 +69,10 @@ export default function BudgetVsActualTable({
   rows,
   monthProgress,
 }: BudgetVsActualTableProps) {
-  const bvaCardRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const rightCol = document.getElementById('bva-right-col-anchor')
-    if (!rightCol || !bvaCardRef.current) return
-
-    const setHeight = () => {
-      const h = rightCol.getBoundingClientRect().height
-      if (h > 0 && bvaCardRef.current) {
-        bvaCardRef.current.style.maxHeight = `${h}px`
-      }
-    }
-
-    setHeight()
-    window.addEventListener('resize', setHeight)
-    return () => window.removeEventListener('resize', setHeight)
-  }, [])
-
   if (!rows.length) {
     return (
       <div
-        ref={bvaCardRef}
+        id="bva-card-anchor"
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
       >
         <div className="flex-shrink-0" style={{ background: '#fef9c3', borderBottom: '1px solid #fde68a', padding: '6px 12px' }}>
@@ -122,7 +104,7 @@ export default function BudgetVsActualTable({
       `}</style>
 
       <div
-        ref={bvaCardRef}
+        id="bva-card-anchor"
         className="flex flex-col overflow-hidden rounded-lg border border-slate-300 bg-white"
       >
         {/* Card header */}
