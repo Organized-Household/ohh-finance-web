@@ -5,6 +5,7 @@ import KpiCard from "@/components/dashboard/KpiCard";
 import ChartStrip from "@/components/dashboard/ChartStrip";
 import DashboardBvaRow from "@/components/dashboard/DashboardBvaRow";
 import AccountTile from "@/components/dashboard/AccountTile";
+import CombinedDebtsTile from "@/components/dashboard/CombinedDebtsTile";
 import HouseholdMemberCard from "@/components/dashboard/HouseholdMemberCard";
 import { createClient } from "@/lib/supabase/server";
 import { getUserFirstName } from "@/lib/auth/get-user-first-name";
@@ -140,20 +141,24 @@ export default async function AppHomePage({
           currentMonthStart={monthStartIso}
         />
 
-        {/* Row 3: BVA table (60%) + Savings/Investments tiles (40%)
-            DashboardBvaRow is a client component that owns the rightColRef
-            so BudgetVsActualTable can height-lock to the right column */}
+        {/* Row 3: BVA (3fr) + Savings (2fr) — Savings height-locks to BVA */}
         <DashboardBvaRow
           bvaRows={summary.budget_vs_actual ?? []}
           savingsAccounts={summary.savings_accounts ?? []}
-          investmentAccounts={summary.investment_accounts ?? []}
           monthProgress={monthProgress}
         />
 
-        {/* Row 4: Debts (50%) + Credit Cards (50%) */}
-        <div className="grid grid-cols-2 gap-2">
-          <AccountTile kind="debt" accounts={summary.debt_accounts ?? []} />
-          <AccountTile kind="credit_card" accounts={summary.credit_card_accounts ?? []} />
+        {/* Row 4: Investments (1fr/33%) + Combined Debts+CC (2fr/67%) */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px', marginTop: '0px' }}>
+          <AccountTile
+            kind="investment"
+            accounts={summary.investment_accounts ?? []}
+            maxScrollHeight="96px"
+          />
+          <CombinedDebtsTile
+            debtAccounts={summary.debt_accounts ?? []}
+            creditCardAccounts={summary.credit_card_accounts ?? []}
+          />
         </div>
       </div>
     </WorkspaceShell>

@@ -3,6 +3,10 @@ import type { DashboardAccount } from '@/lib/dashboard/get-dashboard-summary'
 interface AccountTileProps {
   kind: 'savings' | 'investment' | 'debt' | 'credit_card'
   accounts: DashboardAccount[]
+  /** Optional max-height on the scrollable body (e.g. '96px' for 3 rows). */
+  maxScrollHeight?: string
+  /** When true, sets height: 100% on the outer div for parent-driven height-locking. */
+  fillHeight?: boolean
 }
 
 function formatCurrency(amount: number): string {
@@ -45,8 +49,8 @@ const kindConfig = {
     titleBorder:  '#fecaca',
     titleColor:   '#991b1b',
     balanceLabel: 'Balance Owed',
-    col2Label:    'Paid',   // linked_account_id — money reducing the balance
-    col3Label:    'Spent',  // payment_source_account_id — charges via the account
+    col2Label:    'Paid',
+    col3Label:    'Spent',
   },
   credit_card: {
     label:        'Credit Cards',
@@ -54,15 +58,14 @@ const kindConfig = {
     titleBorder:  '#ddd6fe',
     titleColor:   '#5b21b6',
     balanceLabel: 'Balance Owed',
-    col2Label:    'Payment',  // linked_account_id — paying down the card
-    col3Label:    'Charged',  // payment_source_account_id — expenses on the card
+    col2Label:    'Payment',
+    col3Label:    'Charged',
   },
 } as const
 
 // Grid: account-name (flex-1) | balance (80px) | col2 (65px) | col3 (65px)
 const GRID_COLS = '1fr 80px 65px 65px'
 
-// Column header row style — light grey, bold 9px dark text (same as BVA)
 const colHeaderStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: GRID_COLS,
@@ -74,21 +77,22 @@ const colHeaderStyle: React.CSSProperties = {
   color: '#374151',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
+  flexShrink: 0,
 }
 
-export default function AccountTile({ kind, accounts }: AccountTileProps) {
+export default function AccountTile({ kind, accounts, maxScrollHeight, fillHeight }: AccountTileProps) {
   const config = kindConfig[kind]
   const isCreditCard = kind === 'credit_card'
   const isDebt = kind === 'debt'
 
   function accountCol2(a: DashboardAccount): number {
-    if (isCreditCard) return a.payment_this_month ?? 0  // Payment (paying down card)
-    if (isDebt)       return a.paid_this_month ?? 0     // Paid (reducing debt balance)
+    if (isCreditCard) return a.payment_this_month ?? 0
+    if (isDebt)       return a.paid_this_month ?? 0
     return a.in_this_month
   }
   function accountCol3(a: DashboardAccount): number {
-    if (isCreditCard) return a.charged_this_month ?? 0  // Charged (spending on card)
-    if (isDebt)       return a.in_this_month            // Spent (charges via debt account)
+    if (isCreditCard) return a.charged_this_month ?? 0
+    if (isDebt)       return a.in_this_month
     return a.out_this_month
   }
 
@@ -103,12 +107,20 @@ export default function AccountTile({ kind, accounts }: AccountTileProps) {
   )
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-300 bg-white">
+    <div
+      className="overflow-hidden rounded-lg border border-slate-300 bg-white"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        ...(fillHeight ? { height: '100%' } : {}),
+      }}
+    >
       {/* Pastel title bar */}
       <div style={{
         background:   config.titleBg,
         borderBottom: `1px solid ${config.titleBorder}`,
         padding:      '6px 12px',
+        flexShrink:   0,
       }}>
         <h3 style={{
           fontSize:      10,
@@ -136,36 +148,46 @@ export default function AccountTile({ kind, accounts }: AccountTileProps) {
             <span style={{ textAlign: 'right' }}>{config.col3Label}</span>
           </div>
 
-          {/* Account rows */}
-          {accounts.map((account) => {
-            const rate = formatRate(account.interest_rate)
-            return (
-              <div key={account.id} style={{ borderBottom: '1px solid #f1f5f9', padding: '5px 12px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'baseline', fontSize: 13 }}>
-                  <span style={{ fontWeight: 500, color: '#374151', lineHeight: 1.3 }}>
-                    {account.name}
-                    {rate && (
-                      <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>
-                        {rate}
-                      </span>
-                    )}
-                  </span>
-                  <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#4b5563' }}>
-                    {account.opening_balance != null ? formatCurrency(account.opening_balance) : '—'}
-                  </span>
-                  <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#059669' }}>
-                    {formatCurrency(accountCol2(account))}
-                  </span>
-                  <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#4b5563' }}>
-                    {formatCurrency(accountCol3(account))}
-                  </span>
+          {/* Scrollable account rows */}
+          <div
+            className="bva-scroll"
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              minHeight: 0,
+              ...(maxScrollHeight ? { maxHeight: maxScrollHeight } : {}),
+            }}
+          >
+            {accounts.map((account) => {
+              const rate = formatRate(account.interest_rate)
+              return (
+                <div key={account.id} style={{ borderBottom: '1px solid #f1f5f9', padding: '5px 12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, alignItems: 'baseline', fontSize: 13 }}>
+                    <span style={{ fontWeight: 500, color: '#374151', lineHeight: 1.3 }}>
+                      {account.name}
+                      {rate && (
+                        <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 400, color: '#94a3b8' }}>
+                          {rate}
+                        </span>
+                      )}
+                    </span>
+                    <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#4b5563' }}>
+                      {account.opening_balance != null ? formatCurrency(account.opening_balance) : '—'}
+                    </span>
+                    <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#059669' }}>
+                      {formatCurrency(accountCol2(account))}
+                    </span>
+                    <span style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#4b5563' }}>
+                      {formatCurrency(accountCol3(account))}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
 
-          {/* Totals row */}
-          <div style={{ background: '#f8fafc', padding: '5px 12px' }}>
+          {/* Pinned totals footer */}
+          <div style={{ background: '#f8fafc', padding: '5px 12px', flexShrink: 0 }}>
             <div style={{ display: 'grid', gridTemplateColumns: GRID_COLS, fontSize: 13, fontWeight: 600 }}>
               <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748b' }}>
                 Total
