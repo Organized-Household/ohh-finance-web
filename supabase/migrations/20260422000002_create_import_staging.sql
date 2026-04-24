@@ -1,6 +1,7 @@
 -- Migration: 20260422000002_create_import_staging.sql
--- Creates import_staging table for pending imported transactions
--- Separate from transactions table — transactions table stays clean (posted only)
+-- Creates import_staging table for pending imported transactions.
+-- Separate from transactions table — transactions table stays clean (posted only).
+-- Already applied to the database — added to source control for parity.
 
 CREATE TABLE import_staging (
   id                          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
