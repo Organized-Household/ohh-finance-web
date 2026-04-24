@@ -12,6 +12,16 @@ import {
 
 type CategoryTag = "standard" | "savings" | "investment" | "debt_payment";
 
+// Signed amount convention: income = positive, expense = negative.
+// Applied server-side on every write — users never enter negative numbers.
+function applySignConvention(
+  amount: number,
+  transactionType: "income" | "expense"
+): number {
+  const abs = Math.abs(amount);
+  return transactionType === "expense" ? -abs : abs;
+}
+
 type TransactionAccountLinkInput = {
   linked_account_id: string | null;
   payment_source_account_id: string | null;
@@ -190,7 +200,7 @@ export async function createTransaction(input: unknown) {
     created_by_user_id: user.id,
     category_id: parsed.category_id,
     description: parsed.description,
-    amount: parsed.amount,
+    amount: applySignConvention(parsed.amount, categoryType),
     transaction_date: parsed.transaction_date,
     transaction_type: categoryType,
     linked_account_id: parsed.linked_account_id,
@@ -279,7 +289,7 @@ export async function updateTransaction(input: unknown) {
     .from("transactions")
     .update({
       description: parsed.description,
-      amount: parsed.amount,
+      amount: applySignConvention(parsed.amount, categoryType),
       transaction_date: parsed.transaction_date,
       category_id: parsed.category_id,
       transaction_type: categoryType,

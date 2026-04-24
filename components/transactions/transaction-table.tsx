@@ -137,8 +137,10 @@ export default function TransactionTable({
               <td className="px-3 py-2 text-sm text-slate-700">
                 {row.payment_source_label ?? "—"}
               </td>
-              <td className="px-3 py-2 text-right text-sm font-medium tabular-nums text-slate-900">
-                {formatCurrency(row.amount)}
+              <td className="px-3 py-2 text-right text-sm font-medium tabular-nums">
+                <span style={{ color: row.transaction_type === "income" ? "#1d9e75" : "#d85a30" }}>
+                  {formatCurrency(Math.abs(row.amount))}
+                </span>
               </td>
               <td className="px-3 py-2 text-sm capitalize text-slate-700">
                 {row.transaction_type}
@@ -185,7 +187,7 @@ export default function TransactionTable({
                               min="0.01"
                               step="0.01"
                               inputMode="decimal"
-                              defaultValue={row.amount}
+                              defaultValue={Math.abs(row.amount)}
                               required
                               className="h-8 w-full rounded border border-slate-300 px-2 text-right text-sm"
                             />

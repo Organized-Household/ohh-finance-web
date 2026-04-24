@@ -152,24 +152,41 @@ export default function ReviewTable({
     >,
     value: string | null
   ) => {
-    // Optimistic update
+    // Optimistic update for all fields except amount sign —
+    // amount is corrected after the server responds (for type changes).
     setRows((prev) =>
-      prev.map((r) => (r.id === rowId ? { ...r, [field]: value || null, auto_filled: false } : r))
+      prev.map((r) =>
+        r.id === rowId ? { ...r, [field]: value || null, auto_filled: false } : r
+      )
     );
 
     startTransition(async () => {
       const row = rows.find((r) => r.id === rowId);
       if (!row) return;
 
-      await updateStagingRow(rowId, {
+      const result = await updateStagingRow(rowId, {
         category_id: field === "category_id" ? (value || null) : row.category_id,
         transaction_type: field === "transaction_type" ? (value || null) : row.transaction_type,
-        linked_account_id: field === "linked_account_id" ? (value || null) : row.linked_account_id,
+        linked_account_id:
+          field === "linked_account_id" ? (value || null) : row.linked_account_id,
         payment_source_account_id:
           field === "payment_source_account_id"
             ? (value || null)
             : row.payment_source_account_id,
       });
+
+      // When type changes, server corrects the amount sign — apply to local state
+      if (
+        result.ok &&
+        field === "transaction_type" &&
+        result.correctedAmount !== undefined
+      ) {
+        setRows((prev) =>
+          prev.map((r) =>
+            r.id === rowId ? { ...r, amount: result.correctedAmount! } : r
+          )
+        );
+      }
     });
   };
 

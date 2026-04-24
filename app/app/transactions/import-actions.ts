@@ -107,16 +107,21 @@ export async function importStagingRows(payload: {
     return amount >= 0 ? "income" : "expense";
   };
 
-  // Step 3 — Build staging rows with auto-fill
+  // Step 3 — Build staging rows with auto-fill + sign correction
+  // Sign convention applied here: expense → negative, income → positive.
+  // Bank CSVs may already have the correct sign, but we normalise regardless.
   const stagingRows = rows.map((row) => {
     const history = historyMap.get(row.description.toLowerCase()) ?? null;
+    const txType = deriveType(history?.transaction_type ?? null, row.amount);
+    const signedAmount =
+      txType === "expense" ? -Math.abs(row.amount) : Math.abs(row.amount);
     return {
       tenant_id: tenantId,
       import_batch_id: batch.id,
       occurred_at: row.occurred_at,
       description: row.description,
-      amount: row.amount,
-      transaction_type: deriveType(history?.transaction_type ?? null, row.amount),
+      amount: signedAmount,
+      transaction_type: txType,
       category_id: history?.category_id ?? null,
       linked_account_id: history?.linked_account_id ?? null,
       payment_source_account_id: history?.payment_source_account_id ?? null,
@@ -163,6 +168,10 @@ export async function importStagingRows(payload: {
 // ─── updateStagingRow ─────────────────────────────────────────────────────────
 // Patches one staging row's editable fields (called when user changes a dropdown
 // in the review table). Tenant check is enforced by RLS + explicit eq filter.
+//
+// When transaction_type changes, the amount sign is corrected to match:
+//   expense → -ABS(amount), income → +ABS(amount)
+// This mirrors the signed convention enforced at insert time.
 export async function updateStagingRow(
   rowId: string,
   updates: {
@@ -171,7 +180,7 @@ export async function updateStagingRow(
     linked_account_id?: string | null;
     payment_source_account_id?: string | null;
   }
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; correctedAmount?: number }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -184,6 +193,25 @@ export async function updateStagingRow(
 
   const membership = await getCurrentTenantMembership();
 
+  // If transaction_type is changing, fetch current amount and correct the sign
+  let correctedAmount: number | undefined;
+  if (updates.transaction_type === "income" || updates.transaction_type === "expense") {
+    const { data: current } = await supabase
+      .from("import_staging")
+      .select("amount")
+      .eq("id", rowId)
+      .eq("tenant_id", membership.tenant_id)
+      .eq("status", "pending")
+      .single();
+
+    if (current) {
+      correctedAmount =
+        updates.transaction_type === "expense"
+          ? -Math.abs(Number(current.amount))
+          : Math.abs(Number(current.amount));
+    }
+  }
+
   const { error } = await supabase
     .from("import_staging")
     .update({
@@ -191,6 +219,7 @@ export async function updateStagingRow(
       transaction_type: updates.transaction_type ?? null,
       linked_account_id: updates.linked_account_id ?? null,
       payment_source_account_id: updates.payment_source_account_id ?? null,
+      ...(correctedAmount !== undefined ? { amount: correctedAmount } : {}),
     })
     .eq("id", rowId)
     .eq("tenant_id", membership.tenant_id)
@@ -201,7 +230,7 @@ export async function updateStagingRow(
     return { ok: false, error: "Failed to update row" };
   }
 
-  return { ok: true };
+  return { ok: true, correctedAmount };
 }
 
 // ─── postStagingRows ──────────────────────────────────────────────────────────
