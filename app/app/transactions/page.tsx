@@ -6,6 +6,9 @@ import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-le
 import TransactionForm from "@/components/transactions/transaction-form";
 import TransactionTable from "@/components/transactions/transaction-table";
 import TransactionMonthSelector from "@/components/transactions/transaction-month-selector";
+import TransactionsTabs from "@/components/transactions/TransactionsTabs";
+import ImportPanel from "@/components/transactions/ImportPanel";
+import type { StagingRow } from "@/components/transactions/ReviewTable";
 import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import {
   createTransaction,
@@ -178,6 +181,35 @@ export default async function TransactionsPage({
       typeof row.payment_source_account_id === "string"
         ? row.payment_source_account_id
         : null,
+  }));
+
+  // Fetch all pending staging rows for the tenant (not month-filtered —
+  // users need to see and post all pending imports regardless of month selector)
+  const { data: stagingData } = await supabase
+    .from("import_staging")
+    .select(
+      "id, occurred_at, description, amount, transaction_type, category_id, linked_account_id, payment_source_account_id"
+    )
+    .eq("tenant_id", membership.tenant_id)
+    .eq("status", "pending")
+    .order("occurred_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const initialStagingRows: StagingRow[] = (stagingData ?? []).map((row) => ({
+    id: String(row.id),
+    occurred_at: String(row.occurred_at),
+    description: String(row.description),
+    amount: Number(row.amount ?? 0),
+    transaction_type: typeof row.transaction_type === "string" ? row.transaction_type : null,
+    category_id: typeof row.category_id === "string" ? row.category_id : null,
+    linked_account_id:
+      typeof row.linked_account_id === "string" ? row.linked_account_id : null,
+    payment_source_account_id:
+      typeof row.payment_source_account_id === "string"
+        ? row.payment_source_account_id
+        : null,
+    // We don't store auto_filled in DB; newly fetched rows have no green tint
+    auto_filled: false,
   }));
 
   const categoryMap = new Map(categories.map((category) => [category.id, category]));
@@ -433,30 +465,47 @@ export default async function TransactionsPage({
         />
       }
     >
-      <div className="space-y-3">
-        {categories.length ? (
-          <TransactionForm
-            categories={categories}
-            defaultDate={monthRange.start}
-            accounts={accountOptions}
-            action={createAction}
-          />
-        ) : (
-          <section className="rounded-lg border border-slate-300 bg-white px-3 py-4 text-sm text-slate-600">
-            No categories found for this tenant. Create categories first before
-            adding transactions.
-          </section>
-        )}
+      {/*
+        TransactionsTabs is a client component that manages the Transactions /
+        Import tab state. Server-rendered children (transactionsPanel,
+        importPanel) are passed as props — this is the standard Next.js
+        App Router pattern for server→client composition.
+      */}
+      <TransactionsTabs
+        transactionsPanel={
+          <div className="space-y-3">
+            {categories.length ? (
+              <TransactionForm
+                categories={categories}
+                defaultDate={monthRange.start}
+                accounts={accountOptions}
+                action={createAction}
+              />
+            ) : (
+              <section className="rounded-lg border border-slate-300 bg-white px-3 py-4 text-sm text-slate-600">
+                No categories found for this tenant. Create categories first before
+                adding transactions.
+              </section>
+            )}
 
-        <TransactionTable
-          rows={tableRows}
-          categories={categories}
-          accounts={accountOptions}
-          selectedMonth={selectedMonth}
-          updateAction={updateAction}
-          deleteAction={deleteAction}
-        />
-      </div>
+            <TransactionTable
+              rows={tableRows}
+              categories={categories}
+              accounts={accountOptions}
+              selectedMonth={selectedMonth}
+              updateAction={updateAction}
+              deleteAction={deleteAction}
+            />
+          </div>
+        }
+        importPanel={
+          <ImportPanel
+            categories={categories}
+            accounts={accountOptions}
+            initialStagingRows={initialStagingRows}
+          />
+        }
+      />
     </WorkspaceShell>
   );
 }
