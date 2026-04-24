@@ -32,7 +32,7 @@ export type DashboardAccount = {
 
 export type InvestmentTrendPoint = {
   month_start: string
-  monthly_contributions: number
+  contributed: number   // RPC field name — matches investment_trend sub-query AS contributed
 }
 
 export type SavingsGoal = {
