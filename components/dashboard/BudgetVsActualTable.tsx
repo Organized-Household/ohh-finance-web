@@ -115,9 +115,12 @@ export default function BudgetVsActualTable({ rows, monthProgress }: BudgetVsAct
           <tbody>
             {sectionOrder.map((section) => {
               const sectionRows = rows.filter((row) =>
+                // Income identified by category_type (tag may be null for income rows).
+                // Expense sections filtered by tag alone — avoids dependency on
+                // category_type being present in the RPC response.
                 section.key === 'income'
                   ? row.category_type === 'income'
-                  : row.category_type === 'expense' && row.tag === section.key
+                  : row.tag === section.key
               )
               if (!sectionRows.length) return null
 
