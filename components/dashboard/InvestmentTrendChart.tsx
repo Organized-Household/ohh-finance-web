@@ -14,7 +14,7 @@ export default function InvestmentTrendChart({
 }: InvestmentTrendChartProps) {
   const rawTrend = (trend ?? []).map((t) => ({
     month_start: t.month_start,
-    income: t.monthly_contributions,
+    income: t.contributed,
     expenses: 0,
   }))
 
