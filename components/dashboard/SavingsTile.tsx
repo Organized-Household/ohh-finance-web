@@ -1,6 +1,3 @@
-'use client'
-
-import { useRef, useEffect } from 'react'
 import AccountTile from '@/components/dashboard/AccountTile'
 import type { DashboardAccount } from '@/lib/dashboard/get-dashboard-summary'
 
@@ -8,31 +5,9 @@ interface SavingsTileProps {
   accounts: DashboardAccount[]
 }
 
+// fillHeight → AccountTile outer div gets height:'100%', filling the CSS grid cell.
+// The grid cell height comes from the flex:1 row container in the page layout.
+// No JavaScript, no measurement — pure CSS.
 export default function SavingsTile({ accounts }: SavingsTileProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const bva = document.getElementById('bva-card-anchor')
-    if (!bva || !wrapperRef.current) return
-
-    const setHeight = () => {
-      const h = bva.getBoundingClientRect().height
-      if (h > 0 && wrapperRef.current) {
-        wrapperRef.current.style.height = `${h}px`
-      }
-    }
-
-    setHeight()
-    window.addEventListener('resize', setHeight)
-    return () => window.removeEventListener('resize', setHeight)
-  }, [])
-
-  return (
-    <div
-      ref={wrapperRef}
-      style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-    >
-      <AccountTile kind="savings" accounts={accounts} fillHeight />
-    </div>
-  )
+  return <AccountTile kind="savings" accounts={accounts} fillHeight />
 }

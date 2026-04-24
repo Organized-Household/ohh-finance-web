@@ -108,9 +108,20 @@ export default async function AppHomePage({
       leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={selectedMonth} />}
     >
-      <div className="space-y-2">
-        {/* Row 1: 3 KPI cards — full content width */}
-        <div className="grid grid-cols-3 gap-2">
+      {/*
+        Viewport-fill layout — flex column, height:100% fills <main> content area.
+        WorkspaceShell uses h-screen + gridTemplateRows:1fr so <main> has a
+        defined height; height:100% here then propagates down to each row.
+
+        Row 1 — KPIs:     flexShrink:0 — natural height
+        Row 2 — Charts:   flexShrink:0 — natural height
+        Row 3 — BVA+Sav:  flex:1 + minHeight:0 — takes ALL remaining space
+        Row 4 — Tiles:    flexShrink:0, height:220px — fixed, adjust to taste
+      */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '10px' }}>
+
+        {/* Row 1: 3 KPI cards */}
+        <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
           <KpiCard
             label="Income"
             value={formatCurrency(summary.income_total)}
@@ -134,27 +145,35 @@ export default async function AppHomePage({
           />
         </div>
 
-        {/* Row 2: Three-chart strip (3fr / 4fr / 3fr) */}
-        <ChartStrip
-          investmentTrend={summary.investment_trend}
-          trend={summary.monthly_trend}
-          savingsGoals={summary.savings_goals}
-          currentMonthStart={monthStartIso}
-        />
+        {/* Row 2: Three-chart strip */}
+        <div style={{ flexShrink: 0 }}>
+          <ChartStrip
+            investmentTrend={summary.investment_trend}
+            trend={summary.monthly_trend}
+            savingsGoals={summary.savings_goals}
+            currentMonthStart={monthStartIso}
+          />
+        </div>
 
-        {/* Row 3: BVA (3fr) + Savings (2fr) — Savings height-locks to BVA */}
+        {/* Row 3: BVA (3fr) + Savings (2fr) — DashboardBvaRow has flex:1 minHeight:0 */}
         <DashboardBvaRow
           bvaRows={summary.budget_vs_actual ?? []}
           savingsAccounts={summary.savings_accounts ?? []}
           monthProgress={monthProgress}
         />
 
-        {/* Row 4: Investments | Debts+CC | Credit Cards — equal thirds */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'start' }}>
+        {/* Row 4: Three equal bottom tiles — fixed height container, tiles fill via height:100% */}
+        <div style={{
+          flexShrink: 0,
+          height: '220px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: '10px',
+        }}>
           <AccountTile
             kind="investment"
             accounts={summary.investment_accounts ?? []}
-            outerMaxHeight="280px"
+            fillHeight
           />
           <CombinedDebtsTile
             debtAccounts={summary.debt_accounts ?? []}
@@ -164,6 +183,7 @@ export default async function AppHomePage({
             accounts={summary.credit_card_accounts ?? []}
           />
         </div>
+
       </div>
     </WorkspaceShell>
   );

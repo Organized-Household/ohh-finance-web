@@ -73,7 +73,7 @@ export default function CombinedDebtsTile({
   return (
     <div
       className="overflow-hidden rounded-lg border border-slate-300 bg-white"
-      style={{ display: 'flex', flexDirection: 'column', maxHeight: '280px' }}
+      style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
     >
       {/* Pastel red title bar */}
       <div style={{

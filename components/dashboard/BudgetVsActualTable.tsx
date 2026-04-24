@@ -1,6 +1,4 @@
-'use client'
-
-import { Fragment, useRef, useEffect } from 'react'
+import { Fragment } from 'react'
 import type { BudgetVsActualRpcRow } from '@/lib/dashboard/get-dashboard-summary'
 import { computeCategoryBadge } from '@/lib/dashboard/healthBadge'
 
@@ -46,37 +44,19 @@ function ColGroup() {
   )
 }
 
+// height:'100%' fills the CSS grid cell — the grid row has a defined height
+// from the flex:1 row container in the page's flex-column layout.
 const cardStyle: React.CSSProperties = {
+  height: '100%',
   display: 'flex',
   flexDirection: 'column',
   overflow: 'hidden',
 }
 
 export default function BudgetVsActualTable({ rows, monthProgress }: BudgetVsActualTableProps) {
-  const bvaCardRef  = useRef<HTMLDivElement>(null)
-  const bvaScrollRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const rightCol = document.getElementById('dashboard-right-col')
-    if (!rightCol || !bvaCardRef.current || !bvaScrollRef.current) return
-
-    const setHeight = () => {
-      const h = rightCol.getBoundingClientRect().height
-      if (h > 0 && bvaCardRef.current) {
-        bvaCardRef.current.style.maxHeight = `${h}px`
-      }
-    }
-
-    setHeight()
-    window.addEventListener('resize', setHeight)
-    return () => window.removeEventListener('resize', setHeight)
-  }, [])
-
   if (!rows.length) {
     return (
       <div
-        ref={bvaCardRef}
-        id="bva-card-anchor"
         className="rounded-lg border border-slate-300 bg-white"
         style={cardStyle}
       >
@@ -101,8 +81,6 @@ export default function BudgetVsActualTable({ rows, monthProgress }: BudgetVsAct
 
   return (
     <div
-      ref={bvaCardRef}
-      id="bva-card-anchor"
       className="rounded-lg border border-slate-300 bg-white"
       style={cardStyle}
     >
@@ -129,7 +107,6 @@ export default function BudgetVsActualTable({ rows, monthProgress }: BudgetVsAct
 
       {/* Scrollable body — flex:1 + minHeight:0 required for overflow-y:auto to work */}
       <div
-        ref={bvaScrollRef}
         className="bva-scroll"
         style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}
       >
