@@ -1,5 +1,6 @@
 -- Migration: 20260422000001_create_import_batches.sql
--- Creates import_batches table for tracking CSV import sessions
+-- Creates import_batches table for tracking CSV import sessions.
+-- Already applied to the database — added to source control for parity.
 
 CREATE TABLE import_batches (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
