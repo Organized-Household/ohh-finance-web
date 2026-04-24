@@ -73,7 +73,7 @@ export default function CombinedDebtsTile({
   return (
     <div
       className="overflow-hidden rounded-lg border border-slate-300 bg-white"
-      style={{ display: 'flex', flexDirection: 'column' }}
+      style={{ display: 'flex', flexDirection: 'column', maxHeight: '280px' }}
     >
       {/* Pastel red title bar */}
       <div style={{
@@ -105,7 +105,7 @@ export default function CombinedDebtsTile({
       {/* Scrollable body — max 5 rows visible */}
       <div
         className="bva-scroll"
-        style={{ flex: 1, overflowY: 'auto', minHeight: 0, maxHeight: '160px' }}
+        style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}
       >
         {allRows.length === 0 && (
           <div style={{

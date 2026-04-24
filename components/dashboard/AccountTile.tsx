@@ -5,6 +5,8 @@ interface AccountTileProps {
   accounts: DashboardAccount[]
   /** Optional max-height on the scrollable body (e.g. '96px' for 3 rows). */
   maxScrollHeight?: string
+  /** Optional max-height on the outer card div (e.g. '280px' for bottom-row tiles). */
+  outerMaxHeight?: string
   /** When true, sets height: 100% on the outer div for parent-driven height-locking. */
   fillHeight?: boolean
 }
@@ -80,7 +82,7 @@ const colHeaderStyle: React.CSSProperties = {
   flexShrink: 0,
 }
 
-export default function AccountTile({ kind, accounts, maxScrollHeight, fillHeight }: AccountTileProps) {
+export default function AccountTile({ kind, accounts, maxScrollHeight, outerMaxHeight, fillHeight }: AccountTileProps) {
   const config = kindConfig[kind]
   const isCreditCard = kind === 'credit_card'
   const isDebt = kind === 'debt'
@@ -113,6 +115,7 @@ export default function AccountTile({ kind, accounts, maxScrollHeight, fillHeigh
         display: 'flex',
         flexDirection: 'column',
         ...(fillHeight ? { height: '100%' } : {}),
+        ...(outerMaxHeight ? { maxHeight: outerMaxHeight } : {}),
       }}
     >
       {/* Pastel title bar */}

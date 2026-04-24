@@ -6,6 +6,7 @@ import ChartStrip from "@/components/dashboard/ChartStrip";
 import DashboardBvaRow from "@/components/dashboard/DashboardBvaRow";
 import AccountTile from "@/components/dashboard/AccountTile";
 import CombinedDebtsTile from "@/components/dashboard/CombinedDebtsTile";
+import CreditCardsTile from "@/components/dashboard/CreditCardsTile";
 import HouseholdMemberCard from "@/components/dashboard/HouseholdMemberCard";
 import { createClient } from "@/lib/supabase/server";
 import { getUserFirstName } from "@/lib/auth/get-user-first-name";
@@ -148,16 +149,19 @@ export default async function AppHomePage({
           monthProgress={monthProgress}
         />
 
-        {/* Row 4: Investments (1fr/33%) + Combined Debts+CC (2fr/67%) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '10px', marginTop: '0px' }}>
+        {/* Row 4: Investments | Debts+CC | Credit Cards — equal thirds */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', alignItems: 'start' }}>
           <AccountTile
             kind="investment"
             accounts={summary.investment_accounts ?? []}
-            maxScrollHeight="96px"
+            outerMaxHeight="280px"
           />
           <CombinedDebtsTile
             debtAccounts={summary.debt_accounts ?? []}
             creditCardAccounts={summary.credit_card_accounts ?? []}
+          />
+          <CreditCardsTile
+            accounts={summary.credit_card_accounts ?? []}
           />
         </div>
       </div>
