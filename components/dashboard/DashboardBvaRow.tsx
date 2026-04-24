@@ -17,14 +17,14 @@ export default function DashboardBvaRow({
   monthProgress,
 }: DashboardBvaRowProps) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '10px', alignItems: 'start' }}>
-      {/* BVA table — 3fr; id="bva-card-anchor" is on the card itself so SavingsTile can measure it */}
+    <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: '10px', alignItems: 'stretch' }}>
+      {/* BVA — 3fr; maxHeight:calc(100vh-320px) caps its height; body scrolls inside */}
       <BudgetVsActualTable
         rows={bvaRows}
         monthProgress={monthProgress}
       />
 
-      {/* Savings tile — 2fr; height-locks itself to BVA via getElementById */}
+      {/* Savings — 2fr; alignItems:stretch forces this cell to BVA height; height:100% fills it */}
       <SavingsTile accounts={savingsAccounts} />
     </div>
   )
