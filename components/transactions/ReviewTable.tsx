@@ -45,11 +45,12 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// Decision 2026-04-22: transaction_type = 'income' | 'expense' only.
+// Savings/investment transactions are identified via linked_account_id
+// pointing to an account with account_kind = 'savings' or 'investment'.
 const TRANSACTION_TYPES = [
   { value: "income", label: "Income" },
   { value: "expense", label: "Expense" },
-  { value: "savings", label: "Savings" },
-  { value: "investment", label: "Investment" },
 ];
 
 const thStyle: React.CSSProperties = {

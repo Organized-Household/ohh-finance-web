@@ -95,6 +95,18 @@ export async function importStagingRows(payload: {
     }
   }
 
+  // Decision 2026-04-22: only 'income' and 'expense' are valid.
+  // Guard against stale history rows that may contain old savings/investment values.
+  const VALID_TYPES = ["income", "expense"] as const;
+  type ValidType = (typeof VALID_TYPES)[number];
+
+  const deriveType = (historyType: string | null, amount: number): ValidType => {
+    if (historyType && (VALID_TYPES as readonly string[]).includes(historyType)) {
+      return historyType as ValidType;
+    }
+    return amount >= 0 ? "income" : "expense";
+  };
+
   // Step 3 — Build staging rows with auto-fill
   const stagingRows = rows.map((row) => {
     const history = historyMap.get(row.description.toLowerCase()) ?? null;
@@ -104,9 +116,7 @@ export async function importStagingRows(payload: {
       occurred_at: row.occurred_at,
       description: row.description,
       amount: row.amount,
-      // history match wins; fallback: derive type from amount sign
-      transaction_type:
-        history?.transaction_type ?? (row.amount >= 0 ? "income" : "expense"),
+      transaction_type: deriveType(history?.transaction_type ?? null, row.amount),
       category_id: history?.category_id ?? null,
       linked_account_id: history?.linked_account_id ?? null,
       payment_source_account_id: history?.payment_source_account_id ?? null,
@@ -231,17 +241,25 @@ export async function postStagingRows(
 
   // Copy to transactions table
   // occurred_at (staging) → transaction_date (transactions physical column)
+  // amount is signed — negative for expenses (constraint: amount <> 0)
+  // transaction_type: 'income' | 'expense' only (confirmed from DB constraint)
   const transactionsToInsert = stagingRows.map((row) => ({
     tenant_id: row.tenant_id,
     transaction_date: row.occurred_at,
     description: row.description,
     amount: row.amount,
     transaction_type: row.transaction_type ?? "expense",
-    category_id: row.category_id,
-    linked_account_id: row.linked_account_id,
-    payment_source_account_id: row.payment_source_account_id,
+    category_id: row.category_id ?? null,
+    linked_account_id: row.linked_account_id ?? null,
+    payment_source_account_id: row.payment_source_account_id ?? null,
     created_by_user_id: user.id,
   }));
+
+  // Pre-insert log — types only, never row contents
+  console.log("[post] inserting", {
+    count: transactionsToInsert.length,
+    types: transactionsToInsert.map((r) => r.transaction_type),
+  });
 
   const { error: insertError } = await supabase
     .from("transactions")
