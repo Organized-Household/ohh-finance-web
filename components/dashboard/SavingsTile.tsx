@@ -1,3 +1,6 @@
+'use client'
+
+import { useRef, useEffect } from 'react'
 import AccountTile from '@/components/dashboard/AccountTile'
 import type { DashboardAccount } from '@/lib/dashboard/get-dashboard-summary'
 
@@ -5,14 +8,31 @@ interface SavingsTileProps {
   accounts: DashboardAccount[]
 }
 
-/**
- * Pure-CSS height lock: the parent grid uses alignItems:'stretch', which forces
- * this cell to the same height as BVA (the tallest sibling). AccountTile with
- * fillHeight then fills that cell via height:100%, and its scroll body uses
- * flex:1 + minHeight:0 to overflow-y:auto within the available space.
- *
- * Zero JavaScript. Zero observers. Zero timers.
- */
 export default function SavingsTile({ accounts }: SavingsTileProps) {
-  return <AccountTile kind="savings" accounts={accounts} fillHeight />
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const bva = document.getElementById('bva-card-anchor')
+    if (!bva || !wrapperRef.current) return
+
+    const setHeight = () => {
+      const h = bva.getBoundingClientRect().height
+      if (h > 0 && wrapperRef.current) {
+        wrapperRef.current.style.height = `${h}px`
+      }
+    }
+
+    setHeight()
+    window.addEventListener('resize', setHeight)
+    return () => window.removeEventListener('resize', setHeight)
+  }, [])
+
+  return (
+    <div
+      ref={wrapperRef}
+      style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    >
+      <AccountTile kind="savings" accounts={accounts} fillHeight />
+    </div>
+  )
 }
