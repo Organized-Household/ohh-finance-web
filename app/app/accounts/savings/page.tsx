@@ -4,8 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import SavingsAccountForm from "@/components/savings-accounts/savings-account-form";
 import SavingsAccountsTable from "@/components/savings-accounts/savings-accounts-table";
-import HouseholdMemberCard from "@/components/layout/household-member-card";
-import { getUserFirstName } from "@/lib/auth/get-user-first-name";
+import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
 
 export type SavingsAccountRow = {
   id: string;
@@ -28,7 +27,6 @@ export default async function SavingsAccountsPage() {
     throw new Error("Authenticated user not found");
   }
 
-  const memberFirstName = getUserFirstName(user);
   const membership = await getCurrentTenantMembership();
 
   const { data, error } = await supabase
@@ -59,7 +57,7 @@ export default async function SavingsAccountsPage() {
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: <HouseholdMemberCard firstName={memberFirstName} />,
+      content: <MemberSelectorCard />,
     },
     {
       title: "Account Scope",

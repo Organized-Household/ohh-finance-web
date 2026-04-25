@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import WorkspaceShell from "@/components/layout/workspace-shell";
-import HouseholdMemberCard from "@/components/layout/household-member-card";
+import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import TransactionForm from "@/components/transactions/transaction-form";
 import TransactionTable from "@/components/transactions/transaction-table";
@@ -9,7 +9,6 @@ import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selec
 import TransactionsTabs from "@/components/transactions/TransactionsTabs";
 import ImportPanel from "@/components/transactions/ImportPanel";
 import type { StagingRow } from "@/components/transactions/ReviewTable";
-import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import { createTransaction } from "./actions";
 
 type SearchParams = Promise<{
@@ -118,7 +117,6 @@ export default async function TransactionsPage({
     throw new Error("Authenticated user not found");
   }
 
-  const memberFirstName = getUserFirstName(user);
   const membership = await getCurrentTenantMembership();
 
   const { data: categoriesData, error: categoriesError } = await supabase
@@ -285,7 +283,7 @@ export default async function TransactionsPage({
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: <HouseholdMemberCard firstName={memberFirstName} />,
+      content: <MemberSelectorCard />,
     },
     {
       title: "Month Overview",
