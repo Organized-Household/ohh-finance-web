@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { updateStagingRow, postStagingRows } from "@/app/app/transactions/import-actions";
+import {
+  updateStagingRow,
+  postStagingRows,
+  discardStagingRow,
+} from "@/app/app/transactions/import-actions";
 
 export interface StagingRow {
   id: string;
@@ -94,7 +98,7 @@ function SectionDividerRow({ label, count }: { label: string; count: number }) {
   return (
     <tr>
       <td
-        colSpan={8}
+        colSpan={9}
         style={{
           padding: "5px 8px",
           fontSize: 10,
@@ -123,6 +127,29 @@ export default function ReviewTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+
+  // Sync local state when the server sends fresh props (after router.refresh()
+  // or revalidatePath). useState only initializes once; useEffect keeps it live.
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
+
+  const handleDiscard = (rowId: string) => {
+    // Optimistic removal — UI responds immediately, no confirmation needed.
+    setRows((prev) => prev.filter((r) => r.id !== rowId));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(rowId);
+      return next;
+    });
+
+    startTransition(async () => {
+      const result = await discardStagingRow(rowId);
+      if (!result.ok) {
+        setMessage(`Error: ${result.error}`);
+      }
+    });
+  };
 
   const pendingRows = rows.filter((r) => r !== null);
   const pendingCount = pendingRows.length;
@@ -339,6 +366,7 @@ export default function ReviewTable({
               <th style={{ ...thStyle, width: 140 }}>Category</th>
               <th style={{ ...thStyle, width: 140 }}>Linked Account</th>
               <th style={{ ...thStyle, width: 140 }}>Payment Source</th>
+              <th style={{ ...thStyle, width: 32 }} />
             </tr>
           </thead>
           <tbody>
@@ -478,6 +506,28 @@ export default function ReviewTable({
                           </option>
                         ))}
                       </select>
+                    </td>
+
+                    {/* Discard — removes row from staging without posting */}
+                    <td style={{ ...tdStyle, textAlign: "center" }}>
+                      <button
+                        onClick={() => handleDiscard(row.id)}
+                        title="Discard this transaction"
+                        disabled={isPending}
+                        style={{
+                          fontSize: 11,
+                          lineHeight: 1,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          border: "1px solid #fca5a5",
+                          background: "white",
+                          color: "#ef4444",
+                          cursor: isPending ? "not-allowed" : "pointer",
+                          opacity: isPending ? 0.5 : 1,
+                        }}
+                      >
+                        ✕
+                      </button>
                     </td>
                   </tr>
                 );

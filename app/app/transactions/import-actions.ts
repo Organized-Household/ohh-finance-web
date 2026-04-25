@@ -329,3 +329,37 @@ export async function postStagingRows(
 
   return { ok: true, count: transactionsToInsert.length };
 }
+
+// ─── discardStagingRow ────────────────────────────────────────────────────────
+// Deletes one pending staging row without posting it to transactions.
+// No confirmation required — staging rows are not permanent records.
+export async function discardStagingRow(
+  rowId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  const membership = await getCurrentTenantMembership();
+
+  const { error } = await supabase
+    .from("import_staging")
+    .delete()
+    .eq("id", rowId)
+    .eq("tenant_id", membership.tenant_id)
+    .eq("status", "pending"); // safety: only discard pending rows
+
+  if (error) {
+    console.error("[discardStagingRow] failed", { code: error.code });
+    return { ok: false, error: "Failed to discard row" };
+  }
+
+  revalidatePath("/app/transactions");
+  return { ok: true };
+}
