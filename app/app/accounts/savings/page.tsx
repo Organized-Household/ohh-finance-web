@@ -74,14 +74,9 @@ export default async function SavingsAccountsPage() {
 
   return (
     <WorkspaceShell
-      title="Savings Accounts"
+      title="Savings"
       description="Manage savings accounts with balance, rate, and savings targets."
       leftPanelSections={leftPanelSections}
-      topbarControls={
-        <div className="rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          Tenant-scoped account management
-        </div>
-      }
     >
       <div className="space-y-3">
         <SavingsAccountForm />
