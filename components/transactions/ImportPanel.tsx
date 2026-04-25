@@ -43,12 +43,17 @@ export default function ImportPanel({
   const fileRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedFile(e.target.files?.[0] ?? null);
+  };
+
   const handleImport = () => {
-    const file = fileRef.current?.files?.[0];
+    const file = selectedFile;
     if (!file) {
       setIsError(true);
       setResultMessage("Please choose a CSV file first.");
@@ -98,7 +103,8 @@ export default function ImportPanel({
         `✓ ${result.data.count} row${result.data.count === 1 ? "" : "s"} imported — review below.`
       );
 
-      // Reset file input
+      // Reset file picker
+      setSelectedFile(null);
       if (fileRef.current) fileRef.current.value = "";
 
       // Refresh to get updated staging rows from server
@@ -165,12 +171,36 @@ export default function ImportPanel({
 
       {/* File chooser + Import button */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".csv"
-          style={{ fontSize: 12, color: "#374151" }}
-        />
+        {/* Hidden native input — triggered by the label below */}
+        <label
+          htmlFor="csv-file-input"
+          style={{ cursor: "pointer", display: "inline-block" }}
+        >
+          <input
+            id="csv-file-input"
+            ref={fileRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+          />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "5px 12px",
+              borderRadius: 6,
+              border: "1px solid #475569",
+              background: "white",
+              color: "#475569",
+              display: "inline-block",
+              lineHeight: 1.4,
+            }}
+          >
+            {selectedFile ? selectedFile.name : "Choose CSV file"}
+          </span>
+        </label>
+
         <button
           onClick={handleImport}
           disabled={isPending}
