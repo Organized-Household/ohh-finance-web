@@ -2,8 +2,7 @@ import WorkspaceShell from "@/components/layout/workspace-shell";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
-import HouseholdMemberCard from "@/components/layout/household-member-card";
-import { getUserFirstName } from "@/lib/auth/get-user-first-name";
+import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
 import DebtAccountForm from "@/components/debt-accounts/debt-account-form";
 import DebtAccountsTable from "@/components/debt-accounts/debt-accounts-table";
 
@@ -28,7 +27,6 @@ export default async function DebtAccountsPage() {
     throw new Error("Authenticated user not found");
   }
 
-  const memberFirstName = getUserFirstName(user);
   const membership = await getCurrentTenantMembership();
 
   const { data, error } = await supabase
@@ -59,7 +57,7 @@ export default async function DebtAccountsPage() {
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: <HouseholdMemberCard firstName={memberFirstName} />,
+      content: <MemberSelectorCard />,
     },
     {
       title: "Account Scope",

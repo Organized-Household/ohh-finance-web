@@ -48,6 +48,19 @@ function AccountsIcon() {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Types & data
 // ---------------------------------------------------------------------------
@@ -92,6 +105,11 @@ const accountSubItems = [
   { href: "/app/accounts/debts",       label: "Debts" },
 ];
 
+const settingsSubItems = [
+  { href: "/app/settings/profile", label: "My Profile" },
+  { href: "/app/settings/members", label: "Members" },
+];
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -104,7 +122,9 @@ type AppSidebarProps = {
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname();
   const isOnAccountsRoute = pathname.startsWith("/app/accounts");
+  const isOnSettingsRoute = pathname.startsWith("/app/settings");
   const [accountsOpen, setAccountsOpen] = useState(isOnAccountsRoute);
+  const [settingsOpen, setSettingsOpen] = useState(isOnSettingsRoute);
 
   return (
     <aside
@@ -220,6 +240,77 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   {accountsOpen && (
                     <ul className="mt-1 space-y-1 pl-8">
                       {accountSubItems.map((sub) => {
+                        const active = pathname.startsWith(sub.href);
+                        return (
+                          <li key={sub.href}>
+                            <Link
+                              href={sub.href}
+                              className={`flex items-center rounded-md px-2.5 py-1.5 text-sm transition ${
+                                active
+                                  ? "bg-slate-100 font-medium text-slate-900"
+                                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                              }`}
+                              aria-current={active ? "page" : undefined}
+                            >
+                              {sub.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              )}
+            </li>
+            {/* Divider */}
+            <li aria-hidden="true">
+              <hr style={{
+                border: "none",
+                borderTop: "0.5px solid rgba(255,255,255,0.1)",
+                margin: "8px 4px",
+              }} />
+            </li>
+
+            {/* Settings group */}
+            <li className="nav-item-wrapper" data-tooltip="Settings">
+              {collapsed ? (
+                <Link
+                  href="/app/settings/profile"
+                  className={`flex items-center justify-center rounded-md px-2.5 py-2 text-sm font-medium transition ${
+                    isOnSettingsRoute
+                      ? "bg-slate-100 text-slate-900"
+                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                  }`}
+                  aria-label="Settings"
+                >
+                  <SettingsIcon />
+                </Link>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen((prev) => !prev)}
+                    className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition ${
+                      isOnSettingsRoute
+                        ? "text-slate-100"
+                        : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <SettingsIcon />
+                    <span className="flex-1 text-left">Settings</span>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="size-3.5 transition-transform"
+                      style={{ transform: settingsOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                      aria-hidden="true"
+                    >
+                      <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </button>
+
+                  {settingsOpen && (
+                    <ul className="mt-1 space-y-1 pl-8">
+                      {settingsSubItems.map((sub) => {
                         const active = pathname.startsWith(sub.href);
                         return (
                           <li key={sub.href}>

@@ -6,7 +6,8 @@ const PUBLIC_PATHS = [
   "/",
   "/login",
   "/register",
-  "/auth/callback"
+  "/auth/callback",
+  "/accept-invite",
 ];
 
 export async function middleware(request: NextRequest) {
