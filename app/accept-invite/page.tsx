@@ -11,18 +11,43 @@ export default function AcceptInvitePage() {
   const router = useRouter();
   const supabase = createClient();
 
-  // Session is already established by /auth/callback before this page loads.
-  // Just verify it exists — no need for onAuthStateChange.
+  // Supabase invite emails use the implicit flow — tokens arrive as URL hash
+  // fragments (#access_token=...&refresh_token=...). @supabase/ssr's browser
+  // client does not auto-process hash tokens, so we parse them manually and
+  // call setSession() to establish the session, then fall back to getSession()
+  // for cases where a session was already set (e.g. PKCE flow).
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setReady(true);
-      } else {
-        setErrorMsg(
-          "Invalid or expired invite link. Please ask to be re-invited."
-        );
-      }
-    });
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.slice(1));
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (accessToken && refreshToken) {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ data: { session }, error }) => {
+          if (session && !error) {
+            // Remove tokens from browser history so they don't linger in the URL
+            window.history.replaceState(null, "", window.location.pathname);
+            setReady(true);
+          } else {
+            setErrorMsg(
+              "Invalid or expired invite link. Please ask to be re-invited."
+            );
+          }
+        });
+    } else {
+      // No hash tokens — check for an already-established session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setReady(true);
+        } else {
+          setErrorMsg(
+            "Invalid or expired invite link. Please ask to be re-invited."
+          );
+        }
+      });
+    }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
