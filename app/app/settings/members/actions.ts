@@ -58,7 +58,7 @@ export async function inviteMember(
   const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     email,
     {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/accept-invite`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/accept-invite`,
     }
   );
 
@@ -82,13 +82,35 @@ export async function revokeInvitation(
   invitationId: string
 ): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
 
-  const { error } = await supabase
+  // Verify caller is admin (defense in depth)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership || membership.role !== "admin") {
+    return { error: "Only admins can revoke invitations." };
+  }
+
+  // Use admin client — RLS update policy may silently block standard client
+  const { error } = await supabaseAdmin
     .from("invitations")
     .update({ status: "revoked" })
     .eq("id", invitationId);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[revokeInvitation] DB error:", error.message);
+    return { error: error.message };
+  }
 
   revalidatePath("/app/settings/members");
   return { success: true };
