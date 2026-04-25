@@ -58,7 +58,7 @@ export async function inviteMember(
   const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
     email,
     {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/accept-invite`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/accept-invite`,
     }
   );
 
