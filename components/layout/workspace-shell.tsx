@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import AppSidebar from "@/components/layout/app-sidebar";
-import WorkspaceTopbar from "@/components/layout/workspace-topbar";
+import PageHeader from "@/components/layout/PageHeader";
 import WorkspaceLeftPanel, {
   type WorkspaceLeftPanelSection,
 } from "@/components/layout/workspace-left-panel";
@@ -48,10 +48,10 @@ export default function WorkspaceShell({
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <WorkspaceTopbar
+        <PageHeader
           title={title}
           description={description}
-          controls={topbarControls}
+          right={topbarControls}
         />
 
         {/* min-h-0 prevents flex overflow; gridTemplateRows:1fr makes the

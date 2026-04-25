@@ -5,7 +5,7 @@ import HouseholdMemberCard from "@/components/layout/household-member-card";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import TransactionForm from "@/components/transactions/transaction-form";
 import TransactionTable from "@/components/transactions/transaction-table";
-import TransactionMonthSelector from "@/components/transactions/transaction-month-selector";
+import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
 import TransactionsTabs from "@/components/transactions/TransactionsTabs";
 import ImportPanel from "@/components/transactions/ImportPanel";
 import type { StagingRow } from "@/components/transactions/ReviewTable";
@@ -458,12 +458,7 @@ export default async function TransactionsPage({
       title="Transactions"
       description="Capture actual financial activity for reporting, summaries, and budget-vs-actual analysis."
       leftPanelSections={leftPanelSections}
-      topbarControls={
-        <TransactionMonthSelector
-          selectedMonth={selectedMonth}
-          options={getMonthOptions(selectedMonth)}
-        />
-      }
+      topbarControls={<DashboardMonthSelector selectedMonth={selectedMonth} />}
     >
       {/*
         TransactionsTabs is a client component that manages the Transactions /

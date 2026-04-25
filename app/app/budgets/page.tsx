@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import BudgetTable from "@/components/budgets/budget-table";
-import BudgetMonthSelector from "@/components/budgets/budget-month-selector";
+import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
 import SummaryStrip from "@/components/budgets/summary-strip";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
 import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
@@ -65,21 +65,10 @@ export default async function BudgetPage({
 
   return (
     <WorkspaceShell
-      title="Monthly Budget"
+      title="Budget"
       description="Plan your month by category. Income and expense categories are separated for easier budgeting."
       leftPanelSections={budgetLeftPanelSections}
-      topbarControls={
-        <div className="flex flex-wrap items-center gap-2">
-          <BudgetMonthSelector selectedMonth={month} />
-
-          <Link
-            href="/app/budgets/categories"
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          >
-            Manage Categories
-          </Link>
-        </div>
-      }
+      topbarControls={<DashboardMonthSelector selectedMonth={month} />}
     >
       <div className="space-y-4">
         <SummaryStrip metrics={metrics} />

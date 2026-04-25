@@ -51,11 +51,6 @@ export default async function BudgetCategoriesPage() {
       title="Categories"
       description="Categories are shared across your household. Category type controls whether a budget amount is treated as income or expense. Tag helps group categories for budgeting and reporting."
       leftPanelSections={budgetLeftPanelSections}
-      topbarControls={
-        <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-          Category controls placeholder (Phase 2)
-        </div>
-      }
     >
       <div className="space-y-3">
         <CategoryCreateForm />
