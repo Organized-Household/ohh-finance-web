@@ -6,6 +6,18 @@ import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-memb
 import { importPayloadSchema } from "@/lib/validation/import";
 import type { ParsedRow } from "@/lib/csv/parseImportFile";
 
+// ─── HistoryMatch ─────────────────────────────────────────────────────────────
+// Represents one row returned by get_latest_transactions_by_description RPC.
+// description_key is LOWER(description) — used as the map key for lookup.
+// All 4 auto-fill fields may be null (e.g. if the matched transaction had none).
+interface HistoryMatch {
+  description_key: string;
+  category_id: string | null;
+  transaction_type: "income" | "expense" | null;
+  linked_account_id: string | null;
+  payment_source_account_id: string | null;
+}
+
 // ─── importStagingRows ────────────────────────────────────────────────────────
 // Validates parsed rows, creates an import_batch record, auto-fills 4 fields
 // from description history, and inserts all rows into import_staging.
@@ -59,7 +71,7 @@ export async function importStagingRows(payload: {
   // Step 2 — Batch history lookup: one RPC call for all unique descriptions
   const uniqueDescriptions = [...new Set(rows.map((r) => r.description))];
 
-  const { data: historyRows } = await supabase.rpc(
+  const { data: historyRows, error: rpcError } = await supabase.rpc(
     "get_latest_transactions_by_description",
     {
       p_tenant_id: tenantId,
@@ -67,31 +79,19 @@ export async function importStagingRows(payload: {
     }
   );
 
+  // Auto-fill is best-effort (Decision Log 2026-04-24): RPC errors are logged
+  // server-side only. Import is NOT aborted — staging rows are inserted with
+  // null fields and the user fills them manually during review (OHHFIN-54).
+  if (rpcError) {
+    console.error("[OHHFIN-53] Auto-categorize RPC error:", rpcError.message);
+  }
+
   // Build lookup map: LOWER(description) → auto-fill fields
-  const historyMap = new Map<
-    string,
-    {
-      category_id: string | null;
-      transaction_type: string | null;
-      linked_account_id: string | null;
-      payment_source_account_id: string | null;
-    }
-  >();
+  const historyMap = new Map<string, HistoryMatch>();
 
   if (historyRows) {
-    for (const h of historyRows as {
-      description_key: string;
-      category_id: string | null;
-      transaction_type: string | null;
-      linked_account_id: string | null;
-      payment_source_account_id: string | null;
-    }[]) {
-      historyMap.set(h.description_key, {
-        category_id: h.category_id,
-        transaction_type: h.transaction_type,
-        linked_account_id: h.linked_account_id,
-        payment_source_account_id: h.payment_source_account_id,
-      });
+    for (const h of historyRows as HistoryMatch[]) {
+      historyMap.set(h.description_key, h);
     }
   }
 
