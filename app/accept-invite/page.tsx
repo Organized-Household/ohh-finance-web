@@ -4,55 +4,30 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
-type Step = "loading" | "form" | "submitting" | "error";
-
 export default function AcceptInvitePage() {
-  const [step, setStep] = useState<Step>("loading");
+  const [ready, setReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  // Exchange hash tokens for a session client-side.
-  // Supabase invite links deliver tokens in the URL hash fragment — the server
-  // never sees them, so we must handle them here via onAuthStateChange.
+  // Session is already established by /auth/callback before this page loads.
+  // Just verify it exists — no need for onAuthStateChange.
   useEffect(() => {
-    const handleInviteToken = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        setStep("form");
-        return;
-      }
-
-      // No session yet — check if the hash contains tokens
-      const hash = window.location.hash;
-      if (!hash.includes("access_token")) {
+        setReady(true);
+      } else {
         setErrorMsg(
           "Invalid or expired invite link. Please ask to be re-invited."
         );
-        setStep("error");
-      }
-      // Otherwise wait for onAuthStateChange below to fire
-    };
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session) {
-        setStep("form");
       }
     });
-
-    handleInviteToken();
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setStep("submitting");
+    setSubmitting(true);
     setErrorMsg("");
 
     const formData = new FormData(e.currentTarget);
@@ -62,24 +37,22 @@ export default function AcceptInvitePage() {
 
     if (!firstName || !lastName) {
       setErrorMsg("First name and last name are required.");
-      setStep("form");
+      setSubmitting(false);
       return;
     }
     if (password.length < 8) {
       setErrorMsg("Password must be at least 8 characters.");
-      setStep("form");
+      setSubmitting(false);
       return;
     }
 
-    // Update password client-side (session is established at this point)
     const { error: pwError } = await supabase.auth.updateUser({ password });
     if (pwError) {
       setErrorMsg(pwError.message);
-      setStep("form");
+      setSubmitting(false);
       return;
     }
 
-    // Server-side: create profile + tenant_members + mark invitation accepted
     const res = await fetch("/api/accept-invite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -90,7 +63,7 @@ export default function AcceptInvitePage() {
 
     if (result.error) {
       setErrorMsg(result.error);
-      setStep("form");
+      setSubmitting(false);
       return;
     }
 
@@ -101,22 +74,20 @@ export default function AcceptInvitePage() {
     "w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-400 focus:border-slate-400 focus:outline-none disabled:opacity-50";
   const labelCls = "block text-sm font-medium text-slate-300";
 
-  if (step === "loading") {
+  if (!ready && !errorMsg) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4">
         <div className="w-full max-w-sm text-center">
           <div className="mx-auto mb-4 flex size-10 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-slate-900">
             OH
           </div>
-          <p className="text-sm text-slate-400">
-            Verifying your invite link…
-          </p>
+          <p className="text-sm text-slate-400">Verifying your invite link…</p>
         </div>
       </div>
     );
   }
 
-  if (step === "error") {
+  if (errorMsg && !ready) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4">
         <div className="w-full max-w-sm">
@@ -168,7 +139,7 @@ export default function AcceptInvitePage() {
               name="first_name"
               type="text"
               required
-              disabled={step === "submitting"}
+              disabled={submitting}
               className={inputCls}
               autoComplete="given-name"
             />
@@ -183,7 +154,7 @@ export default function AcceptInvitePage() {
               name="last_name"
               type="text"
               required
-              disabled={step === "submitting"}
+              disabled={submitting}
               className={inputCls}
               autoComplete="family-name"
             />
@@ -199,7 +170,7 @@ export default function AcceptInvitePage() {
               type="password"
               required
               minLength={8}
-              disabled={step === "submitting"}
+              disabled={submitting}
               placeholder="Minimum 8 characters"
               className={inputCls}
               autoComplete="new-password"
@@ -208,12 +179,10 @@ export default function AcceptInvitePage() {
 
           <button
             type="submit"
-            disabled={step === "submitting"}
+            disabled={submitting}
             className="w-full rounded-md bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 disabled:opacity-50"
           >
-            {step === "submitting"
-              ? "Setting up your account…"
-              : "Complete Registration"}
+            {submitting ? "Setting up your account…" : "Complete Registration"}
           </button>
         </form>
       </div>
