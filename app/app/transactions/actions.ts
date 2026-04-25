@@ -307,6 +307,150 @@ export async function updateTransaction(input: unknown) {
   redirect(redirectPath);
 }
 
+// ─── updateTransactionInline ──────────────────────────────────────────────────
+// Client-side inline row editor calls this directly.
+// Identical business logic to updateTransaction but returns a result object
+// instead of redirecting — the client handles UI state after save.
+export async function updateTransactionInline(
+  id: string,
+  data: {
+    transaction_date: string;
+    description: string;
+    category_id: string;
+    linked_account_id: string | null;
+    payment_source_account_id: string | null;
+    amount: number;
+    transaction_type: "income" | "expense";
+  }
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  try {
+    const { data: existing } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("id", id)
+      .eq("tenant_id", membership.tenant_id)
+      .maybeSingle();
+
+    if (!existing) {
+      return { ok: false, error: "Transaction not found" };
+    }
+
+    const { categoryType, categoryTag } = await getTenantCategory({
+      categoryId: data.category_id,
+      tenantId: membership.tenant_id,
+    });
+
+    if (
+      categoryType === "income" &&
+      (data.linked_account_id || data.payment_source_account_id)
+    ) {
+      return { ok: false, error: "Income transactions cannot include linked accounts." };
+    }
+
+    await assertAccountBelongsToTenant({
+      supabase,
+      accountId: data.linked_account_id,
+      tenantId: membership.tenant_id,
+    });
+
+    await assertAccountBelongsToTenant({
+      supabase,
+      accountId: data.payment_source_account_id,
+      tenantId: membership.tenant_id,
+    });
+
+    assertPaymentSourceNotSameAsDestination(
+      data.linked_account_id,
+      data.payment_source_account_id
+    );
+
+    await assertCategoryCompatibleLink({
+      supabase,
+      categoryTag,
+      linkedAccountId: data.linked_account_id,
+      tenantId: membership.tenant_id,
+    });
+
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({
+        description: data.description,
+        amount: applySignConvention(data.amount, categoryType),
+        transaction_date: data.transaction_date,
+        category_id: data.category_id,
+        transaction_type: categoryType,
+        linked_account_id: data.linked_account_id,
+        payment_source_account_id: data.payment_source_account_id,
+      })
+      .eq("id", id)
+      .eq("tenant_id", membership.tenant_id);
+
+    if (updateError) {
+      return { ok: false, error: updateError.message };
+    }
+
+    revalidatePath("/app/transactions");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Update failed" };
+  }
+}
+
+// ─── deleteTransactionInline ──────────────────────────────────────────────────
+// Client-side inline row delete button calls this directly.
+// Returns a result object instead of redirecting — caller calls router.refresh().
+export async function deleteTransactionInline(
+  id: string
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  const { data: existing } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("id", id)
+    .eq("tenant_id", membership.tenant_id)
+    .maybeSingle();
+
+  if (!existing) {
+    return { ok: false, error: "Transaction not found" };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("transactions")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", membership.tenant_id);
+
+  if (deleteError) {
+    return { ok: false, error: deleteError.message };
+  }
+
+  revalidatePath("/app/transactions");
+  return { ok: true };
+}
+
 export async function deleteTransaction(input: unknown) {
   const parsed = deleteTransactionSchema.parse(input);
   const redirectPath = resolveMonthRedirectPath(
