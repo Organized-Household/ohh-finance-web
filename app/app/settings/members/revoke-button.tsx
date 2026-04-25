@@ -1,14 +1,21 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { revokeInvitation } from "./actions";
 
 export default function RevokeButton({ invitationId }: { invitationId: string }) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const handleRevoke = () => {
     startTransition(async () => {
-      await revokeInvitation(invitationId);
+      const result = await revokeInvitation(invitationId);
+      if (result.error) {
+        alert(result.error);
+        return;
+      }
+      router.refresh();
     });
   };
 
