@@ -89,6 +89,30 @@ const autoFilledStyle: React.CSSProperties = {
   color: "#1d9e75",
 };
 
+// Renders a full-width divider row inside <tbody> to separate row groups.
+function SectionDividerRow({ label, count }: { label: string; count: number }) {
+  return (
+    <tr>
+      <td
+        colSpan={8}
+        style={{
+          padding: "5px 8px",
+          fontSize: 10,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          background: "#f8fafc",
+          color: "#64748b",
+          borderTop: "1px solid #e2e8f0",
+          borderBottom: "1px solid #e2e8f0",
+        }}
+      >
+        {label} ({count})
+      </td>
+    </tr>
+  );
+}
+
 export default function ReviewTable({
   rows: initialRows,
   categories,
@@ -318,142 +342,164 @@ export default function ReviewTable({
             </tr>
           </thead>
           <tbody>
-            {pendingRows.map((row) => {
-              const isAutoFilled = !!row.auto_filled;
-              const cellSelect = isAutoFilled ? autoFilledStyle : selectStyle;
+            {(() => {
+              const needsAttention = pendingRows.filter((r) => !r.category_id);
+              const readyToPost    = pendingRows.filter((r) => !!r.category_id);
 
-              return (
-                <tr
-                  key={row.id}
-                  style={{
-                    background: selected.has(row.id) ? "#f0fdf4" : "white",
-                  }}
-                >
-                  <td style={tdStyle}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(row.id)}
-                      onChange={() => toggleRow(row.id)}
-                      style={{ cursor: "pointer" }}
-                    />
-                  </td>
+              const renderRow = (row: StagingRow) => {
+                const isAutoFilled = !!row.auto_filled;
+                const cellSelect = isAutoFilled ? autoFilledStyle : selectStyle;
 
-                  <td style={{ ...tdStyle, whiteSpace: "nowrap", color: "#4b5563" }}>
-                    {row.occurred_at}
-                  </td>
-
-                  <td style={{ ...tdStyle, color: "#1e293b", maxWidth: 200 }}>
-                    <span
-                      style={{
-                        display: "block",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                      title={row.description}
-                    >
-                      {row.description}
-                    </span>
-                  </td>
-
-                  <td
+                return (
+                  <tr
+                    key={row.id}
                     style={{
-                      ...tdStyle,
-                      textAlign: "right",
-                      fontVariantNumeric: "tabular-nums",
-                      color: row.amount >= 0 ? "#059669" : "#dc2626",
-                      whiteSpace: "nowrap",
+                      background: selected.has(row.id) ? "#f0fdf4" : "white",
                     }}
                   >
-                    {formatCurrency(row.amount)}
-                  </td>
+                    <td style={tdStyle}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(row.id)}
+                        onChange={() => toggleRow(row.id)}
+                        style={{ cursor: "pointer" }}
+                      />
+                    </td>
 
-                  {/* Type dropdown */}
-                  <td style={tdStyle}>
-                    <select
-                      value={row.transaction_type ?? ""}
-                      onChange={(e) =>
-                        handleFieldChange(row.id, "transaction_type", e.target.value)
-                      }
-                      style={isAutoFilled && row.transaction_type ? cellSelect : selectStyle}
-                      disabled={isPending}
-                    >
-                      <option value="">Select…</option>
-                      {TRANSACTION_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+                    <td style={{ ...tdStyle, whiteSpace: "nowrap", color: "#4b5563" }}>
+                      {row.occurred_at}
+                    </td>
 
-                  {/* Category dropdown */}
-                  <td style={tdStyle}>
-                    <select
-                      value={row.category_id ?? ""}
-                      onChange={(e) =>
-                        handleFieldChange(row.id, "category_id", e.target.value)
-                      }
-                      style={isAutoFilled && row.category_id ? cellSelect : selectStyle}
-                      disabled={isPending}
-                    >
-                      <option value="">Select…</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+                    <td style={{ ...tdStyle, color: "#1e293b", maxWidth: 200 }}>
+                      <span
+                        style={{
+                          display: "block",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                        title={row.description}
+                      >
+                        {row.description}
+                      </span>
+                    </td>
 
-                  {/* Linked Account dropdown */}
-                  <td style={tdStyle}>
-                    <select
-                      value={row.linked_account_id ?? ""}
-                      onChange={(e) =>
-                        handleFieldChange(row.id, "linked_account_id", e.target.value)
-                      }
-                      style={isAutoFilled && row.linked_account_id ? cellSelect : selectStyle}
-                      disabled={isPending}
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        fontVariantNumeric: "tabular-nums",
+                        color: row.amount >= 0 ? "#059669" : "#dc2626",
+                        whiteSpace: "nowrap",
+                      }}
                     >
-                      <option value="">None</option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {accountLabel(a)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
+                      {formatCurrency(row.amount)}
+                    </td>
 
-                  {/* Payment Source dropdown */}
-                  <td style={tdStyle}>
-                    <select
-                      value={row.payment_source_account_id ?? ""}
-                      onChange={(e) =>
-                        handleFieldChange(
-                          row.id,
-                          "payment_source_account_id",
-                          e.target.value
-                        )
-                      }
-                      style={
-                        isAutoFilled && row.payment_source_account_id
-                          ? cellSelect
-                          : selectStyle
-                      }
-                      disabled={isPending}
-                    >
-                      <option value="">None</option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {accountLabel(a)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
+                    {/* Type dropdown */}
+                    <td style={tdStyle}>
+                      <select
+                        value={row.transaction_type ?? ""}
+                        onChange={(e) =>
+                          handleFieldChange(row.id, "transaction_type", e.target.value)
+                        }
+                        style={isAutoFilled && row.transaction_type ? cellSelect : selectStyle}
+                        disabled={isPending}
+                      >
+                        <option value="">Select…</option>
+                        {TRANSACTION_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* Category dropdown */}
+                    <td style={tdStyle}>
+                      <select
+                        value={row.category_id ?? ""}
+                        onChange={(e) =>
+                          handleFieldChange(row.id, "category_id", e.target.value)
+                        }
+                        style={isAutoFilled && row.category_id ? cellSelect : selectStyle}
+                        disabled={isPending}
+                      >
+                        <option value="">Select…</option>
+                        {categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* Linked Account dropdown */}
+                    <td style={tdStyle}>
+                      <select
+                        value={row.linked_account_id ?? ""}
+                        onChange={(e) =>
+                          handleFieldChange(row.id, "linked_account_id", e.target.value)
+                        }
+                        style={isAutoFilled && row.linked_account_id ? cellSelect : selectStyle}
+                        disabled={isPending}
+                      >
+                        <option value="">None</option>
+                        {accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {accountLabel(a)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* Payment Source dropdown */}
+                    <td style={tdStyle}>
+                      <select
+                        value={row.payment_source_account_id ?? ""}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            row.id,
+                            "payment_source_account_id",
+                            e.target.value
+                          )
+                        }
+                        style={
+                          isAutoFilled && row.payment_source_account_id
+                            ? cellSelect
+                            : selectStyle
+                        }
+                        disabled={isPending}
+                      >
+                        <option value="">None</option>
+                        {accounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {accountLabel(a)}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              };
+
+              return (
+                <>
+                  {needsAttention.length > 0 && (
+                    <>
+                      <SectionDividerRow label="Needs Attention" count={needsAttention.length} />
+                      {needsAttention.map(renderRow)}
+                    </>
+                  )}
+                  {readyToPost.length > 0 && (
+                    <>
+                      <SectionDividerRow label="Ready to Post" count={readyToPost.length} />
+                      {readyToPost.map(renderRow)}
+                    </>
+                  )}
+                </>
               );
-            })}
+            })()}
           </tbody>
         </table>
       </div>
