@@ -9,11 +9,7 @@ import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selec
 import TransactionsTabs from "@/components/transactions/TransactionsTabs";
 import ImportPanel from "@/components/transactions/ImportPanel";
 import type { StagingRow } from "@/components/transactions/ReviewTable";
-import {
-  createTransaction,
-  deleteTransaction,
-  updateTransaction,
-} from "./actions";
+import { createTransaction } from "./actions";
 
 type SearchParams = Promise<{
   month?: string;
@@ -425,32 +421,6 @@ export default async function TransactionsPage({
     });
   };
 
-  const updateAction = async (formData: FormData) => {
-    "use server";
-
-    await updateTransaction({
-      id: String(formData.get("id") ?? ""),
-      month: String(formData.get("month") ?? ""),
-      description: String(formData.get("description") ?? ""),
-      amount: Number(formData.get("amount") ?? 0),
-      transaction_date: String(formData.get("transaction_date") ?? ""),
-      category_id: String(formData.get("category_id") ?? ""),
-      linked_account_id: String(formData.get("linked_account_id") ?? ""),
-      payment_source_account_id: String(
-        formData.get("payment_source_account_id") ?? ""
-      ),
-    });
-  };
-
-  const deleteAction = async (formData: FormData) => {
-    "use server";
-
-    await deleteTransaction({
-      id: String(formData.get("id") ?? ""),
-      month: String(formData.get("month") ?? ""),
-    });
-  };
-
   return (
     <WorkspaceShell
       title="Transactions"
@@ -485,9 +455,6 @@ export default async function TransactionsPage({
               rows={tableRows}
               categories={categories}
               accounts={accountOptions}
-              selectedMonth={selectedMonth}
-              updateAction={updateAction}
-              deleteAction={deleteAction}
             />
           </div>
         }
