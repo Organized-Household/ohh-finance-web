@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import WorkspaceShellClient from "@/components/layout/workspace-shell-client";
-import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 
 type WorkspaceShellProps = {
@@ -26,7 +25,6 @@ export default function WorkspaceShell({
       description={description}
       topbarControls={topbarControls}
       leftPanelSections={leftPanelSections}
-      memberSelector={<MemberSelectorCard />}
     >
       {children}
     </WorkspaceShellClient>

@@ -13,7 +13,6 @@ export type WorkspaceShellClientProps = {
   description: string;
   topbarControls?: ReactNode;
   leftPanelSections: WorkspaceLeftPanelSection[];
-  memberSelector?: ReactNode;
   children: ReactNode;
 };
 
@@ -22,7 +21,6 @@ export default function WorkspaceShellClient({
   description,
   topbarControls,
   leftPanelSections,
-  memberSelector,
   children,
 }: WorkspaceShellClientProps) {
   // Persist collapse state in localStorage so re-mount on route change
@@ -48,7 +46,6 @@ export default function WorkspaceShellClient({
       <AppSidebar
         collapsed={isSidebarCollapsed}
         onToggle={handleSidebarToggle}
-        memberSelector={memberSelector}
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

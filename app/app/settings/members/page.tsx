@@ -1,6 +1,7 @@
 import WorkspaceShell from "@/components/layout/workspace-shell";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import InviteForm from "./invite-form";
 import RevokeButton from "./revoke-button";
@@ -32,6 +33,7 @@ function formatDate(iso: string): string {
 
 export default async function MembersPage() {
   const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
   const membership = await getCurrentTenantMembership();
   const isAdmin = membership.role === "admin";
 
@@ -44,8 +46,9 @@ export default async function MembersPage() {
     throw new Error("Authenticated user not found");
   }
 
-  // Fetch all tenant members
-  const { data: membersData, error: membersError } = await supabase
+  // Use admin client so tenant_members and profiles RLS cannot limit the result
+  // to only the current user's own rows.
+  const { data: membersData, error: membersError } = await supabaseAdmin
     .from("tenant_members")
     .select("user_id, role, created_at")
     .eq("tenant_id", membership.tenant_id)
@@ -55,9 +58,10 @@ export default async function MembersPage() {
     throw new Error(`Failed to load members: ${membersError.message}`);
   }
 
-  // Fetch profiles for all member user IDs
+  // Fetch profiles via admin client — bypasses RLS so all tenant member
+  // profiles are returned regardless of the caller's own membership role.
   const memberUserIds = (membersData ?? []).map((m) => m.user_id);
-  const { data: profilesData } = await supabase
+  const { data: profilesData } = await supabaseAdmin
     .from("profiles")
     .select("user_id, first_name, last_name, display_name")
     .in("user_id", memberUserIds.length > 0 ? memberUserIds : ["00000000-0000-0000-0000-000000000000"]);
