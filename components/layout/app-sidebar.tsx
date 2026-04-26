@@ -1,8 +1,8 @@
 "use client";
 
+import React, { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -117,9 +117,10 @@ const settingsSubItems = [
 type AppSidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
+  memberSelector?: React.ReactNode;
 };
 
-export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
+export default function AppSidebar({ collapsed, onToggle, memberSelector }: AppSidebarProps) {
   const pathname = usePathname();
   const isOnAccountsRoute = pathname.startsWith("/app/accounts");
   const isOnSettingsRoute = pathname.startsWith("/app/settings");
@@ -335,6 +336,16 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             </li>
           </ul>
         </nav>
+
+        {/* Household Member selector — hidden when sidebar is collapsed */}
+        {!collapsed && memberSelector && (
+          <div className="border-t border-slate-700 px-3 py-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Household Member
+            </p>
+            {memberSelector}
+          </div>
+        )}
       </div>
     </aside>
   );
