@@ -6,7 +6,6 @@ import SummaryStrip from "@/components/budgets/summary-strip";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
 import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
 import WorkspaceShell from "@/components/layout/workspace-shell";
-import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import {
   getCurrentMonthStart,
   isHistoricalMonth,
@@ -36,8 +35,6 @@ export default async function BudgetPage({
     throw new Error("Authenticated user not found");
   }
 
-  const memberFirstName = getUserFirstName(user);
-
   const parsedMonth = monthParamSchema.safeParse((params.month ?? "").trim());
   const selectedMonthStart = parsedMonth.success
     ? parseMonthParam(parsedMonth.data)
@@ -58,10 +55,7 @@ export default async function BudgetPage({
 
   const budgetLines = await getBudgetForMonth(month);
   const metrics = computeBudgetMetrics(categories ?? [], budgetLines);
-  const budgetLeftPanelSections = buildBudgetLeftPanelSections({
-    metrics,
-    memberFirstName,
-  });
+  const budgetLeftPanelSections = buildBudgetLeftPanelSections({ metrics });
 
   return (
     <WorkspaceShell

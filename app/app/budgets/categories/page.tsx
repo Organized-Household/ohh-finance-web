@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import WorkspaceShell from "@/components/layout/workspace-shell";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
 import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
-import { getUserFirstName } from "@/lib/auth/get-user-first-name";
 import CategoryCreateForm from "@/components/categories/category-create-form";
 import GroupedCategoryTable from "@/components/categories/grouped-category-table";
 import { getBudgetForMonth } from "../actions";
@@ -25,7 +24,6 @@ export default async function BudgetCategoriesPage() {
     throw new Error("Authenticated user not found");
   }
 
-  const memberFirstName = getUserFirstName(user);
   const month = new Date().toISOString().slice(0, 7);
 
   const { data, error } = await supabase
@@ -41,10 +39,7 @@ export default async function BudgetCategoriesPage() {
   const categories: Category[] = (data ?? []) as Category[];
   const budgetLines = await getBudgetForMonth(month);
   const metrics = computeBudgetMetrics(categories, budgetLines);
-  const budgetLeftPanelSections = buildBudgetLeftPanelSections({
-    metrics,
-    memberFirstName,
-  });
+  const budgetLeftPanelSections = buildBudgetLeftPanelSections({ metrics });
 
   return (
     <WorkspaceShell
