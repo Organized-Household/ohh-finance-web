@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import InviteForm from "./invite-form";
 import RevokeButton from "./revoke-button";
+import MemberRow from "./MemberRow";
 
 type Member = {
   user_id: string;
@@ -144,36 +145,36 @@ export default async function MembersPage() {
                   <th className={thCls}>Name</th>
                   <th className={thCls}>Role</th>
                   <th className={thCls}>Joined</th>
+                  {isAdmin && <th className={thCls}>Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {members.map((m) => {
-                  const name =
-                    m.first_name && m.last_name
-                      ? `${m.first_name} ${m.last_name}`
-                      : (m.display_name ?? "—");
-                  const isCurrentUser = m.user_id === user.id;
-
-                  return (
-                    <tr key={m.user_id}>
-                      <td className={tdCls}>
-                        <span className="font-medium text-slate-900">
-                          {name}
-                        </span>
-                        {isCurrentUser && (
-                          <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
-                            you
-                          </span>
-                        )}
-                        {m.email && (
-                          <div className="text-xs text-slate-500">{m.email}</div>
-                        )}
-                      </td>
-                      <td className={tdCls + " capitalize"}>{m.role}</td>
-                      <td className={tdCls}>{formatDate(m.created_at)}</td>
-                    </tr>
-                  );
-                })}
+                {(() => {
+                  const adminCount = members.filter(
+                    (m) => m.role === "admin"
+                  ).length;
+                  return members.map((m) => {
+                    const displayName =
+                      m.first_name && m.last_name
+                        ? `${m.first_name} ${m.last_name}`
+                        : (m.display_name ?? "—");
+                    return (
+                      <MemberRow
+                        key={m.user_id}
+                        member={{
+                          user_id: m.user_id,
+                          role: m.role,
+                          display_name: displayName,
+                          email: m.email,
+                          joined: formatDate(m.created_at),
+                        }}
+                        currentUserId={user.id}
+                        isCurrentUserAdmin={isAdmin}
+                        adminCount={adminCount}
+                      />
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
