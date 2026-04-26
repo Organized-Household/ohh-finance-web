@@ -115,3 +115,106 @@ export async function revokeInvitation(
   revalidatePath("/app/settings/members");
   return { success: true };
 }
+
+export async function updateMemberRole(
+  targetUserId: string,
+  newRole: "admin" | "member"
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: callerMembership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id, role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!callerMembership || callerMembership.role !== "admin") {
+    return { error: "Only admins can change member roles." };
+  }
+
+  if (targetUserId === user.id) {
+    return { error: "You cannot change your own role." };
+  }
+
+  const tenantId = callerMembership.tenant_id;
+
+  if (newRole === "admin") {
+    const { count } = await supabaseAdmin
+      .from("tenant_members")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("role", "admin");
+
+    if ((count ?? 0) >= 2) {
+      return { error: "Maximum of 2 admins allowed per household." };
+    }
+  }
+
+  if (newRole === "member") {
+    const { count } = await supabaseAdmin
+      .from("tenant_members")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("role", "admin");
+
+    if ((count ?? 0) <= 1) {
+      return {
+        error: "Cannot demote the last admin. Promote another member first.",
+      };
+    }
+  }
+
+  const { error } = await supabaseAdmin
+    .from("tenant_members")
+    .update({ role: newRole })
+    .eq("tenant_id", tenantId)
+    .eq("user_id", targetUserId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/settings/members");
+  return { success: true };
+}
+
+export async function removeMember(
+  targetUserId: string
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: callerMembership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id, role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!callerMembership || callerMembership.role !== "admin") {
+    return { error: "Only admins can remove members." };
+  }
+
+  if (targetUserId === user.id) {
+    return { error: "You cannot remove yourself." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("tenant_members")
+    .delete()
+    .eq("tenant_id", callerMembership.tenant_id)
+    .eq("user_id", targetUserId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/settings/members");
+  return { success: true };
+}
