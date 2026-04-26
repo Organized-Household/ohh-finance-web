@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import MemberSelectorCardClient, {
   type MemberItem,
@@ -6,6 +7,7 @@ import MemberSelectorCardClient, {
 
 export default async function MemberSelectorCard() {
   const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
   const membership = await getCurrentTenantMembership();
 
   const {
@@ -14,8 +16,9 @@ export default async function MemberSelectorCard() {
 
   const currentUserId = user?.id ?? "";
 
-  // Fetch tenant members
-  const { data: membersData } = await supabase
+  // Use admin client so tenant_members RLS (which limits the regular client
+  // to the current user's own row) does not hide other household members.
+  const { data: membersData } = await supabaseAdmin
     .from("tenant_members")
     .select("user_id, created_at")
     .eq("tenant_id", membership.tenant_id)
@@ -23,8 +26,8 @@ export default async function MemberSelectorCard() {
 
   const memberUserIds = (membersData ?? []).map((m) => m.user_id);
 
-  // Fetch profiles for member user IDs
-  const { data: profilesData } = await supabase
+  // Admin client also bypasses the profiles RLS for cross-member reads.
+  const { data: profilesData } = await supabaseAdmin
     .from("profiles")
     .select("user_id, first_name, last_name, display_name")
     .in(

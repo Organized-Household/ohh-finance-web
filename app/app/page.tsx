@@ -7,10 +7,8 @@ import DashboardBvaRow from "@/components/dashboard/DashboardBvaRow";
 import AccountTile from "@/components/dashboard/AccountTile";
 import CombinedDebtsTile from "@/components/dashboard/CombinedDebtsTile";
 import CreditCardsTile from "@/components/dashboard/CreditCardsTile";
-import HouseholdMemberCard from "@/components/dashboard/HouseholdMemberCard";
+import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
 import { createClient } from "@/lib/supabase/server";
-import { getUserFirstName } from "@/lib/auth/get-user-first-name";
-import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import { formatMonthStartDate } from "@/lib/db/month";
 import { getDashboardMonth } from "@/lib/dashboard/get-dashboard-month";
 import { getDashboardSummary } from "@/lib/dashboard/get-dashboard-summary";
@@ -46,23 +44,19 @@ export default async function AppHomePage({
   // Computed once here; passed to all badge functions and client components
   const monthProgress = computeMonthProgress(resolvedMonth.monthStart, new Date());
 
-  // Fetch user + membership + dashboard data in parallel
+  // Fetch user + dashboard data in parallel
   const supabase = await createClient();
   const [
     { data: { user }, error: userError },
-    membership,
     summary,
   ] = await Promise.all([
     supabase.auth.getUser(),
-    getCurrentTenantMembership(),
     getDashboardSummary(monthStartIso),
   ]);
 
   if (userError || !user) {
     throw new Error("Authenticated user not found");
   }
-
-  const displayName = getUserFirstName(user);
 
   // KPI badges — all pace-based
   const incomeBadge = computeIncomeBadge(
@@ -85,18 +79,49 @@ export default async function AppHomePage({
 
   const netAmount = summary.income_total - summary.expense_total;
 
-  // Left panel: Household Member card only
+  // Left panel: member selector + household status stats
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
-      title: "Household",
+      title: "Household Member",
+      content: <MemberSelectorCard />,
+    },
+    {
+      title: "Household Status",
       content: (
-        <HouseholdMemberCard
-          displayName={displayName}
-          role={membership.role as "admin" | "member"}
-          pendingReviewCount={summary.pending_review_count}
-          budgetIsSet={summary.budget_is_set}
-          lastImportDate={summary.last_transaction_date}
-        />
+        <div className="rounded-lg border border-slate-300 bg-white px-4 py-3 space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">Pending review</span>
+            <span
+              className={`text-[13px] font-semibold tabular-nums ${
+                summary.pending_review_count > 0
+                  ? "text-amber-600"
+                  : "text-slate-400"
+              }`}
+            >
+              {summary.pending_review_count > 0
+                ? summary.pending_review_count
+                : "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">Budget set</span>
+            {summary.budget_is_set ? (
+              <span className="text-[13px] font-semibold text-emerald-600">
+                Yes
+              </span>
+            ) : (
+              <span className="text-[13px] font-semibold text-rose-600">
+                No
+              </span>
+            )}
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-slate-500">Last import</span>
+            <span className="text-[13px] tabular-nums text-slate-600">
+              {summary.last_transaction_date ?? "—"}
+            </span>
+          </div>
+        </div>
       ),
     },
   ];
