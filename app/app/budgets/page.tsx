@@ -62,9 +62,11 @@ export default async function BudgetPage({
     throw new Error(`Failed to load categories: ${error.message}`);
   }
 
+  const currentMonthStartStr = formatMonthStartDate(selectedMonthStart);
+
   const [budgetLines, latestBudget] = await Promise.all([
     getBudgetForMonth(month, activeMemberId),
-    getLatestBudgetMonth(activeMemberId),
+    getLatestBudgetMonth(activeMemberId, currentMonthStartStr),
   ]);
 
   const hasExistingBudget = budgetLines.some(

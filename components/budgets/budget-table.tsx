@@ -49,6 +49,7 @@ export default function BudgetTable({
   const [message, setMessage] = useState<string>("");
   const [copyError, setCopyError] = useState<string | null>(null);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
 
   const showCopyButton =
     latestBudget !== null &&
@@ -201,11 +202,12 @@ export default function BudgetTable({
     });
   }
 
-  function handleCopy() {
-    if (!latestBudget) return;
+  async function handleCopy() {
+    if (!latestBudget || isCopying) return;
     setCopyError(null);
     setShowCopyConfirm(false);
-    startTransition(async () => {
+    setIsCopying(true);
+    try {
       const result = await copyBudgetFromMonth(
         latestBudget.monthStart,
         currentMonthStart,
@@ -216,7 +218,9 @@ export default function BudgetTable({
         return;
       }
       router.refresh();
-    });
+    } finally {
+      setIsCopying(false);
+    }
   }
 
   return (
@@ -270,39 +274,39 @@ export default function BudgetTable({
             <div className="flex items-center gap-3">
               <p className="text-sm font-medium">Budget for {month}</p>
 
-              {/* Copy button / inline confirmation — sits right of the label */}
+              {/* Copy button / inline confirmation — sits right of the label, vertically centred */}
               {showCopyButton && latestBudget && (
                 !showCopyConfirm ? (
                   <button
                     type="button"
-                    disabled={isPending}
+                    disabled={isCopying || isPending}
                     onClick={() => {
                       if (hasExistingBudget) {
                         setShowCopyConfirm(true);
                       } else {
-                        handleCopy();
+                        void handleCopy();
                       }
                     }}
-                    className="rounded border px-4 py-2 text-sm font-medium disabled:opacity-50"
+                    className="self-center rounded border px-3 py-1 text-sm font-medium disabled:opacity-50"
                   >
-                    Copy from {latestBudget.monthLabel}
+                    {isCopying ? "Copying..." : `Copy from ${latestBudget.monthLabel}`}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 self-center">
                     <span className="text-sm text-amber-600">
                       Overwrite with {latestBudget.monthLabel} budget?
                     </span>
                     <button
                       type="button"
-                      disabled={isPending}
-                      onClick={handleCopy}
+                      disabled={isCopying}
+                      onClick={() => void handleCopy()}
                       className="text-sm font-medium text-green-600 hover:text-green-800 disabled:opacity-50"
                     >
                       Confirm
                     </button>
                     <button
                       type="button"
-                      disabled={isPending}
+                      disabled={isCopying}
                       onClick={() => setShowCopyConfirm(false)}
                       className="text-sm text-gray-500 hover:text-gray-700"
                     >
