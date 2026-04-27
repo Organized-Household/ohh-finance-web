@@ -262,23 +262,14 @@ export default function BudgetTable({
 
       <div className="sticky bottom-4 z-10">
         <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+          {/* Left zone: label + copy control */}
           <div>
-            <p className="text-sm font-medium">Budget for {month}</p>
-            <p className="text-xs text-gray-600">
-              {hasChanges
-                ? "You have unsaved changes."
-                : "No unsaved changes."}
-            </p>
-            {copyError ? (
-              <p className="mt-1 text-xs text-rose-700">{copyError}</p>
-            ) : null}
-          </div>
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-medium">Budget for {month}</p>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Copy from previous month button */}
-            {showCopyButton && latestBudget && (
-              <div className="flex items-center gap-2">
-                {!showCopyConfirm ? (
+              {/* Copy button / inline confirmation — sits right of the label */}
+              {showCopyButton && latestBudget && (
+                !showCopyConfirm ? (
                   <button
                     type="button"
                     disabled={isPending}
@@ -289,20 +280,20 @@ export default function BudgetTable({
                         handleCopy();
                       }
                     }}
-                    className="text-sm text-blue-600 underline hover:text-blue-800 disabled:opacity-50"
+                    className="rounded border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                   >
                     Copy from {latestBudget.monthLabel}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-xs">
                     <span className="text-amber-700">
-                      Overwrite with {latestBudget.monthLabel} budget?
+                      Overwrite with {latestBudget.monthLabel}?
                     </span>
                     <button
                       type="button"
                       disabled={isPending}
                       onClick={handleCopy}
-                      className="font-medium text-green-600 hover:text-green-800 disabled:opacity-50"
+                      className="font-medium text-green-700 hover:text-green-900 disabled:opacity-50"
                     >
                       Confirm
                     </button>
@@ -310,15 +301,25 @@ export default function BudgetTable({
                       type="button"
                       disabled={isPending}
                       onClick={() => setShowCopyConfirm(false)}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-slate-500 hover:text-slate-700"
                     >
                       Cancel
                     </button>
                   </div>
-                )}
-              </div>
-            )}
+                )
+              )}
+            </div>
 
+            <p className="mt-0.5 text-xs text-gray-600">
+              {hasChanges ? "You have unsaved changes." : "No unsaved changes."}
+            </p>
+            {copyError ? (
+              <p className="mt-1 text-xs text-rose-700">{copyError}</p>
+            ) : null}
+          </div>
+
+          {/* Right zone: Discard + Save */}
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={handleDiscard}
