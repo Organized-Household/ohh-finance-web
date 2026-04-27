@@ -128,13 +128,15 @@ export async function upsertBudget(input: unknown) {
 // ---------------------------------------------------------------------------
 
 export async function getLatestBudgetMonth(
-  targetUserId: string
+  targetUserId: string,
+  excludeMonthStart?: string
 ): Promise<{ monthStart: string; monthLabel: string } | null> {
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
 
-  // Find most recent months with at least one budget line > 0 (look back up to 12 months)
-  const { data } = await supabase
+  // Find most recent months with at least one budget line > 0 (look back up to 12 months).
+  // Exclude the current month so we always find a *prior* month to copy from.
+  let query = supabase
     .from("budgets")
     .select(`
       month_start,
@@ -144,6 +146,12 @@ export async function getLatestBudgetMonth(
     .eq("user_id", targetUserId)
     .order("month_start", { ascending: false })
     .limit(12);
+
+  if (excludeMonthStart) {
+    query = query.neq("month_start", excludeMonthStart);
+  }
+
+  const { data } = await query;
 
   if (!data) return null;
 

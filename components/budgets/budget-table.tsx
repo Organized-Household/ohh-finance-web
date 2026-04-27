@@ -49,10 +49,12 @@ export default function BudgetTable({
   const [message, setMessage] = useState<string>("");
   const [copyError, setCopyError] = useState<string | null>(null);
   const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
 
-  const showCopyButton =
-    latestBudget !== null &&
-    latestBudget.monthStart !== currentMonthStart;
+  // Show whenever there is any prior budget to copy from.
+  // getLatestBudgetMonth already excludes the current month server-side,
+  // so latestBudget is always a prior month when non-null.
+  const showCopyButton = latestBudget !== null;
 
   const initialValues = useMemo(() => {
     const map: Record<string, string> = {};
@@ -201,11 +203,12 @@ export default function BudgetTable({
     });
   }
 
-  function handleCopy() {
-    if (!latestBudget) return;
+  async function handleCopy() {
+    if (!latestBudget || isCopying) return;
     setCopyError(null);
     setShowCopyConfirm(false);
-    startTransition(async () => {
+    setIsCopying(true);
+    try {
       const result = await copyBudgetFromMonth(
         latestBudget.monthStart,
         currentMonthStart,
@@ -216,7 +219,9 @@ export default function BudgetTable({
         return;
       }
       router.refresh();
-    });
+    } finally {
+      setIsCopying(false);
+    }
   }
 
   return (
@@ -268,43 +273,43 @@ export default function BudgetTable({
           {/* Left zone: label + copy control */}
           <div>
             <div className="flex items-center gap-3">
-              <p className="text-sm font-medium">Budget for {month}</p>
+              <span className="text-sm font-medium leading-none">Budget for {month}</span>
 
-              {/* Copy button / inline confirmation — sits right of the label */}
+              {/* Copy button / inline confirmation — vertically centred with label */}
               {showCopyButton && latestBudget && (
                 !showCopyConfirm ? (
                   <button
                     type="button"
-                    disabled={isPending}
+                    disabled={isCopying || isPending}
                     onClick={() => {
                       if (hasExistingBudget) {
                         setShowCopyConfirm(true);
                       } else {
-                        handleCopy();
+                        void handleCopy();
                       }
                     }}
-                    className="rounded border px-4 py-2 text-sm font-medium disabled:opacity-50"
+                    className="rounded border px-3 py-1 text-sm font-medium leading-none disabled:opacity-50"
                   >
-                    Copy from {latestBudget.monthLabel}
+                    {isCopying ? "Copying..." : `Copy from ${latestBudget.monthLabel}`}
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-amber-600">
+                    <span className="text-sm leading-none text-amber-600">
                       Overwrite with {latestBudget.monthLabel} budget?
                     </span>
                     <button
                       type="button"
-                      disabled={isPending}
-                      onClick={handleCopy}
-                      className="text-sm font-medium text-green-600 hover:text-green-800 disabled:opacity-50"
+                      disabled={isCopying}
+                      onClick={() => void handleCopy()}
+                      className="text-sm font-medium leading-none text-green-600 hover:text-green-800 disabled:opacity-50"
                     >
                       Confirm
                     </button>
                     <button
                       type="button"
-                      disabled={isPending}
+                      disabled={isCopying}
                       onClick={() => setShowCopyConfirm(false)}
-                      className="text-sm text-gray-500 hover:text-gray-700"
+                      className="text-sm leading-none text-gray-500 hover:text-gray-700"
                     >
                       Cancel
                     </button>
@@ -313,7 +318,7 @@ export default function BudgetTable({
               )}
             </div>
 
-            <p className="mt-0.5 text-xs text-gray-600">
+            <p className="mt-1 text-xs text-gray-600">
               {hasChanges ? "You have unsaved changes." : "No unsaved changes."}
             </p>
             {copyError ? (
