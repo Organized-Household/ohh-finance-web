@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   upsertBudget,
   copyBudgetFromMonth,
@@ -43,6 +44,7 @@ export default function BudgetTable({
   currentMonthStart,
   activeMemberId,
 }: Props) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string>("");
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -211,8 +213,9 @@ export default function BudgetTable({
       );
       if (result.error) {
         setCopyError(result.error);
+        return;
       }
-      // revalidatePath in the action causes server re-render with copied data
+      router.refresh();
     });
   }
 
@@ -280,20 +283,20 @@ export default function BudgetTable({
                         handleCopy();
                       }
                     }}
-                    className="rounded border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    className="rounded border px-4 py-2 text-sm font-medium disabled:opacity-50"
                   >
                     Copy from {latestBudget.monthLabel}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="text-amber-700">
-                      Overwrite with {latestBudget.monthLabel}?
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-amber-600">
+                      Overwrite with {latestBudget.monthLabel} budget?
                     </span>
                     <button
                       type="button"
                       disabled={isPending}
                       onClick={handleCopy}
-                      className="font-medium text-green-700 hover:text-green-900 disabled:opacity-50"
+                      className="text-sm font-medium text-green-600 hover:text-green-800 disabled:opacity-50"
                     >
                       Confirm
                     </button>
@@ -301,7 +304,7 @@ export default function BudgetTable({
                       type="button"
                       disabled={isPending}
                       onClick={() => setShowCopyConfirm(false)}
-                      className="text-slate-500 hover:text-slate-700"
+                      className="text-sm text-gray-500 hover:text-gray-700"
                     >
                       Cancel
                     </button>
