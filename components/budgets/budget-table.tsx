@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   upsertBudget,
@@ -67,6 +67,12 @@ export default function BudgetTable({
   }, [initialLines]);
 
   const [values, setValues] = useState<Record<string, string>>(initialValues);
+
+  // When initialLines changes (e.g. after router.refresh() following a copy),
+  // sync values so the table displays the newly copied amounts immediately.
+  useEffect(() => {
+    setValues(initialValues);
+  }, [initialValues]);
   const [historicalEditingEnabled, setHistoricalEditingEnabled] = useState(
     !isHistoricalMonth
   );
