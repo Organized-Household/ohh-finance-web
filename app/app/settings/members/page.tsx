@@ -53,6 +53,7 @@ export default async function MembersPage() {
     .from("tenant_members")
     .select("user_id, role, created_at")
     .eq("tenant_id", membership.tenant_id)
+    .eq("is_active", true)
     .order("created_at", { ascending: true });
 
   if (membersError) {

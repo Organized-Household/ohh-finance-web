@@ -62,12 +62,14 @@ export type DashboardSummary = {
 }
 
 export async function getDashboardSummary(
-  monthStartIso: string
+  monthStartIso: string,
+  activeMemberId: string
 ): Promise<DashboardSummary> {
   const supabase = await createClient()
 
   const { data, error } = await supabase.rpc('rpc_dashboard_summary', {
     p_month_start: monthStartIso,
+    p_user_id: activeMemberId,
   })
 
   if (error) {

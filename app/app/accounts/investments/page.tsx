@@ -16,7 +16,14 @@ export type InvestmentAccountRow = {
   target_date: string | null;
 };
 
-export default async function InvestmentAccountsPage() {
+type SearchParams = Promise<{ member?: string }>;
+
+export default async function InvestmentAccountsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,11 +35,15 @@ export default async function InvestmentAccountsPage() {
   }
 
   const membership = await getCurrentTenantMembership();
+  const isAdmin = membership.role === "admin";
+  // Server enforces: members always see own data regardless of URL param
+  const activeMemberId = isAdmin ? (params.member ?? user.id) : user.id;
 
   const { data, error } = await supabase
     .from("accounts")
     .select("id, name, account_subtype, opening_balance, interest_rate, target_amount, target_date")
     .eq("tenant_id", membership.tenant_id)
+    .eq("user_id", activeMemberId)
     .eq("account_kind", "investment")
     .eq("is_active", true)
     .order("name", { ascending: true });
@@ -57,14 +68,20 @@ export default async function InvestmentAccountsPage() {
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: <MemberSelectorCard />,
+      content: (
+        <MemberSelectorCard
+          isAdmin={isAdmin}
+          currentUserId={user.id}
+          activeMemberId={activeMemberId}
+        />
+      ),
     },
     {
       title: "Account Scope",
       content: (
         <p className="text-xs text-slate-600">
-          Investment accounts are tenant-scoped and visible only within your
-          household workspace.
+          Investment accounts belong to individual members. New accounts are
+          always created for the logged-in user.
         </p>
       ),
     },
@@ -75,6 +92,9 @@ export default async function InvestmentAccountsPage() {
       title="Investments"
       description="Manage investment accounts with type, balance, and interest rate."
       leftPanelSections={leftPanelSections}
+      isAdmin={isAdmin}
+      currentUserId={user.id}
+      activeMemberId={activeMemberId}
     >
       <div className="space-y-3">
         <InvestmentAccountForm />

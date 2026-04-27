@@ -1,20 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import MemberSelectorCardClient, {
   type MemberItem,
 } from "./MemberSelectorCardClient";
 
-export default async function MemberSelectorCard() {
-  const supabase = await createClient();
+interface MemberSelectorCardProps {
+  activeMemberId: string;
+  isAdmin: boolean;
+  currentUserId: string;
+}
+
+export default async function MemberSelectorCard({
+  activeMemberId,
+  isAdmin,
+  currentUserId,
+}: MemberSelectorCardProps) {
   const supabaseAdmin = createAdminClient();
   const membership = await getCurrentTenantMembership();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const currentUserId = user?.id ?? "";
 
   // Use admin client so tenant_members RLS (which limits the regular client
   // to the current user's own row) does not hide other household members.
@@ -22,6 +24,7 @@ export default async function MemberSelectorCard() {
     .from("tenant_members")
     .select("user_id, created_at")
     .eq("tenant_id", membership.tenant_id)
+    .eq("is_active", true)
     .order("created_at", { ascending: true });
 
   const memberUserIds = (membersData ?? []).map((m) => m.user_id);
@@ -60,6 +63,8 @@ export default async function MemberSelectorCard() {
     <MemberSelectorCardClient
       members={members}
       currentUserId={currentUserId}
+      isAdmin={isAdmin}
+      activeMemberId={activeMemberId}
     />
   );
 }

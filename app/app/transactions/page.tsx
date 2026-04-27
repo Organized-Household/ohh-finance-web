@@ -13,6 +13,7 @@ import { createTransaction } from "./actions";
 
 type SearchParams = Promise<{
   month?: string;
+  member?: string;
 }>;
 
 type Category = {
@@ -118,6 +119,9 @@ export default async function TransactionsPage({
   }
 
   const membership = await getCurrentTenantMembership();
+  const isAdmin = membership.role === "admin";
+  // Server enforces: members always see own data regardless of URL param
+  const activeMemberId = isAdmin ? (params.member ?? user.id) : user.id;
 
   const { data: categoriesData, error: categoriesError } = await supabase
     .from("categories")
@@ -153,6 +157,7 @@ export default async function TransactionsPage({
       "id, transaction_date, description, amount, transaction_type, category_id, linked_account_id, payment_source_account_id"
     )
     .eq("tenant_id", membership.tenant_id)
+    .eq("created_by_user_id", activeMemberId)
     .gte("transaction_date", monthRange.start)
     .lt("transaction_date", monthRange.end)
     .order("transaction_date", { ascending: false })
@@ -283,7 +288,13 @@ export default async function TransactionsPage({
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: <MemberSelectorCard />,
+      content: (
+        <MemberSelectorCard
+          isAdmin={isAdmin}
+          currentUserId={user.id}
+          activeMemberId={activeMemberId}
+        />
+      ),
     },
     {
       title: "Month Overview",
@@ -427,6 +438,9 @@ export default async function TransactionsPage({
       description="Capture actual financial activity for reporting, summaries, and budget-vs-actual analysis."
       leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={selectedMonth} />}
+      isAdmin={isAdmin}
+      currentUserId={user.id}
+      activeMemberId={activeMemberId}
     >
       {/*
         TransactionsTabs is a client component that manages the Transactions /

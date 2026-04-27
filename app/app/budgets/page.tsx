@@ -4,8 +4,10 @@ import BudgetTable from "@/components/budgets/budget-table";
 import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
 import SummaryStrip from "@/components/budgets/summary-strip";
 import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
-import { buildBudgetLeftPanelSections } from "@/components/budgets/left-panel-insights";
+import { buildBudgetMetricsSections } from "@/components/budgets/left-panel-insights";
 import WorkspaceShell from "@/components/layout/workspace-shell";
+import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
+import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import {
   getCurrentMonthStart,
   isHistoricalMonth,
@@ -17,6 +19,7 @@ import { getBudgetForMonth } from "./actions";
 
 type SearchParams = Promise<{
   month?: string;
+  member?: string;
 }>;
 
 export default async function BudgetPage({
@@ -34,6 +37,11 @@ export default async function BudgetPage({
   if (userError || !user) {
     throw new Error("Authenticated user not found");
   }
+
+  const membership = await getCurrentTenantMembership();
+  const isAdmin = membership.role === "admin";
+  // Server enforces: members always see own data regardless of URL param
+  const activeMemberId = isAdmin ? (params.member ?? user.id) : user.id;
 
   const parsedMonth = monthParamSchema.safeParse((params.month ?? "").trim());
   const selectedMonthStart = parsedMonth.success
@@ -53,16 +61,33 @@ export default async function BudgetPage({
     throw new Error(`Failed to load categories: ${error.message}`);
   }
 
-  const budgetLines = await getBudgetForMonth(month);
+  const budgetLines = await getBudgetForMonth(month, activeMemberId);
   const metrics = computeBudgetMetrics(categories ?? [], budgetLines);
-  const budgetLeftPanelSections = buildBudgetLeftPanelSections({ metrics });
+  const metricsSections = buildBudgetMetricsSections({ metrics });
+
+  const leftPanelSections = [
+    {
+      title: "Household Member",
+      content: (
+        <MemberSelectorCard
+          isAdmin={isAdmin}
+          currentUserId={user.id}
+          activeMemberId={activeMemberId}
+        />
+      ),
+    },
+    ...metricsSections,
+  ];
 
   return (
     <WorkspaceShell
       title="Budget"
       description="Plan your month by category. Income and expense categories are separated for easier budgeting."
-      leftPanelSections={budgetLeftPanelSections}
+      leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={month} />}
+      isAdmin={isAdmin}
+      currentUserId={user.id}
+      activeMemberId={activeMemberId}
     >
       <div className="space-y-4">
         <SummaryStrip metrics={metrics} />
