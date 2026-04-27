@@ -123,7 +123,7 @@ export default async function BudgetPage({
           </div>
         ) : (
           <BudgetTable
-            key={month}
+            key={`${month}-${activeMemberId}`}
             categories={categories}
             month={month}
             initialLines={budgetLines}
