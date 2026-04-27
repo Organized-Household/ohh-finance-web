@@ -48,6 +48,14 @@ function AccountsIcon() {
   );
 }
 
+function ExpenseTypesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
@@ -87,6 +95,13 @@ const mainNavItems: MainNavItem[] = [
     label: "Categories",
     icon: <CategoriesIcon />,
     isActive: (p) => p.startsWith("/app/budgets/categories"),
+    memberScoped: false, // shared data — no ?member=
+  },
+  {
+    href: "/app/expense-types",
+    label: "Expense Types",
+    icon: <ExpenseTypesIcon />,
+    isActive: (p) => p.startsWith("/app/expense-types"),
     memberScoped: false, // shared data — no ?member=
   },
   {

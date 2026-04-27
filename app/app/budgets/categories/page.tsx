@@ -11,7 +11,7 @@ import { getBudgetForMonth } from "../actions";
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: string;
   category_type: "income" | "expense";
 };
 
@@ -32,17 +32,32 @@ export default async function BudgetCategoriesPage() {
 
   const month = new Date().toISOString().slice(0, 7);
 
-  const { data, error } = await supabase
-    .from("categories")
-    .select("id, name, tag, category_type")
-    .order("category_type", { ascending: true })
-    .order("name", { ascending: true });
+  const [
+    { data: categoriesData, error: categoriesError },
+    { data: expenseTypesData, error: expenseTypesError },
+  ] = await Promise.all([
+    supabase
+      .from("categories")
+      .select("id, name, tag, category_type")
+      .order("category_type", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("expense_types")
+      .select("id, name, slug")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true }),
+  ]);
 
-  if (error) {
-    throw new Error(`Failed to load categories: ${error.message}`);
+  if (categoriesError) {
+    throw new Error(`Failed to load categories: ${categoriesError.message}`);
+  }
+  if (expenseTypesError) {
+    throw new Error(`Failed to load expense types: ${expenseTypesError.message}`);
   }
 
-  const categories: Category[] = (data ?? []) as Category[];
+  const categories: Category[] = (categoriesData ?? []) as Category[];
+  const expenseTypes = expenseTypesData ?? [];
+
   // Budget metrics for categories use the logged-in user's budget (not activeMemberId —
   // categories page has no member selector; shared household context only).
   const budgetLines = await getBudgetForMonth(month);
@@ -95,9 +110,9 @@ export default async function BudgetCategoriesPage() {
       activeMemberId={user.id}
     >
       <div className="space-y-3">
-        <CategoryCreateForm />
+        <CategoryCreateForm expenseTypes={expenseTypes} />
 
-        <GroupedCategoryTable categories={categories} />
+        <GroupedCategoryTable categories={categories} expenseTypes={expenseTypes} />
       </div>
     </WorkspaceShell>
   );

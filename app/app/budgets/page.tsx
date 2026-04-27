@@ -10,12 +10,13 @@ import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import {
   getCurrentMonthStart,
+  formatMonthStartDate,
   isHistoricalMonth,
   parseMonthParam,
   serializeMonthParam,
 } from "@/lib/db/month";
 import { monthParamSchema } from "@/lib/validation/month";
-import { getBudgetForMonth } from "./actions";
+import { getBudgetForMonth, getLatestBudgetMonth } from "./actions";
 
 type SearchParams = Promise<{
   month?: string;
@@ -61,7 +62,15 @@ export default async function BudgetPage({
     throw new Error(`Failed to load categories: ${error.message}`);
   }
 
-  const budgetLines = await getBudgetForMonth(month, activeMemberId);
+  const [budgetLines, latestBudget] = await Promise.all([
+    getBudgetForMonth(month, activeMemberId),
+    getLatestBudgetMonth(activeMemberId),
+  ]);
+
+  const hasExistingBudget = budgetLines.some(
+    (l) => Number(l.amount) > 0
+  );
+
   const metrics = computeBudgetMetrics(categories ?? [], budgetLines);
   const metricsSections = buildBudgetMetricsSections({ metrics });
 
@@ -128,6 +137,10 @@ export default async function BudgetPage({
             month={month}
             initialLines={budgetLines}
             isHistoricalMonth={selectedMonthIsHistorical}
+            latestBudget={latestBudget}
+            hasExistingBudget={hasExistingBudget}
+            currentMonthStart={formatMonthStartDate(selectedMonthStart)}
+            activeMemberId={activeMemberId}
           />
         )}
       </div>

@@ -1,7 +1,10 @@
 export type BudgetCategory = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  // tag is now a free-form slug (validated by DB FK to expense_types.slug).
+  // The 3-bucket metrics (standard/savings/investment) handle known values;
+  // other slugs (e.g. "charity") are counted as standard-equivalent expenses.
+  tag: string;
   category_type: "income" | "expense";
 };
 
@@ -66,15 +69,15 @@ export function computeBudgetMetrics(
       totals.income += amount;
     }
 
-    if (category.tag === "savings") {
-      totals.savings += amount;
-    } else if (category.tag === "investment") {
-      totals.investment += amount;
-    } else if (
-      category.tag === "standard" &&
-      category.category_type === "expense"
-    ) {
-      totals.standard += amount;
+    if (category.category_type === "expense") {
+      if (category.tag === "savings") {
+        totals.savings += amount;
+      } else if (category.tag === "investment") {
+        totals.investment += amount;
+      } else {
+        // "standard", "charity", and any future tags all roll into standard bucket
+        totals.standard += amount;
+      }
     }
   }
 
