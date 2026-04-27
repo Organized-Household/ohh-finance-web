@@ -10,7 +10,10 @@ export type BudgetLineView = {
   amount: number;
 };
 
-export async function getBudgetForMonth(month: string): Promise<BudgetLineView[]> {
+export async function getBudgetForMonth(
+  month: string,
+  activeMemberId?: string
+): Promise<BudgetLineView[]> {
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
 
@@ -23,13 +26,17 @@ export async function getBudgetForMonth(month: string): Promise<BudgetLineView[]
     throw new Error("Authenticated user not found");
   }
 
+  // Use activeMemberId when provided (admin viewing another member's budget),
+  // otherwise fall back to the logged-in user's own budget.
+  const targetUserId = activeMemberId ?? user.id;
+
   const monthStart = getMonthStart(month);
 
   const { data: budget, error: budgetError } = await supabase
     .from("budgets")
     .select("id")
     .eq("tenant_id", membership.tenant_id)
-    .eq("user_id", user.id)
+    .eq("user_id", targetUserId)
     .eq("month_start", monthStart)
     .maybeSingle();
 

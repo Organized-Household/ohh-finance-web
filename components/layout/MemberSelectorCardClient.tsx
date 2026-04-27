@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export type MemberItem = {
   userId: string;
@@ -10,20 +10,31 @@ export type MemberItem = {
 type MemberSelectorCardClientProps = {
   members: MemberItem[];
   currentUserId: string;
+  isAdmin: boolean;
+  activeMemberId: string;
 };
 
 export default function MemberSelectorCardClient({
   members,
   currentUserId,
+  isAdmin,
+  activeMemberId,
 }: MemberSelectorCardClientProps) {
-  const [activeMemberId, setActiveMemberId] = useState<string>(() => {
-    if (typeof window === "undefined") return currentUserId;
-    return localStorage.getItem("active-member-id") ?? currentUserId;
-  });
+  const router = useRouter();
 
-  const handleSetActiveMember = (userId: string) => {
-    setActiveMemberId(userId);
-    localStorage.setItem("active-member-id", userId);
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!isAdmin) return;
+    const newId = e.target.value;
+    // Persist to localStorage so sidebar links can read it on next render
+    try {
+      localStorage.setItem("active-member-id", newId);
+    } catch {
+      // localStorage unavailable in some environments — silently ignore
+    }
+    // Push ?member=uuid so the server re-renders with the selected member's data
+    const url = new URL(window.location.href);
+    url.searchParams.set("member", newId);
+    router.push(url.toString());
   };
 
   // Solo household — display only, no interactive selection needed
@@ -41,30 +52,29 @@ export default function MemberSelectorCardClient({
     );
   }
 
-  return (
-    <div className="space-y-1">
-      {members.map((m) => {
-        const isCurrentUser = m.userId === currentUserId;
-        const isActive = m.userId === activeMemberId;
+  if (isAdmin) {
+    return (
+      <select
+        value={activeMemberId}
+        onChange={handleChange}
+        className="w-full cursor-pointer rounded border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-400"
+      >
+        {members.map((m) => (
+          <option key={m.userId} value={m.userId}>
+            {m.displayLabel}
+            {m.userId === currentUserId ? " (you)" : ""}
+          </option>
+        ))}
+      </select>
+    );
+  }
 
-        return (
-          <button
-            key={m.userId}
-            type="button"
-            onClick={() => handleSetActiveMember(m.userId)}
-            className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm transition ${
-              isActive
-                ? "bg-slate-200 font-medium text-slate-900"
-                : "text-slate-700 hover:bg-slate-100"
-            }`}
-          >
-            <span>{m.displayLabel}</span>
-            {isCurrentUser && (
-              <span className="ml-1.5 text-xs text-slate-400">(you)</span>
-            )}
-          </button>
-        );
-      })}
+  // Non-admin: locked display showing own name
+  const selfMember = members.find((m) => m.userId === currentUserId) ?? members[0];
+  return (
+    <div className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm text-slate-700">
+      {selfMember?.displayLabel ?? "Member"}
+      <span className="ml-1 text-xs text-slate-400">(you)</span>
     </div>
   );
 }

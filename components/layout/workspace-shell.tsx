@@ -8,16 +8,21 @@ type WorkspaceShellProps = {
   topbarControls?: ReactNode;
   leftPanelSections: WorkspaceLeftPanelSection[];
   children: ReactNode;
+  // Member context — passed from each page so sidebar can preserve ?member= in nav links
+  isAdmin?: boolean;
+  currentUserId?: string;
+  activeMemberId?: string;
 };
 
-// Server component — fetches member selector data here so the sidebar
-// receives real member data on every page without per-page wiring.
 export default function WorkspaceShell({
   title,
   description,
   topbarControls,
   leftPanelSections,
   children,
+  isAdmin = false,
+  currentUserId = "",
+  activeMemberId = "",
 }: WorkspaceShellProps) {
   return (
     <WorkspaceShellClient
@@ -25,6 +30,9 @@ export default function WorkspaceShell({
       description={description}
       topbarControls={topbarControls}
       leftPanelSections={leftPanelSections}
+      isAdmin={isAdmin}
+      currentUserId={currentUserId}
+      activeMemberId={activeMemberId}
     >
       {children}
     </WorkspaceShellClient>

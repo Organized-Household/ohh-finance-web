@@ -16,7 +16,14 @@ export type DebtAccountRow = {
   target_date: string | null;
 };
 
-export default async function DebtAccountsPage() {
+type SearchParams = Promise<{ member?: string }>;
+
+export default async function DebtAccountsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,11 +35,15 @@ export default async function DebtAccountsPage() {
   }
 
   const membership = await getCurrentTenantMembership();
+  const isAdmin = membership.role === "admin";
+  // Server enforces: members always see own data regardless of URL param
+  const activeMemberId = isAdmin ? (params.member ?? user.id) : user.id;
 
   const { data, error } = await supabase
     .from("accounts")
     .select("id, name, account_subtype, opening_balance, interest_rate, target_amount, target_date")
     .eq("tenant_id", membership.tenant_id)
+    .eq("user_id", activeMemberId)
     .eq("account_kind", "debt")
     .eq("is_active", true)
     .order("name", { ascending: true });
@@ -57,14 +68,20 @@ export default async function DebtAccountsPage() {
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: <MemberSelectorCard />,
+      content: (
+        <MemberSelectorCard
+          isAdmin={isAdmin}
+          currentUserId={user.id}
+          activeMemberId={activeMemberId}
+        />
+      ),
     },
     {
       title: "Account Scope",
       content: (
         <p className="text-xs text-slate-600">
-          Debt accounts are tenant-scoped and visible only within your
-          household workspace.
+          Debt accounts belong to individual members. New accounts are always
+          created for the logged-in user.
         </p>
       ),
     },
@@ -75,6 +92,9 @@ export default async function DebtAccountsPage() {
       title="Debts"
       description="Manage debt accounts with type, balance owed, and interest rate."
       leftPanelSections={leftPanelSections}
+      isAdmin={isAdmin}
+      currentUserId={user.id}
+      activeMemberId={activeMemberId}
     >
       <div className="space-y-3">
         <DebtAccountForm />

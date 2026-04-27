@@ -70,6 +70,8 @@ type MainNavItem = {
   label: string;
   icon: ReactNode;
   isActive: (pathname: string) => boolean;
+  // If true, this link preserves ?member= for member-scoped pages
+  memberScoped?: boolean;
 };
 
 const mainNavItems: MainNavItem[] = [
@@ -78,24 +80,28 @@ const mainNavItems: MainNavItem[] = [
     label: "Home",
     icon: <HomeIcon />,
     isActive: (p) => p === "/app",
+    memberScoped: true,
   },
   {
     href: "/app/budgets/categories",
     label: "Categories",
     icon: <CategoriesIcon />,
     isActive: (p) => p.startsWith("/app/budgets/categories"),
+    memberScoped: false, // shared data — no ?member=
   },
   {
     href: "/app/budgets",
     label: "Budget",
     icon: <BudgetIcon />,
     isActive: (p) => p === "/app/budgets",
+    memberScoped: true,
   },
   {
     href: "/app/transactions",
     label: "Transactions",
     icon: <TransactionsIcon />,
     isActive: (p) => p.startsWith("/app/transactions"),
+    memberScoped: true,
   },
 ];
 
@@ -117,14 +123,32 @@ const settingsSubItems = [
 type AppSidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
+  isAdmin?: boolean;
+  currentUserId?: string;
+  activeMemberId?: string;
 };
 
-export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
+export default function AppSidebar({
+  collapsed,
+  onToggle,
+  isAdmin = false,
+  currentUserId = "",
+  activeMemberId = "",
+}: AppSidebarProps) {
   const pathname = usePathname();
   const isOnAccountsRoute = pathname.startsWith("/app/accounts");
   const isOnSettingsRoute = pathname.startsWith("/app/settings");
   const [accountsOpen, setAccountsOpen] = useState(isOnAccountsRoute);
   const [settingsOpen, setSettingsOpen] = useState(isOnSettingsRoute);
+
+  // Append ?member=uuid to member-scoped nav links when admin is
+  // viewing a different member's data, so the context is preserved.
+  const withMember = (href: string, memberScoped = true): string => {
+    if (!memberScoped || !isAdmin || !activeMemberId || activeMemberId === currentUserId) {
+      return href;
+    }
+    return `${href}?member=${activeMemberId}`;
+  };
 
   return (
     <aside
@@ -169,10 +193,11 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             {/* Main nav items: Home, Categories, Budget, Transactions */}
             {mainNavItems.map((item) => {
               const active = item.isActive(pathname);
+              const href = withMember(item.href, item.memberScoped);
               return (
                 <li key={item.href} className="nav-item-wrapper" data-tooltip={item.label}>
                   <Link
-                    href={item.href}
+                    href={href}
                     className={`flex items-center rounded-md px-2.5 py-2 text-sm font-medium transition ${
                       collapsed ? "justify-center" : "gap-2.5"
                     } ${
@@ -203,7 +228,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               {collapsed ? (
                 /* Collapsed sidebar: single icon navigates to Savings */
                 <Link
-                  href="/app/accounts/savings"
+                  href={withMember("/app/accounts/savings")}
                   className={`flex items-center justify-center rounded-md px-2.5 py-2 text-sm font-medium transition ${
                     isOnAccountsRoute
                       ? "bg-slate-100 text-slate-900"
@@ -244,7 +269,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                         return (
                           <li key={sub.href}>
                             <Link
-                              href={sub.href}
+                              href={withMember(sub.href)}
                               className={`flex items-center rounded-md px-2.5 py-1.5 text-sm transition ${
                                 active
                                   ? "bg-slate-100 font-medium text-slate-900"

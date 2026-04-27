@@ -14,6 +14,9 @@ export type WorkspaceShellClientProps = {
   topbarControls?: ReactNode;
   leftPanelSections: WorkspaceLeftPanelSection[];
   children: ReactNode;
+  isAdmin?: boolean;
+  currentUserId?: string;
+  activeMemberId?: string;
 };
 
 export default function WorkspaceShellClient({
@@ -22,6 +25,9 @@ export default function WorkspaceShellClient({
   topbarControls,
   leftPanelSections,
   children,
+  isAdmin = false,
+  currentUserId = "",
+  activeMemberId = "",
 }: WorkspaceShellClientProps) {
   // Persist collapse state in localStorage so re-mount on route change
   // doesn't reset to false.
@@ -46,6 +52,9 @@ export default function WorkspaceShellClient({
       <AppSidebar
         collapsed={isSidebarCollapsed}
         onToggle={handleSidebarToggle}
+        isAdmin={isAdmin}
+        currentUserId={currentUserId}
+        activeMemberId={activeMemberId}
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

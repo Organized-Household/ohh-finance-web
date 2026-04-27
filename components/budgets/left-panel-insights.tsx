@@ -1,22 +1,19 @@
 import DistributionPercentList from "@/components/budgets/distribution-percent-list";
 import DistributionBarChart from "@/components/budgets/distribution-bar-chart";
 import IncomeDistributionList from "@/components/budgets/income-distribution-list";
-import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
 import type { BudgetMetrics } from "@/components/budgets/budget-metrics";
 import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
 
-type BuildBudgetLeftPanelSectionsParams = {
+type BuildBudgetMetricsSectionsParams = {
   metrics: BudgetMetrics;
 };
 
-export function buildBudgetLeftPanelSections({
+// Returns the 3 metrics sections only — callers prepend their own first section
+// (member selector for budget page, household info card for categories page).
+export function buildBudgetMetricsSections({
   metrics,
-}: BuildBudgetLeftPanelSectionsParams): WorkspaceLeftPanelSection[] {
+}: BuildBudgetMetricsSectionsParams): WorkspaceLeftPanelSection[] {
   return [
-    {
-      title: "Household Member",
-      content: <MemberSelectorCard />,
-    },
     {
       title: "Budget Distribution",
       content: <DistributionPercentList metrics={metrics} />,
@@ -30,4 +27,12 @@ export function buildBudgetLeftPanelSections({
       content: <DistributionBarChart metrics={metrics} />,
     },
   ];
+}
+
+// Legacy alias — kept so any remaining callers don't break; wraps the new function.
+// Deprecated: prefer building the first section in the caller and using buildBudgetMetricsSections.
+export function buildBudgetLeftPanelSections(
+  params: BuildBudgetMetricsSectionsParams
+): WorkspaceLeftPanelSection[] {
+  return buildBudgetMetricsSections(params);
 }

@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatMonthStartDate } from "@/lib/db/month";
 import { getDashboardMonth } from "@/lib/dashboard/get-dashboard-month";
 import { getDashboardSummary } from "@/lib/dashboard/get-dashboard-summary";
+import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import {
   computeMonthProgress,
   computeIncomeBadge,
@@ -41,22 +42,27 @@ export default async function AppHomePage({
   const selectedMonth = resolvedMonth.monthParam;
 
   // monthProgress: A = days elapsed ÷ days in month
-  // Computed once here; passed to all badge functions and client components
   const monthProgress = computeMonthProgress(resolvedMonth.monthStart, new Date());
 
-  // Fetch user + dashboard data in parallel
   const supabase = await createClient();
   const [
     { data: { user }, error: userError },
-    summary,
+    membership,
   ] = await Promise.all([
     supabase.auth.getUser(),
-    getDashboardSummary(monthStartIso),
+    getCurrentTenantMembership(),
   ]);
 
   if (userError || !user) {
     throw new Error("Authenticated user not found");
   }
+
+  const isAdmin = membership.role === "admin";
+  // Server enforces: members always see own data regardless of URL param
+  const memberParam = typeof params.member === "string" ? params.member : undefined;
+  const activeMemberId = isAdmin ? (memberParam ?? user.id) : user.id;
+
+  const summary = await getDashboardSummary(monthStartIso, activeMemberId);
 
   // KPI badges — all pace-based
   const incomeBadge = computeIncomeBadge(
@@ -83,7 +89,13 @@ export default async function AppHomePage({
   const leftPanelSections: WorkspaceLeftPanelSection[] = [
     {
       title: "Household Member",
-      content: <MemberSelectorCard />,
+      content: (
+        <MemberSelectorCard
+          isAdmin={isAdmin}
+          currentUserId={user.id}
+          activeMemberId={activeMemberId}
+        />
+      ),
     },
     {
       title: "Household Status",
@@ -132,6 +144,9 @@ export default async function AppHomePage({
       description="Monthly financial overview."
       leftPanelSections={leftPanelSections}
       topbarControls={<DashboardMonthSelector selectedMonth={selectedMonth} />}
+      isAdmin={isAdmin}
+      currentUserId={user.id}
+      activeMemberId={activeMemberId}
     >
       {/*
         Viewport-fill layout — flex column, height:100% fills <main> content area.
