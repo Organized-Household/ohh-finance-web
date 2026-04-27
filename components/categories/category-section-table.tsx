@@ -8,23 +8,31 @@ import {
 } from "@/app/app/budgets/categories/actions";
 import { initialCategoryFormState } from "@/app/app/budgets/categories/form-state";
 
+export type ExpenseTypeOption = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 type CategoryRow = {
   id: string;
   name: string;
   category_type: "income" | "expense";
-  tag: "standard" | "savings" | "investment" | "debt_payment";
+  tag: string;
 };
 
 type CategorySectionTableProps = {
   title: string;
   rows: CategoryRow[];
+  expenseTypes: ExpenseTypeOption[];
 };
 
 type EditableCategoryRowProps = {
   category: CategoryRow;
+  expenseTypes: ExpenseTypeOption[];
 };
 
-function EditableCategoryRow({ category }: EditableCategoryRowProps) {
+function EditableCategoryRow({ category, expenseTypes }: EditableCategoryRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [draftName, setDraftName] = useState(category.name);
@@ -36,9 +44,7 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
   const [lastSavedCategoryType, setLastSavedCategoryType] = useState<
     CategoryRow["category_type"] | null
   >(null);
-  const [lastSavedTag, setLastSavedTag] = useState<CategoryRow["tag"] | null>(
-    null
-  );
+  const [lastSavedTag, setLastSavedTag] = useState<string | null>(null);
 
   const updateActionWithUiState = async (
     prevState: CategoryFormState,
@@ -110,16 +116,15 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
             id={`tag-${category.id}`}
             name={`tag-${category.id}`}
             value={draftTag}
-            onChange={(event) => setDraftTag(event.target.value as CategoryRow["tag"])}
+            onChange={(event) => setDraftTag(event.target.value)}
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           >
-            <option value="standard">Standard</option>
-            <option value="savings">Savings</option>
-            <option value="investment">Investment</option>
-            <option value="debt_payment">Debt Payment</option>
+            {expenseTypes.map((et) => (
+              <option key={et.id} value={et.slug}>{et.name}</option>
+            ))}
           </select>
         ) : (
-          <span className="capitalize">{displayTag.replace("_", " ")}</span>
+          <span className="capitalize">{displayTag.replace(/_/g, " ")}</span>
         )}
       </td>
 
@@ -237,7 +242,7 @@ function EditableCategoryRow({ category }: EditableCategoryRowProps) {
   );
 }
 
-export default function CategorySectionTable({ title, rows }: CategorySectionTableProps) {
+export default function CategorySectionTable({ title, rows, expenseTypes }: CategorySectionTableProps) {
   return (
     <section className="border-t border-slate-300 first:border-t-0">
       <div className="flex items-center justify-between bg-slate-100 px-3 py-2">
@@ -263,7 +268,7 @@ export default function CategorySectionTable({ title, rows }: CategorySectionTab
           </colgroup>
           <tbody>
             {rows.map((category) => (
-              <EditableCategoryRow key={category.id} category={category} />
+              <EditableCategoryRow key={category.id} category={category} expenseTypes={expenseTypes} />
             ))}
           </tbody>
         </table>

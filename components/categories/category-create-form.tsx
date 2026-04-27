@@ -4,7 +4,17 @@ import { useActionState } from "react";
 import { createCategoryFormAction } from "@/app/app/budgets/categories/actions";
 import { initialCategoryFormState } from "@/app/app/budgets/categories/form-state";
 
-export default function CategoryCreateForm() {
+type ExpenseTypeOption = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+type CategoryCreateFormProps = {
+  expenseTypes: ExpenseTypeOption[];
+};
+
+export default function CategoryCreateForm({ expenseTypes }: CategoryCreateFormProps) {
   const [state, formAction, pending] = useActionState(
     createCategoryFormAction,
     initialCategoryFormState
@@ -60,13 +70,12 @@ export default function CategoryCreateForm() {
           <select
             id="create-tag"
             name="tag"
-            defaultValue="standard"
+            defaultValue={expenseTypes[0]?.slug ?? "standard"}
             className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
           >
-            <option value="standard">Standard</option>
-            <option value="savings">Savings</option>
-            <option value="investment">Investment</option>
-            <option value="debt_payment">Debt Payment</option>
+            {expenseTypes.map((et) => (
+              <option key={et.id} value={et.slug}>{et.name}</option>
+            ))}
           </select>
           {state.fieldErrors?.tag ? (
             <p className="mt-1 text-[11px] text-rose-700">{state.fieldErrors.tag}</p>

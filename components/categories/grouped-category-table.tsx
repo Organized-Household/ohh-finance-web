@@ -1,29 +1,20 @@
-import CategorySectionTable from "@/components/categories/category-section-table";
+import CategorySectionTable, { type ExpenseTypeOption } from "@/components/categories/category-section-table";
 
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment" | "debt_payment";
+  tag: string;
   category_type: "income" | "expense";
 };
 
 type GroupedCategoryTableProps = {
   categories: Category[];
+  expenseTypes: ExpenseTypeOption[];
 };
-
-const sectionOrder: Array<{
-  key: "income" | "standard" | "savings" | "investment" | "debt_payment";
-  label: string;
-}> = [
-  { key: "income", label: "Income" },
-  { key: "standard", label: "Standard" },
-  { key: "savings", label: "Savings" },
-  { key: "investment", label: "Investment" },
-  { key: "debt_payment", label: "Debt Payment" },
-];
 
 export default function GroupedCategoryTable({
   categories,
+  expenseTypes,
 }: GroupedCategoryTableProps) {
   return (
     <section className="overflow-hidden rounded-lg border border-slate-300 bg-white">
@@ -52,31 +43,23 @@ export default function GroupedCategoryTable({
         </thead>
       </table>
 
-      {sectionOrder.map((section) => (
+      {/* Income section — always first */}
+      <CategorySectionTable
+        key="income"
+        title="Income"
+        rows={categories.filter((c) => c.category_type === "income")}
+        expenseTypes={expenseTypes}
+      />
+
+      {/* One section per expense type, ordered by sort_order */}
+      {expenseTypes.map((et) => (
         <CategorySectionTable
-          key={section.key}
-          title={section.label}
-          rows={categories.filter((category) => {
-            if (section.key === "income") {
-              return category.category_type === "income";
-            }
-
-            if (section.key === "standard") {
-              return (
-                category.category_type === "expense" &&
-                category.tag === "standard"
-              );
-            }
-
-            if (section.key === "savings") {
-              return (
-                category.category_type === "expense" &&
-                category.tag === "savings"
-              );
-            }
-
-            return category.category_type === "expense" && category.tag === section.key;
-          })}
+          key={et.slug}
+          title={et.name}
+          rows={categories.filter(
+            (c) => c.category_type === "expense" && c.tag === et.slug
+          )}
+          expenseTypes={expenseTypes}
         />
       ))}
     </section>

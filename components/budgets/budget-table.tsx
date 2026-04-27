@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { upsertBudget } from "@/app/app/budgets/actions";
+import {
+  upsertBudget,
+  copyBudgetFromMonth,
+} from "@/app/app/budgets/actions";
 import GroupedBudgetTable, {
   type GroupedBudgetSection,
 } from "@/components/budgets/grouped-budget-table";
@@ -10,7 +13,7 @@ import BudgetTotalsFooter from "@/components/budgets/budget-totals-footer";
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: string;
   category_type: "income" | "expense";
 };
 
@@ -24,6 +27,10 @@ type Props = {
   month: string;
   initialLines: InitialLine[];
   isHistoricalMonth: boolean;
+  latestBudget: { monthStart: string; monthLabel: string } | null;
+  hasExistingBudget: boolean;
+  currentMonthStart: string;
+  activeMemberId: string;
 };
 
 export default function BudgetTable({
@@ -31,9 +38,19 @@ export default function BudgetTable({
   month,
   initialLines,
   isHistoricalMonth,
+  latestBudget,
+  hasExistingBudget,
+  currentMonthStart,
+  activeMemberId,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string>("");
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+
+  const showCopyButton =
+    latestBudget !== null &&
+    latestBudget.monthStart !== currentMonthStart;
 
   const initialValues = useMemo(() => {
     const map: Record<string, string> = {};
@@ -57,24 +74,8 @@ export default function BudgetTable({
   }
 
   const groupedSections = useMemo(() => {
-    const incomeCategories = categories.filter(
-      (category) => category.category_type === "income"
-    );
-    const standardCategories = categories.filter(
-      (category) =>
-        category.category_type === "expense" && category.tag === "standard"
-    );
-    const savingsCategories = categories.filter(
-      (category) =>
-        category.category_type === "expense" && category.tag === "savings"
-    );
-    const investmentCategories = categories.filter(
-      (category) =>
-        category.category_type === "expense" && category.tag === "investment"
-    );
-
     const buildSection = (
-      key: GroupedBudgetSection["key"],
+      key: string,
       title: string,
       sectionCategories: Category[]
     ): GroupedBudgetSection => {
@@ -82,7 +83,6 @@ export default function BudgetTable({
         (sum, category) => sum + toAmount(values[category.id]),
         0
       );
-
       return {
         key,
         title,
@@ -95,26 +95,39 @@ export default function BudgetTable({
       };
     };
 
-    return [
-      buildSection("income", "Income", incomeCategories),
-      buildSection("standard", "Standard", standardCategories),
-      buildSection("savings", "Savings", savingsCategories),
-      buildSection("investment", "Investment", investmentCategories),
-    ];
+    const incomeSection = buildSection(
+      "income",
+      "Income",
+      categories.filter((c) => c.category_type === "income")
+    );
+
+    // Collect unique expense tags in the order they first appear (server sorts by tag)
+    const seenTags = new Set<string>();
+    const expenseTags: string[] = [];
+    for (const c of categories) {
+      if (c.category_type === "expense" && !seenTags.has(c.tag)) {
+        seenTags.add(c.tag);
+        expenseTags.push(c.tag);
+      }
+    }
+
+    const expenseSections = expenseTags.map((tag) =>
+      buildSection(
+        tag,
+        tag.charAt(0).toUpperCase() + tag.slice(1).replace(/_/g, " "),
+        categories.filter((c) => c.category_type === "expense" && c.tag === tag)
+      )
+    );
+
+    return [incomeSection, ...expenseSections];
   }, [categories, values]);
 
   const totals = useMemo(() => {
     const incomeSubtotal =
       groupedSections.find((section) => section.key === "income")?.subtotal ?? 0;
-    const standardSubtotal =
-      groupedSections.find((section) => section.key === "standard")?.subtotal ?? 0;
-    const savingsSubtotal =
-      groupedSections.find((section) => section.key === "savings")?.subtotal ?? 0;
-    const investmentSubtotal =
-      groupedSections.find((section) => section.key === "investment")?.subtotal ?? 0;
-
-    const totalExpenses =
-      standardSubtotal + savingsSubtotal + investmentSubtotal;
+    const totalExpenses = groupedSections
+      .filter((section) => section.key !== "income")
+      .reduce((sum, section) => sum + section.subtotal, 0);
 
     return {
       totalIncome: incomeSubtotal,
@@ -186,6 +199,23 @@ export default function BudgetTable({
     });
   }
 
+  function handleCopy() {
+    if (!latestBudget) return;
+    setCopyError(null);
+    setShowCopyConfirm(false);
+    startTransition(async () => {
+      const result = await copyBudgetFromMonth(
+        latestBudget.monthStart,
+        currentMonthStart,
+        activeMemberId
+      );
+      if (result.error) {
+        setCopyError(result.error);
+      }
+      // revalidatePath in the action causes server re-render with copied data
+    });
+  }
+
   return (
     <div className="space-y-6">
       {isHistoricalMonth ? (
@@ -239,9 +269,56 @@ export default function BudgetTable({
                 ? "You have unsaved changes."
                 : "No unsaved changes."}
             </p>
+            {copyError ? (
+              <p className="mt-1 text-xs text-rose-700">{copyError}</p>
+            ) : null}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Copy from previous month button */}
+            {showCopyButton && latestBudget && (
+              <div className="flex items-center gap-2">
+                {!showCopyConfirm ? (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      if (hasExistingBudget) {
+                        setShowCopyConfirm(true);
+                      } else {
+                        handleCopy();
+                      }
+                    }}
+                    className="text-sm text-blue-600 underline hover:text-blue-800 disabled:opacity-50"
+                  >
+                    Copy from {latestBudget.monthLabel}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-amber-700">
+                      Overwrite with {latestBudget.monthLabel} budget?
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={handleCopy}
+                      className="font-medium text-green-600 hover:text-green-800 disabled:opacity-50"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => setShowCopyConfirm(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleDiscard}

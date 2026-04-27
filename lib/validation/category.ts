@@ -1,11 +1,8 @@
 import { z } from "zod";
 
-export const categoryTagSchema = z.enum([
-  "standard",
-  "savings",
-  "investment",
-  "debt_payment",
-]);
+// Keep for any callers that still reference the legacy enum — slugs are now
+// validated at DB level via FK to expense_types.slug.
+export const categoryTagSchema = z.string().min(1, "Tag is required");
 
 export const categoryTypeSchema = z.enum([
   "income",
