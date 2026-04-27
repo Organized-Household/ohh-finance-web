@@ -99,9 +99,11 @@ export async function createSavingsAccountFormAction(
     const supabase = await createClient();
     const membership = await getCurrentTenantMembership();
     const accountNumberLast4 = toAccountNumberLast4(parsed.data.account_number);
+    const { data: { user } } = await supabase.auth.getUser();
 
     const { error } = await supabase.from("accounts").insert({
       tenant_id: membership.tenant_id,
+      user_id: user?.id,
       account_kind: "savings",
       name: parsed.data.name,
       account_subtype: null,
@@ -271,9 +273,11 @@ export async function createInvestmentAccountFormAction(
 
     const supabase = await createClient();
     const membership = await getCurrentTenantMembership();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const { error } = await supabase.from("accounts").insert({
       tenant_id: membership.tenant_id,
+      user_id: user?.id,
       account_kind: "investment",
       name: parsed.data.name,
       account_subtype: parsed.data.account_subtype,
@@ -441,9 +445,11 @@ export async function createDebtAccountFormAction(
 
     const supabase = await createClient();
     const membership = await getCurrentTenantMembership();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const { error } = await supabase.from("accounts").insert({
       tenant_id: membership.tenant_id,
+      user_id: user?.id,
       account_kind: "debt",
       name: parsed.data.name,
       account_subtype: parsed.data.account_subtype,
