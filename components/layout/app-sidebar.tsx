@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -151,18 +151,29 @@ export default function AppSidebar({
   activeMemberId = "",
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isOnAccountsRoute = pathname.startsWith("/app/accounts");
   const isOnSettingsRoute = pathname.startsWith("/app/settings");
   const [accountsOpen, setAccountsOpen] = useState(isOnAccountsRoute);
   const [settingsOpen, setSettingsOpen] = useState(isOnSettingsRoute);
 
-  // Append ?member=uuid to member-scoped nav links when admin is
-  // viewing a different member's data, so the context is preserved.
-  const withMember = (href: string, memberScoped = true): string => {
-    if (!memberScoped || !isAdmin || !activeMemberId || activeMemberId === currentUserId) {
-      return href;
+  // Build a nav href that preserves ?month= and ?member= for member-scoped
+  // pages, so navigating via the sidebar doesn't reset the selected month
+  // or the active household member.
+  const buildHref = (href: string, memberScoped = true): string => {
+    if (!memberScoped) return href;
+
+    const params = new URLSearchParams();
+
+    const currentMonth = searchParams.get("month");
+    if (currentMonth) params.set("month", currentMonth);
+
+    if (isAdmin && activeMemberId && activeMemberId !== currentUserId) {
+      params.set("member", activeMemberId);
     }
-    return `${href}?member=${activeMemberId}`;
+
+    const query = params.toString();
+    return query ? `${href}?${query}` : href;
   };
 
   return (
@@ -208,7 +219,7 @@ export default function AppSidebar({
             {/* Main nav items: Home, Categories, Budget, Transactions */}
             {mainNavItems.map((item) => {
               const active = item.isActive(pathname);
-              const href = withMember(item.href, item.memberScoped);
+              const href = buildHref(item.href, item.memberScoped);
               return (
                 <li key={item.href} className="nav-item-wrapper" data-tooltip={item.label}>
                   <Link
@@ -243,7 +254,7 @@ export default function AppSidebar({
               {collapsed ? (
                 /* Collapsed sidebar: single icon navigates to Savings */
                 <Link
-                  href={withMember("/app/accounts/savings")}
+                  href={buildHref("/app/accounts/savings")}
                   className={`flex items-center justify-center rounded-md px-2.5 py-2 text-sm font-medium transition ${
                     isOnAccountsRoute
                       ? "bg-slate-100 text-slate-900"
@@ -284,7 +295,7 @@ export default function AppSidebar({
                         return (
                           <li key={sub.href}>
                             <Link
-                              href={withMember(sub.href)}
+                              href={buildHref(sub.href)}
                               className={`flex items-center rounded-md px-2.5 py-1.5 text-sm transition ${
                                 active
                                   ? "bg-slate-100 font-medium text-slate-900"
