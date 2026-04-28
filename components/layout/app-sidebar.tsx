@@ -178,9 +178,16 @@ export default function AppSidebar({
 
   return (
     <aside
-      className={`border-r border-slate-300 bg-slate-900 text-slate-100 transition-all duration-200 ${
-        collapsed ? "w-20 sidebar-collapsed" : "w-64"
-      }`}
+      className={[
+        // Mobile: fixed overlay, slide off-screen when collapsed
+        // md+: static flex child, compact (w-20) or full (w-64)
+        "fixed inset-y-0 left-0 z-40",
+        "md:static md:inset-y-auto md:left-auto md:z-auto",
+        "border-r border-slate-300 bg-slate-900 text-slate-100 transition-all duration-200",
+        collapsed
+          ? "-translate-x-full md:translate-x-0 md:w-20 sidebar-collapsed"
+          : "translate-x-0 w-64",
+      ].join(" ")}
     >
       <div className="flex h-full flex-col">
         {/* Header */}

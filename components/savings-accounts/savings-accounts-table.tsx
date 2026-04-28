@@ -212,8 +212,8 @@ export default function SavingsAccountsTable({ rows }: SavingsAccountsTableProps
   }
 
   return (
-    <section className="rounded-lg border border-slate-300 bg-white">
-      <table className="w-full table-fixed border-collapse" style={{ tableLayout: "fixed" }}>
+    <section className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
+      <table className="min-w-[640px] w-full table-fixed border-collapse" style={{ tableLayout: "fixed" }}>
         <colgroup>
           <col style={{ width: "auto" }} />       {/* Purpose — flex */}
           <col style={{ width: "120px" }} />      {/* Current Balance */}

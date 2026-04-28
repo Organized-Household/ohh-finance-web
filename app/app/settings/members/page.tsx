@@ -140,7 +140,7 @@ export default async function MembersPage() {
             Active Members
           </h2>
           <div className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
-            <table className="w-full border-collapse">
+            <table className="min-w-[500px] w-full border-collapse">
               <thead className="bg-slate-900">
                 <tr>
                   <th className={thCls}>Name</th>
@@ -191,7 +191,7 @@ export default async function MembersPage() {
               <p className="text-sm text-slate-500">No pending invitations.</p>
             ) : (
               <div className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
-                <table className="w-full border-collapse">
+                <table className="min-w-[500px] w-full border-collapse">
                   <thead className="bg-slate-900">
                     <tr>
                       <th className={thCls}>Email</th>

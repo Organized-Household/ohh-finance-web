@@ -50,7 +50,9 @@ const cardStyle: React.CSSProperties = {
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  overflow: 'hidden',
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  minWidth: '600px',
 }
 
 export default function BudgetVsActualTable({ rows, monthProgress }: BudgetVsActualTableProps) {

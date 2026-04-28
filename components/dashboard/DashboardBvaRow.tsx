@@ -19,13 +19,10 @@ export default function DashboardBvaRow({
   monthProgress,
 }: DashboardBvaRowProps) {
   return (
-    <div style={{
-      flex: 1,
-      minHeight: 0,
-      display: 'grid',
-      gridTemplateColumns: '3fr 2fr',
-      gap: '10px',
-    }}>
+    <div
+      className="grid grid-cols-1 gap-3 lg:grid-cols-[3fr_2fr]"
+      style={{ flex: 1, minHeight: 0 }}
+    >
       <BudgetVsActualTable rows={bvaRows} monthProgress={monthProgress} />
       <SavingsTile accounts={savingsAccounts} />
     </div>
