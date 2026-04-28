@@ -157,18 +157,18 @@ export default function AppSidebar({
   const [accountsOpen, setAccountsOpen] = useState(isOnAccountsRoute);
   const [settingsOpen, setSettingsOpen] = useState(isOnSettingsRoute);
 
-  // Build a nav href that preserves ?month= and ?member= for member-scoped
-  // pages, so navigating via the sidebar doesn't reset the selected month
-  // or the active household member.
+  // Build a nav href that preserves ?month= across all pages and ?member=
+  // for member-scoped pages. ?month= is appended universally so that pages
+  // without a month picker (Categories, Expense Types) still carry the
+  // current month in their URL — otherwise navigating back to Budget or
+  // Transactions from those pages would reset to the current month.
   const buildHref = (href: string, memberScoped = true): string => {
-    if (!memberScoped) return href;
-
     const params = new URLSearchParams();
 
     const currentMonth = searchParams.get("month");
     if (currentMonth) params.set("month", currentMonth);
 
-    if (isAdmin && activeMemberId && activeMemberId !== currentUserId) {
+    if (memberScoped && isAdmin && activeMemberId && activeMemberId !== currentUserId) {
       params.set("member", activeMemberId);
     }
 
