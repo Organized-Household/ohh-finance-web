@@ -219,8 +219,8 @@ export default function InvestmentAccountsTable({ rows }: InvestmentAccountsTabl
   }
 
   return (
-    <section className="rounded-lg border border-slate-300 bg-white">
-      <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
+    <section className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
+      <table className="min-w-[640px] w-full border-collapse" style={{ tableLayout: "fixed" }}>
         <colgroup>
           <col style={{ width: "auto" }} />     {/* Name — flex */}
           <col style={{ width: "110px" }} />    {/* Type */}

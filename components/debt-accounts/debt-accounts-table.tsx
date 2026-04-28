@@ -211,8 +211,8 @@ export default function DebtAccountsTable({ rows }: DebtAccountsTableProps) {
   }
 
   return (
-    <section className="rounded-lg border border-slate-300 bg-white">
-      <table className="w-full border-collapse" style={{ tableLayout: "fixed" }}>
+    <section className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
+      <table className="min-w-[640px] w-full border-collapse" style={{ tableLayout: "fixed" }}>
         <colgroup>
           <col style={{ width: "auto" }} />     {/* Name — flex */}
           <col style={{ width: "120px" }} />    {/* Type */}

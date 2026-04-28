@@ -44,11 +44,34 @@ export default function WorkspaceShellClient({
     });
   };
 
+  // Hamburger button shown only on mobile (md:hidden) when sidebar is collapsed
+  const mobileMenuButton = (
+    <button
+      type="button"
+      onClick={handleSidebarToggle}
+      className="inline-flex size-8 items-center justify-center rounded-md border border-slate-200 text-slate-600 transition hover:bg-slate-100 md:hidden"
+      aria-label="Open menu"
+    >
+      <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true">
+        <path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+
   return (
     // h-screen + overflow-hidden constrains everything to the viewport —
     // required so flex-1 children can propagate a defined height down
     // to page content (enabling CSS-only viewport-fill layouts).
     <div className="flex h-screen overflow-hidden bg-slate-100">
+      {/* Mobile overlay — tap outside the sidebar to close it */}
+      {!isSidebarCollapsed && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={handleSidebarToggle}
+          aria-hidden="true"
+        />
+      )}
+
       <AppSidebar
         collapsed={isSidebarCollapsed}
         onToggle={handleSidebarToggle}
@@ -62,6 +85,7 @@ export default function WorkspaceShellClient({
           title={title}
           description={description}
           right={topbarControls}
+          mobileMenuButton={mobileMenuButton}
         />
 
         {/* min-h-0 prevents flex overflow; gridTemplateRows:1fr makes the

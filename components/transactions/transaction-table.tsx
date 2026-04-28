@@ -156,7 +156,7 @@ export default function TransactionTable({
         </div>
       )}
 
-      <table className="w-full border-collapse">
+      <table className="min-w-[900px] w-full border-collapse">
         <thead className="bg-slate-900 text-white">
           <tr>
             <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide">

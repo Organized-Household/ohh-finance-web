@@ -158,10 +158,10 @@ export default async function AppHomePage({
         Row 3 — BVA+Sav:  flex:1 + minHeight:0 — takes ALL remaining space
         Row 4 — Tiles:    flexShrink:0, height:220px — fixed, adjust to taste
       */}
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '10px' }}>
+      <div className="flex flex-col gap-3" style={{ minHeight: '100%' }}>
 
-        {/* Row 1: 3 KPI cards */}
-        <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+        {/* Row 1: 3 KPI cards — stacked on mobile, side-by-side on sm+ */}
+        <div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-3">
           <KpiCard
             label="Income"
             value={formatCurrency(summary.income_total)}
@@ -202,14 +202,8 @@ export default async function AppHomePage({
           monthProgress={monthProgress}
         />
 
-        {/* Row 4: Three equal bottom tiles — fixed height container, tiles fill via height:100% */}
-        <div style={{
-          flexShrink: 0,
-          height: '220px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: '10px',
-        }}>
+        {/* Row 4: Three equal bottom tiles — stacked mobile → 2-col md → 3-col lg (fixed height on lg+) */}
+        <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:h-[220px]">
           <AccountTile
             kind="investment"
             accounts={summary.investment_accounts ?? []}
