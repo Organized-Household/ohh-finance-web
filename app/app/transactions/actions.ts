@@ -1,499 +1,206 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
-import {
-  deleteTransactionSchema,
-  transactionSchema,
-  updateTransactionSchema,
-} from "@/lib/validation/transaction";
+import { revalidatePath } from "next/cache";
 
-type CategoryTag = "standard" | "savings" | "investment" | "debt_payment";
+type CategoryTag = "debts" | "standard" | "savings" | "investment" | "charity";
 
-// Signed amount convention: income = positive, expense = negative.
-// Applied server-side on every write — users never enter negative numbers.
-function applySignConvention(
-  amount: number,
-  transactionType: "income" | "expense"
-): number {
-  const abs = Math.abs(amount);
-  return transactionType === "expense" ? -abs : abs;
+interface Category {
+  id: string;
+  name: string;
+  tag: CategoryTag;
 }
 
-type TransactionAccountLinkInput = {
-  linked_account_id: string | null;
-  payment_source_account_id: string | null;
-};
+interface Account {
+  id: string;
+  account_kind: "savings" | "investment" | "debt";
+}
 
-async function getTenantCategory({
-  categoryId,
-  tenantId,
-}: {
-  categoryId: string;
-  tenantId: string;
+function assertCategoryCompatibleLink(
+  categoryTag: CategoryTag,
+  accountKind: "savings" | "investment" | "debt" | null
+): void {
+  if (accountKind === "debt" && categoryTag !== "debts") {
+    throw new Error(
+      "Cannot link a debt account to a transaction that is not tagged as debts"
+    );
+  }
+  if (accountKind === "savings" && categoryTag !== "savings") {
+    throw new Error(
+      "Cannot link a savings account to a transaction that is not tagged as savings"
+    );
+  }
+  if (accountKind === "investment" && categoryTag !== "investment") {
+    throw new Error(
+      "Cannot link an investment account to a transaction that is not tagged as investment"
+    );
+  }
+}
+
+export async function createTransaction(data: {
+  transaction_date: string;
+  description: string;
+  amount: number;
+  transaction_type: "income" | "expense";
+  category_id: string;
+  account_id?: string | null;
 }) {
   const supabase = await createClient();
-  const { data: category, error: categoryError } = await supabase
+  const membership = await getCurrentTenantMembership();
+
+  if (!membership) {
+    throw new Error("No tenant membership found");
+  }
+
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) {
+    throw new Error("Not authenticated");
+  }
+
+  // Fetch category to validate tag/account compatibility
+  const { data: category, error: catError } = await supabase
     .from("categories")
-    .select("id, category_type, tag")
-    .eq("id", categoryId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-
-  if (categoryError) {
-    throw new Error(`Failed to load category: ${categoryError.message}`);
-  }
-
-  if (!category) {
-    throw new Error("Category not found in current tenant");
-  }
-
-  return {
-    categoryType: category.category_type as "income" | "expense",
-    categoryTag: category.tag as CategoryTag,
-  };
-}
-
-async function assertAccountBelongsToTenant({
-  supabase,
-  accountId,
-  tenantId,
-}: {
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  accountId: string | null;
-  tenantId: string;
-}): Promise<void> {
-  if (!accountId) return;
-
-  const { data, error } = await supabase
-    .from("accounts")
-    .select("id")
-    .eq("id", accountId)
-    .eq("tenant_id", tenantId)
-    .eq("is_active", true)
-    .single();
-
-  if (error || !data) {
-    throw new Error("Account does not belong to this tenant");
-  }
-}
-
-async function assertCategoryCompatibleLink({
-  supabase,
-  categoryTag,
-  linkedAccountId,
-  tenantId,
-}: {
-  supabase: Awaited<ReturnType<typeof createClient>>;
-  categoryTag: CategoryTag;
-  linkedAccountId: string | null;
-  tenantId: string;
-}): Promise<void> {
-  if (!linkedAccountId) return;
-
-  const { data: account, error } = await supabase
-    .from("accounts")
-    .select("account_kind, account_subtype")
-    .eq("id", linkedAccountId)
-    .eq("tenant_id", tenantId)
-    .single();
-
-  if (error || !account) {
-    throw new Error("Linked account not found");
-  }
-
-  const { account_kind } = account;
-
-  // Design rule: Standard expense may link to any account kind including debt (credit card purchase).
-  // debt_payment tag is reserved for actual payments toward a debt.
-  if (categoryTag === "savings" && account_kind !== "savings") {
-    throw new Error("Savings category must link to a savings account");
-  }
-  if (categoryTag === "investment" && account_kind !== "investment") {
-    throw new Error("Investment category must link to an investment account");
-  }
-  if (categoryTag === "debt_payment" && account_kind !== "debt") {
-    throw new Error("Debt payment category must link to a debt account");
-  }
-  // standard tag: any account_kind is allowed
-}
-
-function assertPaymentSourceNotSameAsDestination(
-  linked_account_id: string | null,
-  payment_source_account_id: string | null
-): void {
-  if (
-    linked_account_id &&
-    payment_source_account_id &&
-    linked_account_id === payment_source_account_id
-  ) {
-    throw new Error(
-      "Linked account and payment source cannot be the same account"
-    );
-  }
-}
-
-function resolveMonthRedirectPath(month: unknown): string {
-  const value = typeof month === "string" ? month : "";
-
-  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
-    return `/app/transactions?month=${value}`;
-  }
-
-  return "/app/transactions";
-}
-
-export async function createTransaction(input: unknown) {
-  const parsed = transactionSchema.parse(input);
-
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    throw new Error("Authenticated user not found");
-  }
-
-  const { categoryType, categoryTag } = await getTenantCategory({
-    categoryId: parsed.category_id,
-    tenantId: membership.tenant_id,
-  });
-
-  if (
-    categoryType === "income" &&
-    (parsed.linked_account_id || parsed.payment_source_account_id)
-  ) {
-    throw new Error("Income transactions cannot include linked accounts.");
-  }
-
-  await assertAccountBelongsToTenant({
-    supabase,
-    accountId: parsed.linked_account_id,
-    tenantId: membership.tenant_id,
-  });
-
-  await assertAccountBelongsToTenant({
-    supabase,
-    accountId: parsed.payment_source_account_id,
-    tenantId: membership.tenant_id,
-  });
-
-  assertPaymentSourceNotSameAsDestination(
-    parsed.linked_account_id,
-    parsed.payment_source_account_id
-  );
-
-  await assertCategoryCompatibleLink({
-    supabase,
-    categoryTag,
-    linkedAccountId: parsed.linked_account_id,
-    tenantId: membership.tenant_id,
-  });
-
-  const { error: insertError } = await supabase.from("transactions").insert({
-    tenant_id: membership.tenant_id,
-    created_by_user_id: user.id,
-    category_id: parsed.category_id,
-    description: parsed.description,
-    amount: applySignConvention(parsed.amount, categoryType),
-    transaction_date: parsed.transaction_date,
-    transaction_type: categoryType,
-    linked_account_id: parsed.linked_account_id,
-    payment_source_account_id: parsed.payment_source_account_id,
-  });
-
-  if (insertError) {
-    throw new Error(`Failed to create transaction: ${insertError.message}`);
-  }
-
-  revalidatePath("/app/transactions");
-
-  return { success: true };
-}
-
-export async function updateTransaction(input: unknown) {
-  const parsed = updateTransactionSchema.parse(input);
-  const redirectPath = resolveMonthRedirectPath(
-    (input as { month?: unknown })?.month
-  );
-
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    throw new Error("Authenticated user not found");
-  }
-
-  const { data: existingTransaction, error: existingError } = await supabase
-    .from("transactions")
-    .select("id")
-    .eq("id", parsed.id)
+    .select("id, name, tag")
+    .eq("id", data.category_id)
     .eq("tenant_id", membership.tenant_id)
-    .maybeSingle();
+    .single();
 
-  if (existingError) {
-    throw new Error(`Failed to load transaction: ${existingError.message}`);
+  if (catError || !category) {
+    throw new Error("Invalid category");
   }
 
-  if (!existingTransaction) {
-    throw new Error("Transaction not found in current tenant");
+  let accountKind: "savings" | "investment" | "debt" | null = null;
+  if (data.account_id) {
+    const { data: account, error: accError } = await supabase
+      .from("accounts")
+      .select("id, account_kind")
+      .eq("id", data.account_id)
+      .eq("tenant_id", membership.tenant_id)
+      .single();
+
+    if (accError || !account) {
+      throw new Error("Invalid account");
+    }
+    accountKind = account.account_kind;
   }
 
-  const { categoryType, categoryTag } = await getTenantCategory({
-    categoryId: parsed.category_id,
-    tenantId: membership.tenant_id,
+  assertCategoryCompatibleLink(category.tag as CategoryTag, accountKind);
+
+  const { error } = await supabase.from("transactions").insert({
+    tenant_id: membership.tenant_id,
+    transaction_date: data.transaction_date,
+    description: data.description,
+    amount: data.amount,
+    transaction_type: data.transaction_type,
+    category_id: data.category_id,
+    account_id: data.account_id || null,
+    created_by_user_id: user.user.id,
   });
 
-  if (
-    categoryType === "income" &&
-    (parsed.linked_account_id || parsed.payment_source_account_id)
-  ) {
-    throw new Error("Income transactions cannot include linked accounts.");
-  }
-
-  await assertAccountBelongsToTenant({
-    supabase,
-    accountId: parsed.linked_account_id,
-    tenantId: membership.tenant_id,
-  });
-
-  await assertAccountBelongsToTenant({
-    supabase,
-    accountId: parsed.payment_source_account_id,
-    tenantId: membership.tenant_id,
-  });
-
-  assertPaymentSourceNotSameAsDestination(
-    parsed.linked_account_id,
-    parsed.payment_source_account_id
-  );
-
-  await assertCategoryCompatibleLink({
-    supabase,
-    categoryTag,
-    linkedAccountId: parsed.linked_account_id,
-    tenantId: membership.tenant_id,
-  });
-
-  const { error: updateError } = await supabase
-    .from("transactions")
-    .update({
-      description: parsed.description,
-      amount: applySignConvention(parsed.amount, categoryType),
-      transaction_date: parsed.transaction_date,
-      category_id: parsed.category_id,
-      transaction_type: categoryType,
-      linked_account_id: parsed.linked_account_id,
-      payment_source_account_id: parsed.payment_source_account_id,
-    })
-    .eq("id", parsed.id)
-    .eq("tenant_id", membership.tenant_id);
-
-  if (updateError) {
-    throw new Error(`Failed to update transaction: ${updateError.message}`);
+  if (error) {
+    throw new Error(`Failed to create transaction: ${error.message}`);
   }
 
   revalidatePath("/app/transactions");
-  redirect(redirectPath);
+  revalidatePath("/app/dashboard");
 }
 
-// ─── updateTransactionInline ──────────────────────────────────────────────────
-// Client-side inline row editor calls this directly.
-// Identical business logic to updateTransaction but returns a result object
-// instead of redirecting — the client handles UI state after save.
-export async function updateTransactionInline(
+export async function updateTransaction(
   id: string,
   data: {
-    transaction_date: string;
-    description: string;
-    category_id: string;
-    linked_account_id: string | null;
-    payment_source_account_id: string | null;
-    amount: number;
-    transaction_type: "income" | "expense";
+    transaction_date?: string;
+    description?: string;
+    amount?: number;
+    transaction_type?: "income" | "expense";
+    category_id?: string;
+    account_id?: string | null;
   }
-): Promise<{ ok: boolean; error?: string }> {
+) {
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return { ok: false, error: "Not authenticated" };
+  if (!membership) {
+    throw new Error("No tenant membership found");
   }
 
-  try {
-    const { data: existing } = await supabase
-      .from("transactions")
-      .select("id")
-      .eq("id", id)
+  // Fetch existing transaction to validate ownership
+  const { data: existing, error: fetchError } = await supabase
+    .from("transactions")
+    .select("id, tenant_id, category_id, account_id")
+    .eq("id", id)
+    .eq("tenant_id", membership.tenant_id)
+    .single();
+
+  if (fetchError || !existing) {
+    throw new Error("Transaction not found or access denied");
+  }
+
+  const finalCategoryId = data.category_id || existing.category_id;
+  const finalAccountId =
+    data.account_id !== undefined ? data.account_id : existing.account_id;
+
+  // Fetch category
+  const { data: category, error: catError } = await supabase
+    .from("categories")
+    .select("id, name, tag")
+    .eq("id", finalCategoryId)
+    .eq("tenant_id", membership.tenant_id)
+    .single();
+
+  if (catError || !category) {
+    throw new Error("Invalid category");
+  }
+
+  let accountKind: "savings" | "investment" | "debt" | null = null;
+  if (finalAccountId) {
+    const { data: account, error: accError } = await supabase
+      .from("accounts")
+      .select("id, account_kind")
+      .eq("id", finalAccountId)
       .eq("tenant_id", membership.tenant_id)
-      .maybeSingle();
+      .single();
 
-    if (!existing) {
-      return { ok: false, error: "Transaction not found" };
+    if (accError || !account) {
+      throw new Error("Invalid account");
     }
-
-    const { categoryType, categoryTag } = await getTenantCategory({
-      categoryId: data.category_id,
-      tenantId: membership.tenant_id,
-    });
-
-    if (
-      categoryType === "income" &&
-      (data.linked_account_id || data.payment_source_account_id)
-    ) {
-      return { ok: false, error: "Income transactions cannot include linked accounts." };
-    }
-
-    await assertAccountBelongsToTenant({
-      supabase,
-      accountId: data.linked_account_id,
-      tenantId: membership.tenant_id,
-    });
-
-    await assertAccountBelongsToTenant({
-      supabase,
-      accountId: data.payment_source_account_id,
-      tenantId: membership.tenant_id,
-    });
-
-    assertPaymentSourceNotSameAsDestination(
-      data.linked_account_id,
-      data.payment_source_account_id
-    );
-
-    await assertCategoryCompatibleLink({
-      supabase,
-      categoryTag,
-      linkedAccountId: data.linked_account_id,
-      tenantId: membership.tenant_id,
-    });
-
-    const { error: updateError } = await supabase
-      .from("transactions")
-      .update({
-        description: data.description,
-        amount: applySignConvention(data.amount, categoryType),
-        transaction_date: data.transaction_date,
-        category_id: data.category_id,
-        transaction_type: categoryType,
-        linked_account_id: data.linked_account_id,
-        payment_source_account_id: data.payment_source_account_id,
-      })
-      .eq("id", id)
-      .eq("tenant_id", membership.tenant_id);
-
-    if (updateError) {
-      return { ok: false, error: updateError.message };
-    }
-
-    revalidatePath("/app/transactions");
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Update failed" };
+    accountKind = account.account_kind;
   }
+
+  assertCategoryCompatibleLink(category.tag as CategoryTag, accountKind);
+
+  const { error } = await supabase
+    .from("transactions")
+    .update(data)
+    .eq("id", id)
+    .eq("tenant_id", membership.tenant_id);
+
+  if (error) {
+    throw new Error(`Failed to update transaction: ${error.message}`);
+  }
+
+  revalidatePath("/app/transactions");
+  revalidatePath("/app/dashboard");
 }
 
-// ─── deleteTransactionInline ──────────────────────────────────────────────────
-// Client-side inline row delete button calls this directly.
-// Returns a result object instead of redirecting — caller calls router.refresh().
-export async function deleteTransactionInline(
-  id: string
-): Promise<{ ok: boolean; error?: string }> {
+export async function deleteTransaction(id: string) {
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return { ok: false, error: "Not authenticated" };
+  if (!membership) {
+    throw new Error("No tenant membership found");
   }
 
-  const { data: existing } = await supabase
-    .from("transactions")
-    .select("id")
-    .eq("id", id)
-    .eq("tenant_id", membership.tenant_id)
-    .maybeSingle();
-
-  if (!existing) {
-    return { ok: false, error: "Transaction not found" };
-  }
-
-  const { error: deleteError } = await supabase
+  const { error } = await supabase
     .from("transactions")
     .delete()
     .eq("id", id)
     .eq("tenant_id", membership.tenant_id);
 
-  if (deleteError) {
-    return { ok: false, error: deleteError.message };
+  if (error) {
+    throw new Error(`Failed to delete transaction: ${error.message}`);
   }
 
   revalidatePath("/app/transactions");
-  return { ok: true };
-}
-
-export async function deleteTransaction(input: unknown) {
-  const parsed = deleteTransactionSchema.parse(input);
-  const redirectPath = resolveMonthRedirectPath(
-    (input as { month?: unknown })?.month
-  );
-
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    throw new Error("Authenticated user not found");
-  }
-
-  const { data: existingTransaction, error: existingError } = await supabase
-    .from("transactions")
-    .select("id")
-    .eq("id", parsed.id)
-    .eq("tenant_id", membership.tenant_id)
-    .maybeSingle();
-
-  if (existingError) {
-    throw new Error(`Failed to load transaction: ${existingError.message}`);
-  }
-
-  if (!existingTransaction) {
-    throw new Error("Transaction not found in current tenant");
-  }
-
-  const { error: deleteError } = await supabase
-    .from("transactions")
-    .delete()
-    .eq("id", parsed.id)
-    .eq("tenant_id", membership.tenant_id);
-
-  if (deleteError) {
-    throw new Error(`Failed to delete transaction: ${deleteError.message}`);
-  }
-
-  revalidatePath("/app/transactions");
-  redirect(redirectPath);
+  revalidatePath("/app/dashboard");
 }
