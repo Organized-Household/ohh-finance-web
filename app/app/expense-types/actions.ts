@@ -1,85 +1,104 @@
-import { createAdminClient } from '@/lib/supabase/admin';
-import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership';
-import { revalidatePath } from 'next/cache';
+"use server";
 
-export async function createExpenseType(
-  name: string,
-  slug: string,
-  description?: string
-) {
-  const membership = await getCurrentTenantMembership();
+import { revalidatePath } from "next/cache";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-  if (!membership || membership.role !== 'admin') {
-    return { error: 'Admin permission required' };
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+export async function createExpenseType(input: {
+  name: string;
+}): Promise<{ success?: boolean; error?: string }> {
+  const name = input.name.trim();
+  if (!name) return { error: "Name is required." };
+
+  const slug = generateSlug(name);
+  if (!slug) {
+    return { error: "Name produced an invalid slug. Use letters and spaces only." };
   }
 
   // Service role required: expense_types table has no write RLS for authenticated role.
   // Only service role can INSERT/UPDATE/DELETE expense_types.
   const adminClient = createAdminClient();
 
-  const { data, error } = await adminClient
-    .from('expense_types')
-    .insert({ name, slug, description })
-    .select()
-    .single();
+  const { error } = await adminClient
+    .from("expense_types")
+    .insert({ name, slug, is_system: false });
 
   if (error) {
+    if (error.code === "23505") return { error: "This expense type already exists." };
     return { error: error.message };
   }
 
-  revalidatePath('/app/expense-types');
-  return { success: true, data };
+  revalidatePath("/app/expense-types");
+  revalidatePath("/app/budgets/categories");
+  return { success: true };
 }
 
-export async function updateExpenseType(
+export async function toggleExpenseTypeActive(
   id: string,
-  name: string,
-  slug: string,
-  description?: string
-) {
-  const membership = await getCurrentTenantMembership();
-
-  if (!membership || membership.role !== 'admin') {
-    return { error: 'Admin permission required' };
-  }
-
-  // Service role required: expense_types table has no write RLS for authenticated role.
-  const adminClient = createAdminClient();
-
-  const { data, error } = await adminClient
-    .from('expense_types')
-    .update({ name, slug, description })
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  revalidatePath('/app/expense-types');
-  return { success: true, data };
-}
-
-export async function deleteExpenseType(id: string) {
-  const membership = await getCurrentTenantMembership();
-
-  if (!membership || membership.role !== 'admin') {
-    return { error: 'Admin permission required' };
-  }
-
+  isActive: boolean
+): Promise<{ success?: boolean; error?: string }> {
   // Service role required: expense_types table has no write RLS for authenticated role.
   const adminClient = createAdminClient();
 
   const { error } = await adminClient
-    .from('expense_types')
-    .delete()
-    .eq('id', id);
+    .from("expense_types")
+    .update({ is_active: isActive })
+    .eq("id", id)
+    .eq("is_system", false); // cannot deactivate system types
 
-  if (error) {
-    return { error: error.message };
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/expense-types");
+  revalidatePath("/app/budgets/categories");
+  return { success: true };
+}
+
+export async function deleteExpenseType(
+  id: string
+): Promise<{ success?: boolean; error?: string }> {
+  // Service role required: expense_types table has no write RLS for authenticated role.
+  const adminClient = createAdminClient();
+
+  // Guard: cannot delete system types
+  const { data: et } = await adminClient
+    .from("expense_types")
+    .select("is_system, slug")
+    .eq("id", id)
+    .single();
+
+  if (et?.is_system) {
+    return { error: "System expense types cannot be deleted." };
   }
 
-  revalidatePath('/app/expense-types');
+  // Guard: cannot delete if active categories are using this slug
+  const { count } = await adminClient
+    .from("categories")
+    .select("*", { count: "exact", head: true })
+    .eq("tag", et?.slug ?? "")
+    .eq("is_active", true);
+
+  if ((count ?? 0) > 0) {
+    return {
+      error: `This expense type is used by ${count} active ${count === 1 ? "category" : "categories"}. Reassign those categories before deleting.`,
+    };
+  }
+
+  const { error } = await adminClient
+    .from("expense_types")
+    .delete()
+    .eq("id", id)
+    .eq("is_system", false);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/expense-types");
+  revalidatePath("/app/budgets/categories");
   return { success: true };
 }
