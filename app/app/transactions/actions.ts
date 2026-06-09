@@ -25,6 +25,8 @@ export async function createTransaction(data: z.infer<typeof transactionSchema>)
     throw new Error('No tenant membership found')
   }
 
+  const { data: userData } = await supabase.auth.getUser()
+
   const validatedData = transactionSchema.parse(data)
 
   const { error } = await supabase
@@ -32,7 +34,7 @@ export async function createTransaction(data: z.infer<typeof transactionSchema>)
     .insert({
       ...validatedData,
       tenant_id: membership.tenant_id,
-      created_by_user_id: membership.user_id,
+      created_by_user_id: userData.user?.id,
     })
 
   if (error) {
@@ -98,7 +100,7 @@ export async function updateTransactionInline(
     return { ok: true }
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
-      return { ok: false, error: err.errors.map(e => e.message).join(', ') }
+      return { ok: false, error: err.issues.map(e => e.message).join(', ') }
     }
     if (err instanceof Error) {
       return { ok: false, error: err.message }
