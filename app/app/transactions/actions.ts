@@ -12,9 +12,10 @@ const transactionSchema = z.object({
   }),
   description: z.string().min(1, 'Description is required'),
   amount: z.number().positive('Amount must be positive'),
-  transaction_type: z.enum(['income', 'expense']),
+  transaction_type: z.enum(['income', 'expense']).optional(),
   category_id: z.string().uuid('Invalid category ID'),
-  account_id: z.string().uuid('Invalid account ID').optional().nullable(),
+  linked_account_id: z.string().uuid('Invalid linked account ID').optional().nullable(),
+  payment_source_account_id: z.string().uuid('Invalid payment source account ID').optional().nullable(),
 })
 
 export async function createTransaction(data: z.infer<typeof transactionSchema>) {
