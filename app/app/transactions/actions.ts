@@ -1,206 +1,159 @@
-"use server";
+'use server'
 
-import { createClient } from "@/lib/supabase/server";
-import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
-import { revalidatePath } from "next/cache";
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { z } from 'zod'
+import { createClient } from '@/lib/supabase/server'
+import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership'
 
-type CategoryTag = "debts" | "standard" | "savings" | "investment" | "charity";
+const transactionSchema = z.object({
+  transaction_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid date format',
+  }),
+  description: z.string().min(1, 'Description is required'),
+  amount: z.number().positive('Amount must be positive'),
+  transaction_type: z.enum(['income', 'expense']),
+  category_id: z.string().uuid('Invalid category ID'),
+  account_id: z.string().uuid('Invalid account ID').optional().nullable(),
+})
 
-interface Category {
-  id: string;
-  name: string;
-  tag: CategoryTag;
-}
-
-interface Account {
-  id: string;
-  account_kind: "savings" | "investment" | "debt";
-}
-
-function assertCategoryCompatibleLink(
-  categoryTag: CategoryTag,
-  accountKind: "savings" | "investment" | "debt" | null
-): void {
-  if (accountKind === "debt" && categoryTag !== "debts") {
-    throw new Error(
-      "Cannot link a debt account to a transaction that is not tagged as debts"
-    );
-  }
-  if (accountKind === "savings" && categoryTag !== "savings") {
-    throw new Error(
-      "Cannot link a savings account to a transaction that is not tagged as savings"
-    );
-  }
-  if (accountKind === "investment" && categoryTag !== "investment") {
-    throw new Error(
-      "Cannot link an investment account to a transaction that is not tagged as investment"
-    );
-  }
-}
-
-export async function createTransaction(data: {
-  transaction_date: string;
-  description: string;
-  amount: number;
-  transaction_type: "income" | "expense";
-  category_id: string;
-  account_id?: string | null;
-}) {
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
+export async function createTransaction(data: z.infer<typeof transactionSchema>) {
+  const supabase = await createClient()
+  const membership = await getCurrentTenantMembership()
 
   if (!membership) {
-    throw new Error("No tenant membership found");
+    throw new Error('No tenant membership found')
   }
 
-  const { data: user } = await supabase.auth.getUser();
-  if (!user.user) {
-    throw new Error("Not authenticated");
-  }
+  const validatedData = transactionSchema.parse(data)
 
-  // Fetch category to validate tag/account compatibility
-  const { data: category, error: catError } = await supabase
-    .from("categories")
-    .select("id, name, tag")
-    .eq("id", data.category_id)
-    .eq("tenant_id", membership.tenant_id)
-    .single();
-
-  if (catError || !category) {
-    throw new Error("Invalid category");
-  }
-
-  let accountKind: "savings" | "investment" | "debt" | null = null;
-  if (data.account_id) {
-    const { data: account, error: accError } = await supabase
-      .from("accounts")
-      .select("id, account_kind")
-      .eq("id", data.account_id)
-      .eq("tenant_id", membership.tenant_id)
-      .single();
-
-    if (accError || !account) {
-      throw new Error("Invalid account");
-    }
-    accountKind = account.account_kind;
-  }
-
-  assertCategoryCompatibleLink(category.tag as CategoryTag, accountKind);
-
-  const { error } = await supabase.from("transactions").insert({
-    tenant_id: membership.tenant_id,
-    transaction_date: data.transaction_date,
-    description: data.description,
-    amount: data.amount,
-    transaction_type: data.transaction_type,
-    category_id: data.category_id,
-    account_id: data.account_id || null,
-    created_by_user_id: user.user.id,
-  });
+  const { error } = await supabase
+    .from('transactions')
+    .insert({
+      ...validatedData,
+      tenant_id: membership.tenant_id,
+      created_by_user_id: membership.user_id,
+    })
 
   if (error) {
-    throw new Error(`Failed to create transaction: ${error.message}`);
+    throw new Error(`Failed to create transaction: ${error.message}`)
   }
 
-  revalidatePath("/app/transactions");
-  revalidatePath("/app/dashboard");
+  revalidatePath('/app/transactions')
+  redirect('/app/transactions')
 }
 
 export async function updateTransaction(
   id: string,
-  data: {
-    transaction_date?: string;
-    description?: string;
-    amount?: number;
-    transaction_type?: "income" | "expense";
-    category_id?: string;
-    account_id?: string | null;
-  }
+  data: z.infer<typeof transactionSchema>
 ) {
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
+  const supabase = await createClient()
+  const membership = await getCurrentTenantMembership()
 
   if (!membership) {
-    throw new Error("No tenant membership found");
+    throw new Error('No tenant membership found')
   }
 
-  // Fetch existing transaction to validate ownership
-  const { data: existing, error: fetchError } = await supabase
-    .from("transactions")
-    .select("id, tenant_id, category_id, account_id")
-    .eq("id", id)
-    .eq("tenant_id", membership.tenant_id)
-    .single();
-
-  if (fetchError || !existing) {
-    throw new Error("Transaction not found or access denied");
-  }
-
-  const finalCategoryId = data.category_id || existing.category_id;
-  const finalAccountId =
-    data.account_id !== undefined ? data.account_id : existing.account_id;
-
-  // Fetch category
-  const { data: category, error: catError } = await supabase
-    .from("categories")
-    .select("id, name, tag")
-    .eq("id", finalCategoryId)
-    .eq("tenant_id", membership.tenant_id)
-    .single();
-
-  if (catError || !category) {
-    throw new Error("Invalid category");
-  }
-
-  let accountKind: "savings" | "investment" | "debt" | null = null;
-  if (finalAccountId) {
-    const { data: account, error: accError } = await supabase
-      .from("accounts")
-      .select("id, account_kind")
-      .eq("id", finalAccountId)
-      .eq("tenant_id", membership.tenant_id)
-      .single();
-
-    if (accError || !account) {
-      throw new Error("Invalid account");
-    }
-    accountKind = account.account_kind;
-  }
-
-  assertCategoryCompatibleLink(category.tag as CategoryTag, accountKind);
+  const validatedData = transactionSchema.parse(data)
 
   const { error } = await supabase
-    .from("transactions")
-    .update(data)
-    .eq("id", id)
-    .eq("tenant_id", membership.tenant_id);
+    .from('transactions')
+    .update(validatedData)
+    .eq('id', id)
+    .eq('tenant_id', membership.tenant_id)
 
   if (error) {
-    throw new Error(`Failed to update transaction: ${error.message}`);
+    throw new Error(`Failed to update transaction: ${error.message}`)
   }
 
-  revalidatePath("/app/transactions");
-  revalidatePath("/app/dashboard");
+  revalidatePath('/app/transactions')
+  redirect('/app/transactions')
+}
+
+export async function updateTransactionInline(
+  id: string,
+  data: z.infer<typeof transactionSchema>
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const membership = await getCurrentTenantMembership()
+
+    if (!membership) {
+      return { ok: false, error: 'No tenant membership found' }
+    }
+
+    const validatedData = transactionSchema.parse(data)
+
+    const { error } = await supabase
+      .from('transactions')
+      .update(validatedData)
+      .eq('id', id)
+      .eq('tenant_id', membership.tenant_id)
+
+    if (error) {
+      return { ok: false, error: `Failed to update transaction: ${error.message}` }
+    }
+
+    revalidatePath('/app/transactions')
+    return { ok: true }
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      return { ok: false, error: err.errors.map(e => e.message).join(', ') }
+    }
+    if (err instanceof Error) {
+      return { ok: false, error: err.message }
+    }
+    return { ok: false, error: 'Unknown error occurred' }
+  }
 }
 
 export async function deleteTransaction(id: string) {
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
+  const supabase = await createClient()
+  const membership = await getCurrentTenantMembership()
 
   if (!membership) {
-    throw new Error("No tenant membership found");
+    throw new Error('No tenant membership found')
   }
 
   const { error } = await supabase
-    .from("transactions")
+    .from('transactions')
     .delete()
-    .eq("id", id)
-    .eq("tenant_id", membership.tenant_id);
+    .eq('id', id)
+    .eq('tenant_id', membership.tenant_id)
 
   if (error) {
-    throw new Error(`Failed to delete transaction: ${error.message}`);
+    throw new Error(`Failed to delete transaction: ${error.message}`)
   }
 
-  revalidatePath("/app/transactions");
-  revalidatePath("/app/dashboard");
+  revalidatePath('/app/transactions')
+  redirect('/app/transactions')
+}
+
+export async function deleteTransactionInline(id: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const membership = await getCurrentTenantMembership()
+
+    if (!membership) {
+      return { ok: false, error: 'No tenant membership found' }
+    }
+
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('id', id)
+      .eq('tenant_id', membership.tenant_id)
+
+    if (error) {
+      return { ok: false, error: `Failed to delete transaction: ${error.message}` }
+    }
+
+    revalidatePath('/app/transactions')
+    return { ok: true }
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      return { ok: false, error: err.message }
+    }
+    return { ok: false, error: 'Unknown error occurred' }
+  }
 }
