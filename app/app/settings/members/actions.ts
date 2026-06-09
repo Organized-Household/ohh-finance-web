@@ -1,119 +1,223 @@
-import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
-import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership';
-import { revalidatePath } from 'next/cache';
+"use server";
 
-export async function inviteMember(email: string, role: 'admin' | 'member') {
-  const supabase = createClient();
-  const membership = await getCurrentTenantMembership();
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-  if (!membership || membership.role !== 'admin') {
-    return { error: 'Admin permission required' };
-  }
+export async function inviteMember(
+  _prevState: { error?: string; success?: boolean } | null,
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const role = String(formData.get("role") ?? "member");
 
+  if (!email) return { error: "Email is required." };
+  if (!["admin", "member"].includes(role)) return { error: "Invalid role." };
+
+  const supabase = await createClient();
   // Service role required: auth.admin.inviteUserByEmail requires admin client.
-  const adminClient = createAdminClient();
+  const supabaseAdmin = createAdminClient();
 
-  const { data, error } = await adminClient.auth.admin.inviteUserByEmail(email);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (error || !data.user) {
-    return { error: error?.message || 'Invitation failed' };
+  if (!user) return { error: "Not authenticated." };
+
+  // Verify caller is admin
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id, role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership || membership.role !== "admin") {
+    return { error: "Only admins can invite members." };
   }
 
-  const token = crypto.randomUUID();
+  const tenantId = membership.tenant_id;
 
-  const { error: inviteError } = await adminClient
-    .from('invitations')
-    .insert({
-      tenant_id: membership.tenant_id,
-      email,
-      role,
-      token,
-      status: 'pending',
-    });
+  // Insert invitation record — DB unique constraint catches duplicate pending invites
+  const { error: insertError } = await supabase.from("invitations").insert({
+    tenant_id: tenantId,
+    email,
+    role,
+    invited_by: user.id,
+    status: "pending",
+  });
+
+  if (insertError) {
+    if (insertError.code === "23505") {
+      return { error: "This email already has a pending invitation." };
+    }
+    return { error: insertError.message };
+  }
+
+  const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    email,
+    {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/accept-invite`,
+    }
+  );
 
   if (inviteError) {
-    return { error: 'Failed to create invitation record' };
+    // Roll back invitation record on email failure
+    await supabase
+      .from("invitations")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("email", email)
+      .eq("status", "pending");
+
+    return { error: inviteError.message };
   }
 
-  revalidatePath('/app/settings/members');
+  revalidatePath("/app/settings/members");
   return { success: true };
 }
 
-export async function revokeInvitation(invitationId: string) {
-  const membership = await getCurrentTenantMembership();
+export async function revokeInvitation(
+  invitationId: string
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
+  // Service role required: anon UPDATE RLS would silently block.
+  const supabaseAdmin = createAdminClient();
 
-  if (!membership || membership.role !== 'admin') {
-    return { error: 'Admin permission required' };
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: membership } = await supabase
+    .from("tenant_members")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership || membership.role !== "admin") {
+    return { error: "Only admins can revoke invitations." };
   }
 
-  // Service role required: anon UPDATE RLS would silently block.
-  // invitations table RLS allows UPDATE only by service role or owner.
-  const adminClient = createAdminClient();
-
-  const { error } = await adminClient
-    .from('invitations')
-    .update({ status: 'revoked' })
-    .eq('id', invitationId)
-    .eq('tenant_id', membership.tenant_id);
+  const { error } = await supabaseAdmin
+    .from("invitations")
+    .update({ status: "revoked" })
+    .eq("id", invitationId);
 
   if (error) {
-    return { error: 'Failed to revoke invitation' };
+    console.error("[revokeInvitation] DB error:", error.message);
+    return { error: error.message };
   }
 
-  revalidatePath('/app/settings/members');
+  revalidatePath("/app/settings/members");
   return { success: true };
 }
 
 export async function updateMemberRole(
-  userId: string,
-  newRole: 'admin' | 'member'
-) {
-  const membership = await getCurrentTenantMembership();
-
-  if (!membership || membership.role !== 'admin') {
-    return { error: 'Admin permission required' };
-  }
-
+  targetUserId: string,
+  newRole: "admin" | "member"
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
   // Service role required: tenant_members UPDATE requires admin client.
   // RLS policy restricts role changes to service role only.
-  const adminClient = createAdminClient();
+  const supabaseAdmin = createAdminClient();
 
-  const { error } = await adminClient
-    .from('tenant_members')
-    .update({ role: newRole })
-    .eq('user_id', userId)
-    .eq('tenant_id', membership.tenant_id);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
 
-  if (error) {
-    return { error: 'Failed to update member role' };
+  const { data: callerMembership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id, role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!callerMembership || callerMembership.role !== "admin") {
+    return { error: "Only admins can change member roles." };
   }
 
-  revalidatePath('/app/settings/members');
+  if (targetUserId === user.id) {
+    return { error: "You cannot change your own role." };
+  }
+
+  const tenantId = callerMembership.tenant_id;
+
+  if (newRole === "admin") {
+    const { count } = await supabaseAdmin
+      .from("tenant_members")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("role", "admin");
+
+    if ((count ?? 0) >= 2) {
+      return { error: "Maximum of 2 admins allowed per household." };
+    }
+  }
+
+  if (newRole === "member") {
+    const { count } = await supabaseAdmin
+      .from("tenant_members")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .eq("role", "admin");
+
+    if ((count ?? 0) <= 1) {
+      return {
+        error: "Cannot demote the last admin. Promote another member first.",
+      };
+    }
+  }
+
+  const { error } = await supabaseAdmin
+    .from("tenant_members")
+    .update({ role: newRole })
+    .eq("tenant_id", tenantId)
+    .eq("user_id", targetUserId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/settings/members");
   return { success: true };
 }
 
-export async function removeMember(userId: string) {
-  const membership = await getCurrentTenantMembership();
-
-  if (!membership || membership.role !== 'admin') {
-    return { error: 'Admin permission required' };
-  }
-
+export async function removeMember(
+  targetUserId: string
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
   // Service role required: hard-delete requires admin client.
   // RLS policy restricts DELETE to service role only.
-  const adminClient = createAdminClient();
+  const supabaseAdmin = createAdminClient();
 
-  const { error } = await adminClient
-    .from('tenant_members')
-    .delete()
-    .eq('user_id', userId)
-    .eq('tenant_id', membership.tenant_id);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
 
-  if (error) {
-    return { error: 'Failed to remove member' };
+  const { data: callerMembership } = await supabase
+    .from("tenant_members")
+    .select("tenant_id, role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (!callerMembership || callerMembership.role !== "admin") {
+    return { error: "Only admins can remove members." };
   }
 
-  revalidatePath('/app/settings/members');
+  if (targetUserId === user.id) {
+    return { error: "You cannot remove yourself." };
+  }
+
+  const { error } = await supabaseAdmin
+    .from("tenant_members")
+    .delete()
+    .eq("tenant_id", callerMembership.tenant_id)
+    .eq("user_id", targetUserId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/app/settings/members");
   return { success: true };
 }
