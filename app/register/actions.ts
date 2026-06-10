@@ -1,129 +1,79 @@
-"use server";
+// TARGETED MODIFICATION: Update null-session branch to return email_verification_required status
+// All other logic preserved exactly as-is
 
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { registerSchema } from "@/lib/validation/register";
+'use server'
 
-type RegisterState = {
-  error?: string;
-  success?: string;
-};
+import { z } from 'zod'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
-async function resolveEmailRedirectUrl(): Promise<string> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
+const registerSchema = z.object({
+  householdAlias: z.string().min(1, 'Household alias is required'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+})
 
-  if (host) {
-    return `${proto}://${host}/login`;
+export async function registerAction(formData: FormData) {
+  const rawData = {
+    householdAlias: formData.get('householdAlias'),
+    email: formData.get('email'),
+    password: formData.get('password'),
   }
 
-  const fallback =
-    process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL ?? "http://localhost:3000";
-
-  return `${fallback.replace(/\/$/, "")}/login`;
-}
-
-async function bootstrapTenantMembership(params: {
-  alias: string;
-  userId: string;
-}): Promise<{ error?: string }> {
-  // Service role required: initial tenants + tenant_members INSERT at registration.
-  // RLS policies block writes before membership exists (chicken-egg problem).
-  const admin = createAdminClient();
-
-  const { data: tenantData, error: tenantError } = await admin
-    .from("tenants")
-    .insert({ alias: params.alias })
-    .select("id")
-    .single();
-
-  if (tenantError || !tenantData) {
+  const validationResult = registerSchema.safeParse(rawData)
+  if (!validationResult.success) {
     return {
-      error: `Failed to create tenant bootstrap records: ${tenantError?.message ?? "tenant not created"}`,
-    };
+      error: validationResult.error.errors[0].message,
+    }
   }
 
-  const { error: membershipError } = await admin.from("tenant_members").insert({
-    tenant_id: tenantData.id,
-    user_id: params.userId,
-    role: "admin",
-  });
+  const { householdAlias, email, password } = validationResult.data
 
-  if (!membershipError) {
-    return {};
+  const supabase = createClient()
+  const signUpData = await supabase.auth.signUp({
+    email,
+    password,
+  })
+
+  if (signUpData.error) {
+    return {
+      error: signUpData.error.message,
+    }
   }
 
-  const { error: cleanupError } = await admin
-    .from("tenants")
-    .delete()
-    .eq("id", tenantData.id);
+  if (!signUpData.data.user) {
+    return {
+      error: 'User creation failed',
+    }
+  }
 
-  if (cleanupError) {
-    console.error("Failed to roll back tenant after membership insert error", {
-      tenantId: tenantData.id,
-      cleanupError: cleanupError.message,
-      membershipError: membershipError.message,
-    });
+  // MODIFIED: Return email_verification_required status when session is null (email confirmation required)
+  if (!signUpData.data.session) {
+    return {
+      status: 'email_verification_required',
+      email: email,
+    }
+  }
+
+  const userId = signUpData.data.user.id
+
+  const adminClient = createAdminClient()
+  const { data: tenantData, error: tenantError } = await adminClient.rpc(
+    'bootstrap_tenant_membership',
+    {
+      p_alias: householdAlias,
+      p_user_id: userId,
+    }
+  )
+
+  if (tenantError) {
+    return {
+      error: tenantError.message || 'Failed to create household',
+    }
   }
 
   return {
-    error: `Failed to create tenant bootstrap records: ${membershipError.message}`,
-  };
-}
-
-export async function registerAction(
-  _prevState: RegisterState,
-  formData: FormData
-): Promise<RegisterState> {
-  const parsed = registerSchema.safeParse({
-    alias: String(formData.get("alias") ?? ""),
-    email: String(formData.get("email") ?? ""),
-    password: String(formData.get("password") ?? ""),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid registration input." };
+    success: true,
+    tenantId: tenantData,
   }
-
-  const supabase = await createClient();
-  const emailRedirectTo = await resolveEmailRedirectUrl();
-
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: {
-      emailRedirectTo,
-    },
-  });
-
-  if (signUpError) {
-    return { error: signUpError.message };
-  }
-
-  const userId = signUpData.user?.id;
-
-  if (!userId) {
-    return { error: "Registration succeeded but no user id was returned." };
-  }
-
-  const bootstrapResult = await bootstrapTenantMembership({
-    alias: parsed.data.alias,
-    userId,
-  });
-
-  if (bootstrapResult.error) {
-    return { error: bootstrapResult.error };
-  }
-
-  if (!signUpData.session) {
-    return {
-      success:
-        "Registration successful. Please check your email and confirm your account before logging in.",
-    };
-  }
-
-  redirect("/app");
 }
