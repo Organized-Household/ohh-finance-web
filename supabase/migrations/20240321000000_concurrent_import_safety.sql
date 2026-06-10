@@ -2,6 +2,9 @@
 -- Story: OHHFIN-167 — STORY-12.9 — Handle Concurrent Import Race Conditions
 -- Purpose: Prevent duplicate imports and ensure import operations are serialized
 
+-- file_hash does not exist on import_batches yet (verified via information_schema 2026-06-10)
+ALTER TABLE import_batches ADD COLUMN file_hash TEXT;
+
 -- Add composite unique constraint to prevent duplicate imports
 -- Uses tenant_id, original_filename, and file_hash to detect exact duplicates
 ALTER TABLE import_batches
