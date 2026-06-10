@@ -8,9 +8,10 @@ import AuthCard from "@/components/public/auth-card";
 import FormAlert from "@/components/public/form-alert";
 import InlineErrorMessage from "@/components/public/inline-error-message";
 import PublicBrandHeader from "@/components/public/public-brand-header";
+import { createClient } from "@/lib/supabase/client";
 import { registerAction } from "./actions";
 
-const initialState: { error?: string; success?: string } = {};
+const initialState: { error?: string; success?: string; status?: "email_verification_required"; email?: string } = {};
 
 type RegisterFieldErrors = {
   alias?: string;
@@ -33,7 +34,7 @@ function mapRegisterError(error: string): string {
     return "Registration is currently unavailable.";
   }
 
-  return "We couldn’t create your account. Please try again.";
+  return "We couldn't create your account. Please try again.";
 }
 
 export default function RegisterPage() {
@@ -42,6 +43,10 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
   const [state, formAction, pending] = useActionState(registerAction, initialState);
+
+  // OHHFIN-187: Resend email state for the verification prompt
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   function validateFields(): RegisterFieldErrors {
     const nextErrors: RegisterFieldErrors = {};
@@ -70,6 +75,71 @@ export default function RegisterPage() {
     if (Object.keys(nextErrors).length > 0) {
       event.preventDefault();
     }
+  }
+
+  // OHHFIN-187: Handle resend verification email
+  async function handleResendEmail() {
+    if (!state?.email) return;
+
+    setResendLoading(true);
+    setResendMessage(null);
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: state.email,
+    });
+
+    if (error) {
+      setResendMessage("Failed to resend email. Please try again.");
+    } else {
+      setResendMessage("Verification email sent! Check your inbox.");
+    }
+
+    setResendLoading(false);
+  }
+
+  // OHHFIN-187: Show verification prompt when email confirmation is required
+  if (state?.status === "email_verification_required") {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <PublicBrandHeader current="register" />
+        <main className="mx-auto flex w-full max-w-6xl flex-1 justify-center px-4 pb-10 pt-10 sm:pt-14">
+          <AuthCard
+            title="Check your email"
+            description={`We sent a verification link to ${state.email}. Click the link to activate your account.`}
+          >
+            <div className="space-y-4">
+              <button
+                type="button"
+                onClick={handleResendEmail}
+                disabled={resendLoading}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
+              >
+                {resendLoading ? "Sending..." : "Resend email"}
+              </button>
+
+              {resendMessage && (
+                <p className={`text-sm text-center ${
+                  resendMessage.includes("Failed") ? "text-red-600" : "text-green-600"
+                }`}>
+                  {resendMessage}
+                </p>
+              )}
+
+              <p className="text-sm text-center text-slate-600">
+                <Link
+                  href="/login"
+                  className="font-medium text-slate-800 underline underline-offset-2 hover:text-slate-900"
+                >
+                  Back to login
+                </Link>
+              </p>
+            </div>
+          </AuthCard>
+        </main>
+      </div>
+    );
   }
 
   const formErrorMessage = state?.error ? mapRegisterError(state.error) : "";

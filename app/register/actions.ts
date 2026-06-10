@@ -9,6 +9,8 @@ import { registerSchema } from "@/lib/validation/register";
 type RegisterState = {
   error?: string;
   success?: string;
+  status?: "email_verification_required";
+  email?: string;
 };
 
 async function resolveEmailRedirectUrl(): Promise<string> {
@@ -109,6 +111,15 @@ export async function registerAction(
     return { error: "Registration succeeded but no user id was returned." };
   }
 
+  // OHHFIN-187: When email confirmation is required, session is null.
+  // Return email_verification_required status so the page can show the verification prompt.
+  if (!signUpData.session) {
+    return {
+      status: "email_verification_required",
+      email: parsed.data.email,
+    };
+  }
+
   const bootstrapResult = await bootstrapTenantMembership({
     alias: parsed.data.alias,
     userId,
@@ -116,13 +127,6 @@ export async function registerAction(
 
   if (bootstrapResult.error) {
     return { error: bootstrapResult.error };
-  }
-
-  if (!signUpData.session) {
-    return {
-      success:
-        "Registration successful. Please check your email and confirm your account before logging in.",
-    };
   }
 
   redirect("/app");
