@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import { importPayloadSchema } from "@/lib/validation/import";
+import { computeRowFingerprint } from "@/lib/import/row-fingerprint";
 import type { ParsedRow } from "@/lib/csv/parseImportFile";
 
 // ─── HistoryMatch ─────────────────────────────────────────────────────────────
@@ -27,7 +28,7 @@ export async function importStagingRows(payload: {
   rows: ParsedRow[];
   original_filename: string;
 }): Promise<
-  | { ok: true; data: { batch_id: string; count: number } }
+  | { ok: true; data: { batch_id: string; count: number; skipped?: number } }
   | { ok: false; error: string }
 > {
   const supabase = await createClient();
@@ -107,7 +108,7 @@ export async function importStagingRows(payload: {
     return amount >= 0 ? "income" : "expense";
   };
 
-  // Step 3 — Build staging rows with auto-fill + sign correction
+  // Step 3 — Build staging rows with auto-fill + sign correction + row_fingerprint
   // Sign convention applied here: expense → negative, income → positive.
   // Bank CSVs may already have the correct sign, but we normalise regardless.
   const stagingRows = rows.map((row) => {
@@ -126,13 +127,23 @@ export async function importStagingRows(payload: {
       linked_account_id: history?.linked_account_id ?? null,
       payment_source_account_id: history?.payment_source_account_id ?? null,
       status: "pending",
+      row_fingerprint: computeRowFingerprint(
+        tenantId,
+        row.occurred_at,
+        signedAmount,
+        row.description
+      ),
     };
   });
 
-  // Step 4 — Insert staging rows
-  const { error: insertError } = await supabase
+  // Step 4 — Insert staging rows with upsert to skip duplicates
+  const { data: inserted, error: insertError } = await supabase
     .from("import_staging")
-    .insert(stagingRows);
+    .upsert(stagingRows, {
+      onConflict: "tenant_id,row_fingerprint",
+      ignoreDuplicates: true,
+    })
+    .select("id");
 
   if (insertError) {
     await supabase
@@ -146,6 +157,9 @@ export async function importStagingRows(payload: {
     return { ok: false, error: "Failed to save imported rows" };
   }
 
+  const insertedCount = inserted?.length ?? 0;
+  const skippedCount = stagingRows.length - insertedCount;
+
   // Step 5 — Mark batch stored_pending
   await supabase
     .from("import_batches")
@@ -154,14 +168,15 @@ export async function importStagingRows(payload: {
 
   console.log("[import] success", {
     batchId: batch.id,
-    count: stagingRows.length,
+    count: insertedCount,
+    skipped: skippedCount,
   });
 
   revalidatePath("/app/transactions");
 
   return {
     ok: true,
-    data: { batch_id: batch.id, count: stagingRows.length },
+    data: { batch_id: batch.id, count: insertedCount, skipped: skippedCount },
   };
 }
 
