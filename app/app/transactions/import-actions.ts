@@ -1,244 +1,377 @@
-'use server';
+"use server";
 
-import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership';
-import { normalizeTransactionRows } from '@/lib/import/normalize-transaction-rows';
-import { calculateFileHash } from '@/lib/import/import-lock';
-import { acquireImportLock, releaseImportLock } from '@/lib/import/import-lock';
-import { applyCategorizationRules } from '@/lib/import/apply-categorization-rules';
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
+import { importPayloadSchema } from "@/lib/validation/import";
+import type { ParsedRow } from "@/lib/csv/parseImportFile";
 
-export async function uploadImport(formData: FormData) {
-  const supabase = createClient();
-  const membership = await getCurrentTenantMembership(supabase);
-  if (!membership) {
-    return { success: false, error: 'Not authenticated or no tenant membership' };
-  }
-
-  const file = formData.get('file') as File;
-  if (!file) {
-    return { success: false, error: 'No file provided' };
-  }
-
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const fileHash = calculateFileHash(buffer);
-
-  const adminClient = createAdminClient();
-  const lockAcquired = await acquireImportLock(adminClient, membership.tenant_id);
-  if (!lockAcquired) {
-    return { success: false, error: 'Another import is in progress for this tenant' };
-  }
-
-  try {
-    const { data: duplicateCheck, error: dupError } = await adminClient.rpc(
-      'check_duplicate_import',
-      {
-        p_tenant_id: membership.tenant_id,
-        p_filename: file.name,
-        p_file_hash: fileHash
-      }
-    );
-
-    if (dupError) {
-      return { success: false, error: 'Failed to check for duplicates' };
-    }
-
-    if (duplicateCheck && duplicateCheck.length > 0) {
-      const existing = duplicateCheck[0];
-      return {
-        success: false,
-        error: `Duplicate import detected: ${existing.original_filename} (${existing.status}) from ${new Date(existing.created_at).toLocaleString()}`
-      };
-    }
-
-    const text = buffer.toString('utf-8');
-    const normalizedRows = normalizeTransactionRows(text);
-
-    if (normalizedRows.length === 0) {
-      return { success: false, error: 'No valid transactions found in CSV' };
-    }
-
-    const { data: batch, error: batchError } = await supabase
-      .from('import_batches')
-      .insert({
-        tenant_id: membership.tenant_id,
-        original_filename: file.name,
-        file_hash: fileHash,
-        status: 'pending',
-        imported_by: membership.user_id
-      })
-      .select('id')
-      .single();
-
-    if (batchError || !batch) {
-      return { success: false, error: 'Failed to create import batch' };
-    }
-
-    const stagingRows = normalizedRows.map((row) => ({
-      tenant_id: membership.tenant_id,
-      import_batch_id: batch.id,
-      occurred_at: row.date,
-      description: row.description,
-      amount: row.amount,
-      transaction_type: row.transaction_type,
-      category_id: null
-    }));
-
-    const { error: insertError } = await supabase
-      .from('import_staging')
-      .insert(stagingRows);
-
-    if (insertError) {
-      return { success: false, error: 'Failed to insert staging rows' };
-    }
-
-    await applyCategorizationRules(supabase, membership.tenant_id, batch.id);
-
-    revalidatePath('/app/transactions/import');
-    return { success: true, batchId: batch.id };
-  } finally {
-    await releaseImportLock(adminClient, membership.tenant_id);
-  }
+// ─── HistoryMatch ─────────────────────────────────────────────────────────────
+// Represents one row returned by get_latest_transactions_by_description RPC.
+// description_key is LOWER(description) — used as the map key for lookup.
+// All 4 auto-fill fields may be null (e.g. if the matched transaction had none).
+interface HistoryMatch {
+  description_key: string;
+  category_id: string | null;
+  transaction_type: "income" | "expense" | null;
+  linked_account_id: string | null;
+  payment_source_account_id: string | null;
 }
 
-export async function postStagingRows(batchId: string, rowIds: string[]) {
-  const supabase = createClient();
-  const membership = await getCurrentTenantMembership(supabase);
-  if (!membership) {
-    return { success: false, error: 'Not authenticated or no tenant membership' };
+// ─── importStagingRows ────────────────────────────────────────────────────────
+// Validates parsed rows, creates an import_batch record, auto-fills 4 fields
+// from description history, and inserts all rows into import_staging.
+// Called from ImportPanel after successful client-side CSV parse.
+// Never logs row contents — counts only.
+export async function importStagingRows(payload: {
+  rows: ParsedRow[];
+  original_filename: string;
+}): Promise<
+  | { ok: true; data: { batch_id: string; count: number } }
+  | { ok: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "Not authenticated" };
   }
 
+  const membership = await getCurrentTenantMembership();
+  const tenantId = membership.tenant_id;
+
+  // Server-side validation
+  const parse = importPayloadSchema.safeParse(payload);
+  if (!parse.success) {
+    return { ok: false, error: "Invalid import data" };
+  }
+
+  const { rows, original_filename } = parse.data;
+
+  // Step 1 — Create import batch
+  const { data: batch, error: batchError } = await supabase
+    .from("import_batches")
+    .insert({
+      tenant_id: tenantId,
+      original_filename,
+      imported_by: user.id,
+      status: "created",
+    })
+    .select("id")
+    .single();
+
+  if (batchError || !batch) {
+    console.error("[import] batch create failed", { code: batchError?.code });
+    return { ok: false, error: "Failed to create import batch" };
+  }
+
+  // Step 2 — Batch history lookup: one RPC call for all unique descriptions
+  const uniqueDescriptions = [...new Set(rows.map((r) => r.description))];
+
+  const { data: historyRows, error: rpcError } = await supabase.rpc(
+    "get_latest_transactions_by_description",
+    {
+      p_tenant_id: tenantId,
+      p_descriptions: uniqueDescriptions,
+    }
+  );
+
+  // Auto-fill is best-effort (Decision Log 2026-04-24): RPC errors are logged
+  // server-side only. Import is NOT aborted — staging rows are inserted with
+  // null fields and the user fills them manually during review (OHHFIN-54).
+  if (rpcError) {
+    console.error("[OHHFIN-53] Auto-categorize RPC error:", rpcError.message);
+  }
+
+  // Build lookup map: LOWER(description) → auto-fill fields
+  const historyMap = new Map<string, HistoryMatch>();
+
+  if (historyRows) {
+    for (const h of historyRows as HistoryMatch[]) {
+      historyMap.set(h.description_key, h);
+    }
+  }
+
+  // Decision 2026-04-22: only 'income' and 'expense' are valid.
+  // Guard against stale history rows that may contain old savings/investment values.
+  const VALID_TYPES = ["income", "expense"] as const;
+  type ValidType = (typeof VALID_TYPES)[number];
+
+  const deriveType = (historyType: string | null, amount: number): ValidType => {
+    if (historyType && (VALID_TYPES as readonly string[]).includes(historyType)) {
+      return historyType as ValidType;
+    }
+    return amount >= 0 ? "income" : "expense";
+  };
+
+  // Step 3 — Build staging rows with auto-fill + sign correction
+  // Sign convention applied here: expense → negative, income → positive.
+  // Bank CSVs may already have the correct sign, but we normalise regardless.
+  const stagingRows = rows.map((row) => {
+    const history = historyMap.get(row.description.toLowerCase()) ?? null;
+    const txType = deriveType(history?.transaction_type ?? null, row.amount);
+    const signedAmount =
+      txType === "expense" ? -Math.abs(row.amount) : Math.abs(row.amount);
+    return {
+      tenant_id: tenantId,
+      import_batch_id: batch.id,
+      occurred_at: row.occurred_at,
+      description: row.description,
+      amount: signedAmount,
+      transaction_type: txType,
+      category_id: history?.category_id ?? null,
+      linked_account_id: history?.linked_account_id ?? null,
+      payment_source_account_id: history?.payment_source_account_id ?? null,
+      status: "pending",
+    };
+  });
+
+  // Step 4 — Insert staging rows
+  const { error: insertError } = await supabase
+    .from("import_staging")
+    .insert(stagingRows);
+
+  if (insertError) {
+    await supabase
+      .from("import_batches")
+      .update({ status: "failed" })
+      .eq("id", batch.id);
+    console.error("[import] insert failed", {
+      batchId: batch.id,
+      code: insertError.code,
+    });
+    return { ok: false, error: "Failed to save imported rows" };
+  }
+
+  // Step 5 — Mark batch stored_pending
+  await supabase
+    .from("import_batches")
+    .update({ status: "stored_pending" })
+    .eq("id", batch.id);
+
+  console.log("[import] success", {
+    batchId: batch.id,
+    count: stagingRows.length,
+  });
+
+  revalidatePath("/app/transactions");
+
+  return {
+    ok: true,
+    data: { batch_id: batch.id, count: stagingRows.length },
+  };
+}
+
+// ─── updateStagingRow ─────────────────────────────────────────────────────────
+// Patches one staging row's editable fields (called when user changes a dropdown
+// in the review table). Tenant check is enforced by RLS + explicit eq filter.
+//
+// When transaction_type changes, the amount sign is corrected to match:
+//   expense → -ABS(amount), income → +ABS(amount)
+// This mirrors the signed convention enforced at insert time.
+export async function updateStagingRow(
+  rowId: string,
+  updates: {
+    category_id?: string | null;
+    transaction_type?: string | null;
+    linked_account_id?: string | null;
+    payment_source_account_id?: string | null;
+  }
+): Promise<{ ok: boolean; error?: string; correctedAmount?: number }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  const membership = await getCurrentTenantMembership();
+
+  // If transaction_type is changing, fetch current amount and correct the sign
+  let correctedAmount: number | undefined;
+  if (updates.transaction_type === "income" || updates.transaction_type === "expense") {
+    const { data: current } = await supabase
+      .from("import_staging")
+      .select("amount")
+      .eq("id", rowId)
+      .eq("tenant_id", membership.tenant_id)
+      .eq("status", "pending")
+      .single();
+
+    if (current) {
+      correctedAmount =
+        updates.transaction_type === "expense"
+          ? -Math.abs(Number(current.amount))
+          : Math.abs(Number(current.amount));
+    }
+  }
+
+  const { error } = await supabase
+    .from("import_staging")
+    .update({
+      category_id: updates.category_id ?? null,
+      transaction_type: updates.transaction_type ?? null,
+      linked_account_id: updates.linked_account_id ?? null,
+      payment_source_account_id: updates.payment_source_account_id ?? null,
+      ...(correctedAmount !== undefined ? { amount: correctedAmount } : {}),
+    })
+    .eq("id", rowId)
+    .eq("tenant_id", membership.tenant_id)
+    .eq("status", "pending");
+
+  if (error) {
+    console.error("[updateStagingRow] failed", { code: error.code });
+    return { ok: false, error: "Failed to update row" };
+  }
+
+  return { ok: true, correctedAmount };
+}
+
+// ─── postStagingRows ──────────────────────────────────────────────────────────
+// Copies selected staging rows → transactions, deletes from staging.
+// Marks batch completed when all rows for that batch are posted.
+export async function postStagingRows(
+  rowIds: string[]
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  if (!rowIds.length) {
+    return { ok: false, error: "No rows selected" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "Not authenticated" };
+  }
+
+  const membership = await getCurrentTenantMembership();
+  const tenantId = membership.tenant_id;
+
+  // Fetch staging rows to post (RLS + explicit tenant check)
   const { data: stagingRows, error: fetchError } = await supabase
-    .from('import_staging')
-    .select('*')
-    .eq('import_batch_id', batchId)
-    .in('id', rowIds);
+    .from("import_staging")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .in("id", rowIds)
+    .eq("status", "pending");
 
-  if (fetchError || !stagingRows) {
-    console.error(`[import] post failed — batchId: ${batchId}, rowCount: ${rowIds.length}, error: ${fetchError?.message || 'Failed to fetch staging rows'}`);
-    return { success: false, error: 'Failed to fetch staging rows' };
+  if (fetchError || !stagingRows?.length) {
+    console.error(
+      `[import] post failed — batchId: unknown, rowCount: ${rowIds.length}, error: ${fetchError?.message ?? "No pending rows found"}`
+    );
+    return { ok: false, error: "No pending rows found" };
   }
 
-  const transactions = stagingRows.map((row) => ({
-    tenant_id: membership.tenant_id,
+  // Copy to transactions table
+  // occurred_at (staging) → transaction_date (transactions physical column)
+  // amount is signed — negative for expenses (constraint: amount <> 0)
+  // transaction_type: 'income' | 'expense' only (confirmed from DB constraint)
+  const transactionsToInsert = stagingRows.map((row) => ({
+    tenant_id: row.tenant_id,
     transaction_date: row.occurred_at,
     description: row.description,
     amount: row.amount,
-    transaction_type: row.transaction_type,
-    category_id: row.category_id,
-    created_by_user_id: membership.user_id
+    transaction_type: row.transaction_type ?? "expense",
+    category_id: row.category_id ?? null,
+    linked_account_id: row.linked_account_id ?? null,
+    payment_source_account_id: row.payment_source_account_id ?? null,
+    created_by_user_id: user.id,
   }));
 
+  // Pre-insert log — types only, never row contents
+  console.log("[post] inserting", {
+    count: transactionsToInsert.length,
+    types: transactionsToInsert.map((r) => r.transaction_type),
+  });
+
   const { error: insertError } = await supabase
-    .from('transactions')
-    .insert(transactions);
+    .from("transactions")
+    .insert(transactionsToInsert);
 
   if (insertError) {
-    console.error(`[import] post failed — batchId: ${batchId}, rowCount: ${stagingRows.length}, error: ${insertError.message}`);
-    return { success: false, error: 'Failed to insert transactions' };
+    console.error("[postStagingRows] insert failed", {
+      code: insertError.code,
+    });
+    console.error(
+      `[import] post failed — batchId: ${[...new Set(stagingRows.map((r) => r.import_batch_id))].join(", ")}, rowCount: ${transactionsToInsert.length}, error: ${insertError.message}`
+    );
+    return { ok: false, error: "Failed to post transactions" };
   }
 
+  // Delete from staging
   const { error: deleteError } = await supabase
-    .from('import_staging')
+    .from("import_staging")
     .delete()
-    .in('id', rowIds);
+    .eq("tenant_id", tenantId)
+    .in("id", rowIds);
 
   if (deleteError) {
-    console.error(`[import] post failed — batchId: ${batchId}, rowCount: ${stagingRows.length}, error: ${deleteError.message}`);
-    return { success: false, error: 'Failed to delete staging rows' };
+    console.error(
+      `[import] post failed — batchId: ${[...new Set(stagingRows.map((r) => r.import_batch_id))].join(", ")}, rowCount: ${rowIds.length}, error: ${deleteError.message}`
+    );
   }
 
-  const { count } = await supabase
-    .from('import_staging')
-    .select('id', { count: 'exact', head: true })
-    .eq('import_batch_id', batchId);
+  // Mark any now-empty batches as completed
+  const batchIds = [...new Set(stagingRows.map((r) => r.import_batch_id))];
+  for (const batchId of batchIds) {
+    const { count } = await supabase
+      .from("import_staging")
+      .select("id", { count: "exact", head: true })
+      .eq("import_batch_id", batchId)
+      .eq("tenant_id", tenantId);
 
-  if (count === 0) {
-    await supabase
-      .from('import_batches')
-      .update({ status: 'completed' })
-      .eq('id', batchId);
+    if (count === 0) {
+      await supabase
+        .from("import_batches")
+        .update({ status: "completed" })
+        .eq("id", batchId);
+    }
   }
 
-  revalidatePath('/app/transactions/import');
-  revalidatePath('/app/transactions');
-  return { success: true };
+  revalidatePath("/app/transactions");
+
+  return { ok: true, count: transactionsToInsert.length };
 }
 
-export async function updateStagingRowCategory(
-  rowId: string,
-  categoryId: string | null
-) {
-  const supabase = createClient();
-  const membership = await getCurrentTenantMembership(supabase);
-  if (!membership) {
-    return { success: false, error: 'Not authenticated or no tenant membership' };
+// ─── discardStagingRow ────────────────────────────────────────────────────────
+// Deletes one pending staging row without posting it to transactions.
+// No confirmation required — staging rows are not permanent records.
+export async function discardStagingRow(
+  rowId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { ok: false, error: "Not authenticated" };
   }
+
+  const membership = await getCurrentTenantMembership();
 
   const { error } = await supabase
-    .from('import_staging')
-    .update({ category_id: categoryId })
-    .eq('id', rowId)
-    .eq('tenant_id', membership.tenant_id);
+    .from("import_staging")
+    .delete()
+    .eq("id", rowId)
+    .eq("tenant_id", membership.tenant_id)
+    .eq("status", "pending"); // safety: only discard pending rows
 
   if (error) {
-    return { success: false, error: 'Failed to update category' };
+    console.error("[discardStagingRow] failed", { code: error.code });
+    return { ok: false, error: "Failed to discard row" };
   }
 
-  revalidatePath('/app/transactions/import');
-  return { success: true };
-}
-
-export async function deleteStagingRow(rowId: string) {
-  const supabase = createClient();
-  const membership = await getCurrentTenantMembership(supabase);
-  if (!membership) {
-    return { success: false, error: 'Not authenticated or no tenant membership' };
-  }
-
-  const { error } = await supabase
-    .from('import_staging')
-    .delete()
-    .eq('id', rowId)
-    .eq('tenant_id', membership.tenant_id);
-
-  if (error) {
-    return { success: false, error: 'Failed to delete staging row' };
-  }
-
-  revalidatePath('/app/transactions/import');
-  return { success: true };
-}
-
-export async function discardImportBatch(batchId: string) {
-  const supabase = createClient();
-  const membership = await getCurrentTenantMembership(supabase);
-  if (!membership) {
-    return { success: false, error: 'Not authenticated or no tenant membership' };
-  }
-
-  const { error: deleteStaging } = await supabase
-    .from('import_staging')
-    .delete()
-    .eq('import_batch_id', batchId)
-    .eq('tenant_id', membership.tenant_id);
-
-  if (deleteStaging) {
-    return { success: false, error: 'Failed to delete staging rows' };
-  }
-
-  const { error: deleteBatch } = await supabase
-    .from('import_batches')
-    .delete()
-    .eq('id', batchId)
-    .eq('tenant_id', membership.tenant_id);
-
-  if (deleteBatch) {
-    return { success: false, error: 'Failed to delete import batch' };
-  }
-
-  revalidatePath('/app/transactions/import');
-  return { success: true };
+  revalidatePath("/app/transactions");
+  return { ok: true };
 }
