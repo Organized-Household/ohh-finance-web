@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import { importPayloadSchema } from "@/lib/validation/import";
 import type { ParsedRow } from "@/lib/csv/parseImportFile";
+import { createHash } from "crypto";
 
 // ─── HistoryMatch ─────────────────────────────────────────────────────────────
 // Represents one row returned by get_latest_transactions_by_description RPC.
@@ -26,6 +27,7 @@ interface HistoryMatch {
 export async function importStagingRows(payload: {
   rows: ParsedRow[];
   original_filename: string;
+  file_content: string;
 }): Promise<
   | { ok: true; data: { batch_id: string; count: number } }
   | { ok: false; error: string }
@@ -49,7 +51,33 @@ export async function importStagingRows(payload: {
     return { ok: false, error: "Invalid import data" };
   }
 
-  const { rows, original_filename } = parse.data;
+  const { rows, original_filename, file_content } = parse.data;
+
+  // Compute SHA-256 fingerprint of raw file content
+  const fileFingerprint = createHash('sha256').update(file_content).digest('hex');
+
+  // Check for duplicate import in this tenant
+  const { data: existingBatch, error: duplicateCheckError } = await supabase
+    .from('import_batches')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('file_fingerprint', fileFingerprint)
+    .maybeSingle();
+
+  if (duplicateCheckError) {
+    console.error('[import] duplicate check failed', {
+      tenantId,
+      error: duplicateCheckError.message
+    });
+    return { ok: false, error: 'Failed to check for duplicate imports' };
+  }
+
+  if (existingBatch) {
+    return {
+      ok: false,
+      error: 'This file has already been imported. Upload a different file or review your existing imports.'
+    };
+  }
 
   // Step 1 — Create import batch
   const { data: batch, error: batchError } = await supabase
@@ -58,6 +86,7 @@ export async function importStagingRows(payload: {
       tenant_id: tenantId,
       original_filename,
       imported_by: user.id,
+      file_fingerprint: fileFingerprint,
       status: "created",
     })
     .select("id")
