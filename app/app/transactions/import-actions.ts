@@ -265,6 +265,9 @@ export async function postStagingRows(
     .eq("status", "pending");
 
   if (fetchError || !stagingRows?.length) {
+    console.error(
+      `[import] post failed — batchId: unknown, rowCount: ${rowIds.length}, error: ${fetchError?.message ?? "No pending rows found"}`
+    );
     return { ok: false, error: "No pending rows found" };
   }
 
@@ -298,15 +301,24 @@ export async function postStagingRows(
     console.error("[postStagingRows] insert failed", {
       code: insertError.code,
     });
+    console.error(
+      `[import] post failed — batchId: ${[...new Set(stagingRows.map((r) => r.import_batch_id))].join(", ")}, rowCount: ${transactionsToInsert.length}, error: ${insertError.message}`
+    );
     return { ok: false, error: "Failed to post transactions" };
   }
 
   // Delete from staging
-  await supabase
+  const { error: deleteError } = await supabase
     .from("import_staging")
     .delete()
     .eq("tenant_id", tenantId)
     .in("id", rowIds);
+
+  if (deleteError) {
+    console.error(
+      `[import] post failed — batchId: ${[...new Set(stagingRows.map((r) => r.import_batch_id))].join(", ")}, rowCount: ${rowIds.length}, error: ${deleteError.message}`
+    );
+  }
 
   // Mark any now-empty batches as completed
   const batchIds = [...new Set(stagingRows.map((r) => r.import_batch_id))];
