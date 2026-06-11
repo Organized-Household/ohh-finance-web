@@ -1,162 +1,147 @@
-'use server'
+'use server';
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
-import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership'
+import { createClient } from '@/lib/supabase/server';
+import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership';
+import { revalidatePath } from 'next/cache';
 
-const transactionSchema = z.object({
-  transaction_date: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: 'Invalid date format',
-  }),
-  description: z.string().min(1, 'Description is required'),
-  amount: z.number().positive('Amount must be positive'),
-  transaction_type: z.enum(['income', 'expense']).optional(),
-  category_id: z.string().uuid('Invalid category ID'),
-  linked_account_id: z.string().uuid('Invalid linked account ID').optional().nullable(),
-  payment_source_account_id: z.string().uuid('Invalid payment source account ID').optional().nullable(),
-})
-
-export async function createTransaction(data: z.infer<typeof transactionSchema>) {
-  const supabase = await createClient()
-  const membership = await getCurrentTenantMembership()
+export async function getTransactions(monthStart: string) {
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership(supabase);
 
   if (!membership) {
-    throw new Error('No tenant membership found')
+    throw new Error('Unauthorized');
   }
 
-  const { data: userData } = await supabase.auth.getUser()
+  const nextMonthStart = new Date(monthStart);
+  nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
 
-  const validatedData = transactionSchema.parse(data)
-
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('transactions')
-    .insert({
-      ...validatedData,
-      tenant_id: membership.tenant_id,
-      created_by_user_id: userData.user?.id,
-    })
+    .select(`
+      id,
+      transaction_date,
+      description,
+      amount,
+      transaction_type,
+      category_id,
+      created_by_user_id,
+      created_at,
+      updated_at,
+      categories(id, name, tag)
+    `)
+    .eq('tenant_id', membership.tenant_id)
+    .gte('transaction_date', monthStart)
+    .lt('transaction_date', nextMonthStart.toISOString().split('T')[0])
+    .order('transaction_date', { ascending: false });
 
   if (error) {
-    throw new Error(`Failed to create transaction: ${error.message}`)
+    console.error('Failed to fetch transactions:', error);
+    throw new Error('Failed to fetch transactions');
   }
 
-  revalidatePath('/app/transactions')
-  redirect('/app/transactions')
+  return data;
+}
+
+export async function createTransaction(formData: {
+  transaction_date: string;
+  description: string;
+  amount: number;
+  transaction_type: 'income' | 'expense';
+  category_id: string;
+  account_id?: string | null;
+}) {
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership(supabase);
+
+  if (!membership) {
+    throw new Error('Unauthorized');
+  }
+
+  const { data: user } = await supabase.auth.getUser();
+  if (!user.user) {
+    throw new Error('Unauthorized');
+  }
+
+  const { error } = await supabase.from('transactions').insert({
+    tenant_id: membership.tenant_id,
+    transaction_date: formData.transaction_date,
+    description: formData.description,
+    amount: formData.amount,
+    transaction_type: formData.transaction_type,
+    category_id: formData.category_id,
+    account_id: formData.account_id || null,
+    created_by_user_id: user.user.id
+  });
+
+  if (error) {
+    console.error('Failed to create transaction:', error);
+    throw new Error('Failed to create transaction');
+  }
+
+  revalidatePath('/app/transactions');
+  revalidatePath('/app/dashboard');
 }
 
 export async function updateTransaction(
   id: string,
-  data: z.infer<typeof transactionSchema>
+  formData: {
+    transaction_date: string;
+    description: string;
+    amount: number;
+    transaction_type: 'income' | 'expense';
+    category_id: string;
+    account_id?: string | null;
+  }
 ) {
-  const supabase = await createClient()
-  const membership = await getCurrentTenantMembership()
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership(supabase);
 
   if (!membership) {
-    throw new Error('No tenant membership found')
+    throw new Error('Unauthorized');
   }
-
-  const validatedData = transactionSchema.parse(data)
 
   const { error } = await supabase
     .from('transactions')
-    .update(validatedData)
+    .update({
+      transaction_date: formData.transaction_date,
+      description: formData.description,
+      amount: formData.amount,
+      transaction_type: formData.transaction_type,
+      category_id: formData.category_id,
+      account_id: formData.account_id || null,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', id)
-    .eq('tenant_id', membership.tenant_id)
+    .eq('tenant_id', membership.tenant_id);
 
   if (error) {
-    throw new Error(`Failed to update transaction: ${error.message}`)
+    console.error('Failed to update transaction:', error);
+    throw new Error('Failed to update transaction');
   }
 
-  revalidatePath('/app/transactions')
-  redirect('/app/transactions')
-}
-
-export async function updateTransactionInline(
-  id: string,
-  data: z.infer<typeof transactionSchema>
-): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const supabase = await createClient()
-    const membership = await getCurrentTenantMembership()
-
-    if (!membership) {
-      return { ok: false, error: 'No tenant membership found' }
-    }
-
-    const validatedData = transactionSchema.parse(data)
-
-    const { error } = await supabase
-      .from('transactions')
-      .update(validatedData)
-      .eq('id', id)
-      .eq('tenant_id', membership.tenant_id)
-
-    if (error) {
-      return { ok: false, error: `Failed to update transaction: ${error.message}` }
-    }
-
-    revalidatePath('/app/transactions')
-    return { ok: true }
-  } catch (err: unknown) {
-    if (err instanceof z.ZodError) {
-      return { ok: false, error: err.issues.map(e => e.message).join(', ') }
-    }
-    if (err instanceof Error) {
-      return { ok: false, error: err.message }
-    }
-    return { ok: false, error: 'Unknown error occurred' }
-  }
+  revalidatePath('/app/transactions');
+  revalidatePath('/app/dashboard');
 }
 
 export async function deleteTransaction(id: string) {
-  const supabase = await createClient()
-  const membership = await getCurrentTenantMembership()
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership(supabase);
 
   if (!membership) {
-    throw new Error('No tenant membership found')
+    throw new Error('Unauthorized');
   }
 
   const { error } = await supabase
     .from('transactions')
     .delete()
     .eq('id', id)
-    .eq('tenant_id', membership.tenant_id)
+    .eq('tenant_id', membership.tenant_id);
 
   if (error) {
-    throw new Error(`Failed to delete transaction: ${error.message}`)
+    console.error('Failed to delete transaction:', error);
+    throw new Error('Failed to delete transaction');
   }
 
-  revalidatePath('/app/transactions')
-  redirect('/app/transactions')
-}
-
-export async function deleteTransactionInline(id: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const supabase = await createClient()
-    const membership = await getCurrentTenantMembership()
-
-    if (!membership) {
-      return { ok: false, error: 'No tenant membership found' }
-    }
-
-    const { error } = await supabase
-      .from('transactions')
-      .delete()
-      .eq('id', id)
-      .eq('tenant_id', membership.tenant_id)
-
-    if (error) {
-      return { ok: false, error: `Failed to delete transaction: ${error.message}` }
-    }
-
-    revalidatePath('/app/transactions')
-    return { ok: true }
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      return { ok: false, error: err.message }
-    }
-    return { ok: false, error: 'Unknown error occurred' }
-  }
+  revalidatePath('/app/transactions');
+  revalidatePath('/app/dashboard');
 }

@@ -1,245 +1,124 @@
-"use server";
+'use server';
 
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { getMonthStart } from "@/lib/db/month";
-import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
-import { budgetSchema } from "@/lib/validation/budget";
+import { createClient } from '@/lib/supabase/server';
+import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership';
+import { revalidatePath } from 'next/cache';
 
-export type BudgetLineView = {
-  category_id: string;
-  amount: number;
-};
-
-export async function getBudgetForMonth(
-  month: string,
-  activeMemberId?: string
-): Promise<BudgetLineView[]> {
+export async function getBudget(monthStart: string) {
   const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
+  const membership = await getCurrentTenantMembership(supabase);
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    throw new Error("Authenticated user not found");
+  if (!membership) {
+    throw new Error('Unauthorized');
   }
 
-  // Use activeMemberId when provided (admin viewing another member's budget),
-  // otherwise fall back to the logged-in user's own budget.
-  const targetUserId = activeMemberId ?? user.id;
-
-  const monthStart = getMonthStart(month);
-
   const { data: budget, error: budgetError } = await supabase
-    .from("budgets")
-    .select("id")
-    .eq("tenant_id", membership.tenant_id)
-    .eq("user_id", targetUserId)
-    .eq("month_start", monthStart)
-    .maybeSingle();
+    .from('budgets')
+    .select('id, month_start')
+    .eq('tenant_id', membership.tenant_id)
+    .eq('month_start', monthStart)
+    .single();
 
-  if (budgetError) {
-    throw new Error(`Failed to load budget: ${budgetError.message}`);
+  if (budgetError && budgetError.code !== 'PGRST116') {
+    console.error('Failed to fetch budget:', budgetError);
+    throw new Error('Failed to fetch budget');
   }
 
   if (!budget) {
-    return [];
+    return { budget: null, lines: [] };
   }
 
   const { data: lines, error: linesError } = await supabase
-    .from("budget_lines")
-    .select("category_id, amount")
-    .eq("tenant_id", membership.tenant_id)
-    .eq("budget_id", budget.id);
-
-  if (linesError) {
-    throw new Error(`Failed to load budget lines: ${linesError.message}`);
-  }
-
-  return (lines ?? []).map((line) => ({
-    category_id: line.category_id,
-    amount: Number(line.amount ?? 0),
-  }));
-}
-
-export async function upsertBudget(input: unknown) {
-  const parsed = budgetSchema.parse(input);
-
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    throw new Error("Authenticated user not found");
-  }
-
-  const monthStart = getMonthStart(parsed.month);
-
-  const { data: budget, error: budgetError } = await supabase
-    .from("budgets")
-    .upsert(
-      {
-        tenant_id: membership.tenant_id,
-        user_id: user.id,
-        month_start: monthStart,
-      },
-      {
-        onConflict: "tenant_id,user_id,month_start",
-      }
-    )
-    .select("id")
-    .single();
-
-  if (budgetError || !budget) {
-    throw new Error(
-      `Failed to create or load budget: ${budgetError?.message ?? "unknown error"}`
-    );
-  }
-
-  const lines = parsed.lines.map((line) => ({
-    tenant_id: membership.tenant_id,
-    budget_id: budget.id,
-    category_id: line.category_id,
-    amount: line.amount,
-  }));
-
-  const { error: linesError } = await supabase
-    .from("budget_lines")
-    .upsert(lines, {
-      onConflict: "tenant_id,budget_id,category_id",
-    });
-
-  if (linesError) {
-    throw new Error(`Failed to save budget lines: ${linesError.message}`);
-  }
-
-  return { success: true };
-}
-
-// ---------------------------------------------------------------------------
-// OHHFIN-102 — Copy Budget
-// ---------------------------------------------------------------------------
-
-export async function getLatestBudgetMonth(
-  targetUserId: string,
-  excludeMonthStart?: string
-): Promise<{ monthStart: string; monthLabel: string } | null> {
-  const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-
-  // Find most recent months with at least one budget line > 0 (look back up to 12 months).
-  // Exclude the current month so we always find a *prior* month to copy from.
-  let query = supabase
-    .from("budgets")
+    .from('budget_lines')
     .select(`
-      month_start,
-      budget_lines (amount)
+      id,
+      category_id,
+      amount,
+      categories(id, name, tag)
     `)
-    .eq("tenant_id", membership.tenant_id)
-    .eq("user_id", targetUserId)
-    .order("month_start", { ascending: false })
-    .limit(12);
+    .eq('tenant_id', membership.tenant_id)
+    .eq('budget_id', budget.id);
 
-  if (excludeMonthStart) {
-    query = query.neq("month_start", excludeMonthStart);
+  if (linesError) {
+    console.error('Failed to fetch budget lines:', linesError);
+    throw new Error('Failed to fetch budget lines');
   }
 
-  const { data } = await query;
-
-  if (!data) return null;
-
-  // Find the most recent month that has at least one line with amount > 0
-  const latestWithBudget = data.find((b) =>
-    b.budget_lines.some((line: { amount: number }) => Number(line.amount) > 0)
-  );
-
-  if (!latestWithBudget) return null;
-
-  const date = new Date(latestWithBudget.month_start);
-  const monthLabel = date.toLocaleDateString("en-CA", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-
-  return { monthStart: latestWithBudget.month_start, monthLabel };
+  return { budget, lines: lines || [] };
 }
 
-export async function copyBudgetFromMonth(
-  sourceMonthStart: string,
-  targetMonthStart: string,
-  targetUserId: string
-): Promise<{ success?: boolean; error?: string }> {
+export async function upsertBudget(
+  monthStart: string,
+  lines: Array<{ category_id: string; amount: number }>
+) {
   const supabase = await createClient();
-  const membership = await getCurrentTenantMembership();
-  const tenantId = membership.tenant_id;
+  const membership = await getCurrentTenantMembership(supabase);
 
-  // 1. Get source budget lines with amount > 0
-  const { data: sourceBudget } = await supabase
-    .from("budgets")
-    .select("id, budget_lines (category_id, amount)")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", targetUserId)
-    .eq("month_start", sourceMonthStart)
-    .single();
-
-  if (!sourceBudget) return { error: "Source budget not found." };
-
-  const linesToCopy = sourceBudget.budget_lines.filter(
-    (l: { amount: number }) => Number(l.amount) > 0
-  );
-
-  if (!linesToCopy.length) return { error: "No budget lines to copy." };
-
-  // 2. Verify categories still exist and are active
-  const categoryIds = linesToCopy.map((l: { category_id: string }) => l.category_id);
-  const { data: activeCategories } = await supabase
-    .from("categories")
-    .select("id")
-    .in("id", categoryIds)
-    .eq("is_active", true);
-
-  const activeCategoryIds = new Set((activeCategories ?? []).map((c) => c.id));
-
-  const validLines = linesToCopy.filter((l: { category_id: string }) =>
-    activeCategoryIds.has(l.category_id)
-  );
-
-  // 3. Upsert target budget row
-  const { data: targetBudget, error: budgetError } = await supabase
-    .from("budgets")
-    .upsert(
-      { tenant_id: tenantId, user_id: targetUserId, month_start: targetMonthStart },
-      { onConflict: "tenant_id,user_id,month_start" }
-    )
-    .select("id")
-    .single();
-
-  if (budgetError || !targetBudget) {
-    return { error: budgetError?.message ?? "Failed to create target budget." };
+  if (!membership) {
+    throw new Error('Unauthorized');
   }
 
-  // 4. Upsert budget lines (overwrite existing amounts for matching categories)
-  const lines = validLines.map((l: { category_id: string; amount: number }) => ({
-    tenant_id: tenantId,
-    budget_id: targetBudget.id,
-    category_id: l.category_id,
-    amount: l.amount,
-  }));
+  let budgetId: string;
 
-  const { error: linesError } = await supabase
-    .from("budget_lines")
-    .upsert(lines, { onConflict: "tenant_id,budget_id,category_id" });
+  const { data: existingBudget, error: fetchError } = await supabase
+    .from('budgets')
+    .select('id')
+    .eq('tenant_id', membership.tenant_id)
+    .eq('month_start', monthStart)
+    .single();
 
-  if (linesError) return { error: linesError.message };
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('Failed to fetch budget:', fetchError);
+    throw new Error('Failed to fetch budget');
+  }
 
-  revalidatePath("/app/budgets");
-  return { success: true };
+  if (existingBudget) {
+    budgetId = existingBudget.id;
+  } else {
+    const { data: newBudget, error: createError } = await supabase
+      .from('budgets')
+      .insert({
+        tenant_id: membership.tenant_id,
+        month_start: monthStart
+      })
+      .select('id')
+      .single();
+
+    if (createError || !newBudget) {
+      console.error('Failed to create budget:', createError);
+      throw new Error('Failed to create budget');
+    }
+
+    budgetId = newBudget.id;
+  }
+
+  const { error: deleteError } = await supabase
+    .from('budget_lines')
+    .delete()
+    .eq('tenant_id', membership.tenant_id)
+    .eq('budget_id', budgetId);
+
+  if (deleteError) {
+    console.error('Failed to delete existing budget lines:', deleteError);
+    throw new Error('Failed to delete existing budget lines');
+  }
+
+  if (lines.length > 0) {
+    const { error: insertError } = await supabase.from('budget_lines').insert(
+      lines.map((line) => ({
+        tenant_id: membership.tenant_id,
+        budget_id: budgetId,
+        category_id: line.category_id,
+        amount: line.amount
+      }))
+    );
+
+    if (insertError) {
+      console.error('Failed to insert budget lines:', insertError);
+      throw new Error('Failed to insert budget lines');
+    }
+  }
+
+  revalidatePath('/app/budgets');
+  revalidatePath('/app/dashboard');
 }
