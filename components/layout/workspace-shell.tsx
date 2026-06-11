@@ -1,40 +1,23 @@
-import type { ReactNode } from "react";
-import WorkspaceShellClient from "@/components/layout/workspace-shell-client";
-import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
+import { ReactNode } from 'react'
 
-type WorkspaceShellProps = {
-  title: string;
-  description: string;
-  topbarControls?: ReactNode;
-  leftPanelSections: WorkspaceLeftPanelSection[];
-  children: ReactNode;
-  // Member context — passed from each page so sidebar can preserve ?member= in nav links
-  isAdmin?: boolean;
-  currentUserId?: string;
-  activeMemberId?: string;
-};
+interface WorkspaceShellProps {
+  children: ReactNode
+}
 
-export default function WorkspaceShell({
-  title,
-  description,
-  topbarControls,
-  leftPanelSections,
-  children,
-  isAdmin = false,
-  currentUserId = "",
-  activeMemberId = "",
-}: WorkspaceShellProps) {
+export function WorkspaceShell({ children }: WorkspaceShellProps) {
+  const appEnv = process.env.NEXT_PUBLIC_APP_ENV
+  const showBanner = !appEnv || appEnv !== 'production'
+
   return (
-    <WorkspaceShellClient
-      title={title}
-      description={description}
-      topbarControls={topbarControls}
-      leftPanelSections={leftPanelSections}
-      isAdmin={isAdmin}
-      currentUserId={currentUserId}
-      activeMemberId={activeMemberId}
-    >
-      {children}
-    </WorkspaceShellClient>
-  );
+    <div className="min-h-screen flex flex-col">
+      {showBanner && (
+        <div className="w-full bg-amber-400 text-black py-2 px-4 text-center font-medium">
+          ⚠ Non-production environment — do not enter real financial data
+        </div>
+      )}
+      <div className="flex-1">
+        {children}
+      </div>
+    </div>
+  )
 }
