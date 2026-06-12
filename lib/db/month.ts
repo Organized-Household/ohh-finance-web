@@ -14,8 +14,11 @@ export function parseMonthParam(value?: string): Date {
 }
 
 export function getCurrentMonthStart(): Date {
+  // OHHFIN-164: read the LOCAL year/month — getUTC* shifts users behind UTC
+  // into the wrong month near boundaries (e.g. May 31 11pm UTC-5 → June).
+  // The result is still normalized to a UTC month-start Date for consumers.
   const now = new Date();
-  return toUtcMonthStart(now.getUTCFullYear(), now.getUTCMonth());
+  return toUtcMonthStart(now.getFullYear(), now.getMonth());
 }
 
 export function getNextMonthStart(monthStart: Date): Date {
@@ -41,4 +44,19 @@ export function isHistoricalMonth(
   currentMonthStart: Date = getCurrentMonthStart()
 ): boolean {
   return selectedMonthStart.getTime() < currentMonthStart.getTime();
+}
+
+// OHHFIN-164: local-timezone date helpers. transactions.transaction_date is a
+// DATE column, so calendar dates must come from local accessors — never
+// toISOString(), which converts to UTC and can shift the date.
+export function formatDateLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function parseDateLocal(dateString: string): Date {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
