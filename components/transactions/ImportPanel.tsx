@@ -88,9 +88,13 @@ export default function ImportPanel({
       }
 
       // Step 3 — Send to server
+      // Raw file text is sent alongside parsed rows so the server can compute
+      // the SHA-256 fingerprint for duplicate-import detection (OHHFIN-161).
+      const fileContent = await file.text();
       const result = await importStagingRows({
         rows: parsed.rows,
         original_filename: file.name,
+        file_content: fileContent,
       });
 
       if (!result.ok) {

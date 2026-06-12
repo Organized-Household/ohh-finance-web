@@ -45,13 +45,17 @@ export async function importStagingRows(payload: {
   const membership = await getCurrentTenantMembership();
   const tenantId = membership.tenant_id;
 
+  // file_content is not part of importPayloadSchema, and Zod strips unknown
+  // keys from parse.data — so take it from the raw payload before validation.
+  const { file_content } = payload;
+
   // Server-side validation
   const parse = importPayloadSchema.safeParse(payload);
   if (!parse.success) {
     return { ok: false, error: "Invalid import data" };
   }
 
-  const { rows, original_filename, file_content } = parse.data;
+  const { rows, original_filename } = parse.data;
 
   // Compute SHA-256 fingerprint of raw file content
   const fileFingerprint = createHash('sha256').update(file_content).digest('hex');
