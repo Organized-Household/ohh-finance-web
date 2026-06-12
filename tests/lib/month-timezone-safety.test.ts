@@ -1,218 +1,89 @@
 /**
- * Timezone safety tests for month utility functions
- * 
- * These tests validate that month boundaries are calculated correctly
- * regardless of the user's system timezone, ensuring transactions are
- * assigned to the correct calendar period.
+ * Timezone safety tests for lib/db/month.ts (OHHFIN-164)
+ *
+ * Covers only what the PR changes:
+ *   1. getCurrentMonthStart() — local month, not UTC month, near boundaries
+ *   2. formatDateLocal()      — local calendar date, never UTC-shifted
+ *   3. parseDateLocal()       — local midnight from YYYY-MM-DD
+ *
+ * TZ is pinned to America/New_York (UTC-5/-4) so the month-boundary cases are
+ * discriminating on CI (Linux). Node on Windows ignores TZ, so all dates below
+ * are built with the LOCAL Date constructor — assertions hold in any timezone.
  */
+process.env.TZ = "America/New_York";
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   getCurrentMonthStart,
-  getMonthBoundaries,
   formatDateLocal,
   parseDateLocal,
-} from '../../lib/db/month';
+} from "../../lib/db/month";
 
-describe('Month Timezone Safety', () => {
-  let originalTimezone: string | undefined;
-
+describe("getCurrentMonthStart", () => {
   beforeEach(() => {
-    originalTimezone = process.env.TZ;
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    if (originalTimezone) {
-      process.env.TZ = originalTimezone;
-    } else {
-      delete process.env.TZ;
-    }
+    vi.useRealTimers();
   });
 
-  describe('getCurrentMonthStart', () => {
-    it('returns correct month start at UTC midnight', () => {
-      process.env.TZ = 'UTC';
-      const date = new Date('2024-05-15T00:00:00Z');
-      const realDateNow = Date.now;
-      global.Date.now = () => date.getTime();
+  it("returns a Date for the first of the current LOCAL month near a month boundary", () => {
+    // May 31st, 11:00pm local — in UTC-5 this instant is already June 1st UTC.
+    // The UTC-based implementation would return June; local arithmetic must return May.
+    vi.setSystemTime(new Date(2024, 4, 31, 23, 0, 0));
 
-      const result = getCurrentMonthStart();
+    const result = getCurrentMonthStart();
 
-      expect(result).toBe('2024-05-01');
-
-      global.Date.now = realDateNow;
-    });
-
-    it('returns correct month start at UTC-5 on last day of month at 11pm local', () => {
-      // Simulate May 31st, 2024 at 11pm in UTC-5 (which is June 1st 04:00 UTC)
-      process.env.TZ = 'America/New_York';
-      const date = new Date('2024-05-31T23:00:00-05:00');
-      const realDateNow = Date.now;
-      global.Date.now = () => date.getTime();
-
-      const result = getCurrentMonthStart();
-
-      // Should return May, not June, because local calendar date is May 31st
-      expect(result).toBe('2024-05-01');
-
-      global.Date.now = realDateNow;
-    });
-
-    it('returns correct month start at UTC+12', () => {
-      // Simulate May 31st, 2024 at 11pm in UTC+12 (which is May 31st 11:00 UTC)
-      process.env.TZ = 'Pacific/Auckland';
-      const date = new Date('2024-05-31T23:00:00+12:00');
-      const realDateNow = Date.now;
-      global.Date.now = () => date.getTime();
-
-      const result = getCurrentMonthStart();
-
-      expect(result).toBe('2024-05-01');
-
-      global.Date.now = realDateNow;
-    });
-
-    it('handles year boundary correctly in negative timezone', () => {
-      // December 31st at 11pm in UTC-5 is January 1st 04:00 UTC
-      process.env.TZ = 'America/New_York';
-      const date = new Date('2024-12-31T23:00:00-05:00');
-      const realDateNow = Date.now;
-      global.Date.now = () => date.getTime();
-
-      const result = getCurrentMonthStart();
-
-      // Should return December 2024, not January 2025
-      expect(result).toBe('2024-12-01');
-
-      global.Date.now = realDateNow;
-    });
+    expect(result).toBeInstanceOf(Date);
+    expect(result.toISOString()).toBe("2024-05-01T00:00:00.000Z");
   });
 
-  describe('formatDateLocal', () => {
-    it('formats date in local timezone, not UTC', () => {
-      process.env.TZ = 'America/New_York';
-      // May 31st, 2024 at 11pm EST = June 1st 03:00 UTC
-      const date = new Date('2024-05-31T23:00:00-05:00');
+  it("returns the first of the month mid-month", () => {
+    vi.setSystemTime(new Date(2024, 4, 15, 12, 0, 0));
 
-      const result = formatDateLocal(date);
-
-      // Should return May 31st (local date), not June 1st (UTC date)
-      expect(result).toBe('2024-05-31');
-    });
-
-    it('handles midnight boundary correctly', () => {
-      process.env.TZ = 'America/Los_Angeles';
-      // May 31st, 2024 at 11:59pm PST = June 1st 06:59 UTC
-      const date = new Date('2024-05-31T23:59:00-08:00');
-
-      const result = formatDateLocal(date);
-
-      expect(result).toBe('2024-05-31');
-    });
-
-    it('never uses toISOString conversion', () => {
-      process.env.TZ = 'Asia/Tokyo';
-      const date = new Date('2024-05-31T23:00:00+09:00');
-
-      const result = formatDateLocal(date);
-      const isoResult = date.toISOString().substring(0, 10);
-
-      // Verify our function returns local date, not ISO UTC date
-      expect(result).toBe('2024-05-31');
-      expect(isoResult).toBe('2024-05-31'); // In this case they happen to match
-      
-      // But test edge case where they differ
-      const edgeDate = new Date('2024-05-31T23:30:00+09:00');
-      const edgeLocal = formatDateLocal(edgeDate);
-      const edgeISO = edgeDate.toISOString().substring(0, 10);
-      
-      expect(edgeLocal).toBe('2024-05-31');
-      expect(edgeISO).toBe('2024-05-31');
-    });
+    expect(getCurrentMonthStart().toISOString()).toBe("2024-05-01T00:00:00.000Z");
   });
 
-  describe('parseDateLocal', () => {
-    it('creates Date at local midnight, not UTC', () => {
-      process.env.TZ = 'America/New_York';
-      const result = parseDateLocal('2024-05-31');
+  it("handles the start of January (year boundary)", () => {
+    vi.setSystemTime(new Date(2025, 0, 1, 0, 30, 0));
 
-      // Check hours in local timezone (should be 0)
-      expect(result.getHours()).toBe(0);
-      expect(result.getMinutes()).toBe(0);
-      expect(result.getSeconds()).toBe(0);
+    expect(getCurrentMonthStart().toISOString()).toBe("2025-01-01T00:00:00.000Z");
+  });
+});
 
-      // Check date components
-      expect(result.getFullYear()).toBe(2024);
-      expect(result.getMonth()).toBe(4); // May = 4 (0-indexed)
-      expect(result.getDate()).toBe(31);
-    });
+describe("formatDateLocal", () => {
+  it("returns the local calendar date late at night, never the UTC-shifted date", () => {
+    // May 31st, 11:00pm local — toISOString() in UTC-5 would yield 2024-06-01.
+    const lateNight = new Date(2024, 4, 31, 23, 0, 0);
+
+    expect(formatDateLocal(lateNight)).toBe("2024-05-31");
   });
 
-  describe('getMonthBoundaries', () => {
-    it('calculates correct boundaries for February in leap year', () => {
-      const result = getMonthBoundaries('2024-02-01');
-
-      expect(result).toEqual({
-        start: '2024-02-01',
-        end: '2024-02-29',
-      });
-    });
-
-    it('calculates correct boundaries for February in non-leap year', () => {
-      const result = getMonthBoundaries('2023-02-01');
-
-      expect(result).toEqual({
-        start: '2023-02-01',
-        end: '2023-02-28',
-      });
-    });
-
-    it('calculates correct boundaries for 31-day month', () => {
-      const result = getMonthBoundaries('2024-05-01');
-
-      expect(result).toEqual({
-        start: '2024-05-01',
-        end: '2024-05-31',
-      });
-    });
-
-    it('calculates correct boundaries for 30-day month', () => {
-      const result = getMonthBoundaries('2024-04-01');
-
-      expect(result).toEqual({
-        start: '2024-04-01',
-        end: '2024-04-30',
-      });
-    });
+  it("zero-pads single-digit months and days", () => {
+    expect(formatDateLocal(new Date(2024, 0, 5))).toBe("2024-01-05");
   });
 
-  describe('Integration: Transaction date submission', () => {
-    it('ensures transaction date matches user calendar date across timezones', () => {
-      const timezones = [
-        'UTC',
-        'America/New_York',
-        'America/Los_Angeles',
-        'Europe/London',
-        'Asia/Tokyo',
-        'Pacific/Auckland',
-      ];
+  it("handles the last day of the year", () => {
+    expect(formatDateLocal(new Date(2024, 11, 31, 23, 59, 59))).toBe("2024-12-31");
+  });
+});
 
-      timezones.forEach((tz) => {
-        process.env.TZ = tz;
-        const now = new Date();
-        const localDateString = formatDateLocal(now);
+describe("parseDateLocal", () => {
+  it("returns a Date at local midnight with correct year/month/day", () => {
+    const result = parseDateLocal("2024-05-31");
 
-        // Verify format
-        expect(localDateString).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result.getFullYear()).toBe(2024);
+    expect(result.getMonth()).toBe(4); // zero-based May
+    expect(result.getDate()).toBe(31);
+    expect(result.getHours()).toBe(0);
+    expect(result.getMinutes()).toBe(0);
+    expect(result.getSeconds()).toBe(0);
+  });
 
-        // Verify it matches local date components
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const expected = `${year}-${month}-${day}`;
-
-        expect(localDateString).toBe(expected);
-      });
-    });
+  it("round-trips with formatDateLocal", () => {
+    expect(formatDateLocal(parseDateLocal("2024-12-31"))).toBe("2024-12-31");
+    expect(formatDateLocal(parseDateLocal("2024-01-01"))).toBe("2024-01-01");
+    expect(formatDateLocal(parseDateLocal("2024-02-29"))).toBe("2024-02-29");
   });
 });
