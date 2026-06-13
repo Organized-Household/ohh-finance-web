@@ -6,7 +6,6 @@ import { redirect } from 'next/navigation';
 
 export async function completeSetupAction(formData: FormData) {
   const supabase = await createClient();
-  const adminClient = createAdminClient();
 
   const alias = formData.get('alias') as string;
   const userId = formData.get('userId') as string;
@@ -21,30 +20,49 @@ export async function completeSetupAction(formData: FormData) {
     return { error: 'Authentication error.' };
   }
 
-  try {
-    // Call the tenant bootstrap RPC
-    const { data, error: rpcError } = await adminClient.rpc(
-      'create_tenant_and_membership',
-      {
-        p_alias: alias,
-        p_user_id: userId,
-      }
-    );
+  // Service role required: initial tenants + tenant_members INSERT at registration.
+  // RLS policies block writes before membership exists (chicken-egg problem).
+  const admin = createAdminClient();
 
-    if (rpcError) {
-      console.error('RPC error during setup completion:', rpcError);
-      if (rpcError.message?.includes('duplicate') || rpcError.code === '23505') {
-        return { error: 'This household alias is already taken. Please choose another.' };
-      }
-      return { error: 'Failed to complete setup. Please try again.' };
+  const { data: tenantData, error: tenantError } = await admin
+    .from('tenants')
+    .insert({ alias })
+    .select('id')
+    .single();
+
+  if (tenantError || !tenantData) {
+    if (tenantError?.code === '23505') {
+      return { error: 'This household alias is already taken. Please choose another.' };
+    }
+    return {
+      error: `Failed to complete setup: ${tenantError?.message ?? 'tenant not created'}`,
+    };
+  }
+
+  const { error: membershipError } = await admin.from('tenant_members').insert({
+    tenant_id: tenantData.id,
+    user_id: userId,
+    role: 'admin',
+  });
+
+  if (membershipError) {
+    // Roll back tenant if membership insert fails
+    const { error: cleanupError } = await admin
+      .from('tenants')
+      .delete()
+      .eq('id', tenantData.id);
+
+    if (cleanupError) {
+      console.error('Failed to roll back tenant after membership insert error', {
+        tenantId: tenantData.id,
+        cleanupError: cleanupError.message,
+        membershipError: membershipError.message,
+      });
     }
 
-    if (!data) {
-      return { error: 'Setup completed but no tenant ID returned.' };
-    }
-  } catch (err: unknown) {
-    console.error('Exception during setup completion:', err);
-    return { error: 'An unexpected error occurred. Please try again.' };
+    return {
+      error: `Failed to complete setup: ${membershipError.message}`,
+    };
   }
 
   redirect('/app');
