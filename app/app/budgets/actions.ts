@@ -1,156 +1,262 @@
-'use server';
+"use server";
 
-import { createClient } from '@/lib/supabase/server';
-import { getCurrentTenantMembership } from '@/lib/tenant/get-current-tenant-membership';
-import { z } from 'zod';
-import { revalidatePath } from 'next/cache';
-import { getCurrentMonthStart } from '@/lib/db/month';
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { getMonthStart, isHistoricalMonth, parseMonthParam } from "@/lib/db/month";
+import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
+import { budgetSchema } from "@/lib/validation/budget";
 
-const budgetLineSchema = z.object({
-  category_id: z.string().uuid(),
-  amount: z.number(),
-});
+export type BudgetLineView = {
+  category_id: string;
+  amount: number;
+};
 
-const upsertBudgetSchema = z.object({
-  month_start: z.string().regex(/^\d{4}-\d{2}-01$/),
-  lines: z.array(budgetLineSchema),
-  confirmedHistoricalEdit: z.boolean().optional(),
-});
-
-export async function upsertBudget(input: unknown) {
-  const supabase = createClient();
+export async function getBudgetForMonth(
+  month: string,
+  activeMemberId?: string
+): Promise<BudgetLineView[]> {
+  const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
 
-  if (!membership) {
-    return { ok: false, error: 'Unauthorized' };
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found");
   }
 
-  const parsed = upsertBudgetSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: 'Invalid input', details: parsed.error.flatten() };
-  }
+  // Use activeMemberId when provided (admin viewing another member's budget),
+  // otherwise fall back to the logged-in user's own budget.
+  const targetUserId = activeMemberId ?? user.id;
 
-  const { month_start, lines, confirmedHistoricalEdit } = parsed.data;
-  const tenant_id = membership.tenant_id;
-
-  // Historical budget guard
-  const currentMonthStart = getCurrentMonthStart();
-  const requestedMonth = new Date(month_start + 'T00:00:00.000Z');
-  const currentMonth = new Date(currentMonthStart + 'T00:00:00.000Z');
-
-  if (requestedMonth < currentMonth && !confirmedHistoricalEdit) {
-    return {
-      ok: false,
-      error: 'This budget is from a past month. Set confirmedHistoricalEdit to confirm you intend to edit historical data.',
-    };
-  }
-
-  // Check if budget exists
-  const { data: existingBudget, error: fetchError } = await supabase
-    .from('budgets')
-    .select('id')
-    .eq('tenant_id', tenant_id)
-    .eq('month_start', month_start)
-    .maybeSingle();
-
-  if (fetchError) {
-    console.error('[upsertBudget] fetch error:', fetchError);
-    return { ok: false, error: 'Database error' };
-  }
-
-  let budgetId: string;
-
-  if (existingBudget) {
-    budgetId = existingBudget.id;
-  } else {
-    // Create budget
-    const { data: newBudget, error: insertError } = await supabase
-      .from('budgets')
-      .insert({ tenant_id, month_start })
-      .select('id')
-      .single();
-
-    if (insertError || !newBudget) {
-      console.error('[upsertBudget] insert budget error:', insertError);
-      return { ok: false, error: 'Failed to create budget' };
-    }
-
-    budgetId = newBudget.id;
-  }
-
-  // Delete existing budget_lines
-  const { error: deleteError } = await supabase
-    .from('budget_lines')
-    .delete()
-    .eq('tenant_id', tenant_id)
-    .eq('budget_id', budgetId);
-
-  if (deleteError) {
-    console.error('[upsertBudget] delete lines error:', deleteError);
-    return { ok: false, error: 'Failed to delete existing budget lines' };
-  }
-
-  // Insert new budget_lines
-  if (lines.length > 0) {
-    const linesToInsert = lines.map((line) => ({
-      tenant_id,
-      budget_id: budgetId,
-      category_id: line.category_id,
-      amount: line.amount,
-    }));
-
-    const { error: insertLinesError } = await supabase
-      .from('budget_lines')
-      .insert(linesToInsert);
-
-    if (insertLinesError) {
-      console.error('[upsertBudget] insert lines error:', insertLinesError);
-      return { ok: false, error: 'Failed to insert budget lines' };
-    }
-  }
-
-  revalidatePath('/app/budgets');
-  revalidatePath('/app/dashboard');
-
-  return { ok: true, budgetId };
-}
-
-export async function getBudgetForMonth(monthStart: string) {
-  const supabase = createClient();
-  const membership = await getCurrentTenantMembership();
-
-  if (!membership) {
-    return { ok: false, error: 'Unauthorized' };
-  }
-
-  const tenant_id = membership.tenant_id;
+  const monthStart = getMonthStart(month);
 
   const { data: budget, error: budgetError } = await supabase
-    .from('budgets')
-    .select('id, month_start')
-    .eq('tenant_id', tenant_id)
-    .eq('month_start', monthStart)
+    .from("budgets")
+    .select("id")
+    .eq("tenant_id", membership.tenant_id)
+    .eq("user_id", targetUserId)
+    .eq("month_start", monthStart)
     .maybeSingle();
 
   if (budgetError) {
-    console.error('[getBudgetForMonth] error:', budgetError);
-    return { ok: false, error: 'Database error' };
+    throw new Error(`Failed to load budget: ${budgetError.message}`);
   }
 
   if (!budget) {
-    return { ok: true, data: { budget: null, lines: [] } };
+    return [];
   }
 
   const { data: lines, error: linesError } = await supabase
-    .from('budget_lines')
-    .select('id, category_id, amount')
-    .eq('tenant_id', tenant_id)
-    .eq('budget_id', budget.id);
+    .from("budget_lines")
+    .select("category_id, amount")
+    .eq("tenant_id", membership.tenant_id)
+    .eq("budget_id", budget.id);
 
   if (linesError) {
-    console.error('[getBudgetForMonth] lines error:', linesError);
-    return { ok: false, error: 'Database error' };
+    throw new Error(`Failed to load budget lines: ${linesError.message}`);
   }
 
-  return { ok: true, data: { budget, lines: lines || [] } };
+  return (lines ?? []).map((line) => ({
+    category_id: line.category_id,
+    amount: Number(line.amount ?? 0),
+  }));
+}
+
+export async function upsertBudget(input: unknown) {
+  const parsed = budgetSchema.parse(input);
+
+  // OHHFIN-163: confirmedHistoricalEdit?: boolean is accepted on the input
+  // object. It is deliberately not added to budgetSchema (Zod strips unknown
+  // keys from parse output), so it is read from the raw input.
+  const confirmedHistoricalEdit =
+    typeof input === "object" &&
+    input !== null &&
+    (input as { confirmedHistoricalEdit?: boolean }).confirmedHistoricalEdit === true;
+
+  // OHHFIN-163: historical guard — editing a past month's budget requires
+  // explicit confirmation. Thrown (not returned) because the caller treats
+  // any non-throw as success.
+  if (!confirmedHistoricalEdit && isHistoricalMonth(parseMonthParam(parsed.month))) {
+    throw new Error(
+      "This budget is from a past month. Set confirmedHistoricalEdit to confirm you intend to edit historical data."
+    );
+  }
+
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found");
+  }
+
+  const monthStart = getMonthStart(parsed.month);
+
+  const { data: budget, error: budgetError } = await supabase
+    .from("budgets")
+    .upsert(
+      {
+        tenant_id: membership.tenant_id,
+        user_id: user.id,
+        month_start: monthStart,
+      },
+      {
+        onConflict: "tenant_id,user_id,month_start",
+      }
+    )
+    .select("id")
+    .single();
+
+  if (budgetError || !budget) {
+    throw new Error(
+      `Failed to create or load budget: ${budgetError?.message ?? "unknown error"}`
+    );
+  }
+
+  const lines = parsed.lines.map((line) => ({
+    tenant_id: membership.tenant_id,
+    budget_id: budget.id,
+    category_id: line.category_id,
+    amount: line.amount,
+  }));
+
+  const { error: linesError } = await supabase
+    .from("budget_lines")
+    .upsert(lines, {
+      onConflict: "tenant_id,budget_id,category_id",
+    });
+
+  if (linesError) {
+    throw new Error(`Failed to save budget lines: ${linesError.message}`);
+  }
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// OHHFIN-102 — Copy Budget
+// ---------------------------------------------------------------------------
+
+export async function getLatestBudgetMonth(
+  targetUserId: string,
+  excludeMonthStart?: string
+): Promise<{ monthStart: string; monthLabel: string } | null> {
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
+
+  // Find most recent months with at least one budget line > 0 (look back up to 12 months).
+  // Exclude the current month so we always find a *prior* month to copy from.
+  let query = supabase
+    .from("budgets")
+    .select(`
+      month_start,
+      budget_lines (amount)
+    `)
+    .eq("tenant_id", membership.tenant_id)
+    .eq("user_id", targetUserId)
+    .order("month_start", { ascending: false })
+    .limit(12);
+
+  if (excludeMonthStart) {
+    query = query.neq("month_start", excludeMonthStart);
+  }
+
+  const { data } = await query;
+
+  if (!data) return null;
+
+  // Find the most recent month that has at least one line with amount > 0
+  const latestWithBudget = data.find((b) =>
+    b.budget_lines.some((line: { amount: number }) => Number(line.amount) > 0)
+  );
+
+  if (!latestWithBudget) return null;
+
+  const date = new Date(latestWithBudget.month_start);
+  const monthLabel = date.toLocaleDateString("en-CA", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+
+  return { monthStart: latestWithBudget.month_start, monthLabel };
+}
+
+export async function copyBudgetFromMonth(
+  sourceMonthStart: string,
+  targetMonthStart: string,
+  targetUserId: string
+): Promise<{ success?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const membership = await getCurrentTenantMembership();
+  const tenantId = membership.tenant_id;
+
+  // 1. Get source budget lines with amount > 0
+  const { data: sourceBudget } = await supabase
+    .from("budgets")
+    .select("id, budget_lines (category_id, amount)")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", targetUserId)
+    .eq("month_start", sourceMonthStart)
+    .single();
+
+  if (!sourceBudget) return { error: "Source budget not found." };
+
+  const linesToCopy = sourceBudget.budget_lines.filter(
+    (l: { amount: number }) => Number(l.amount) > 0
+  );
+
+  if (!linesToCopy.length) return { error: "No budget lines to copy." };
+
+  // 2. Verify categories still exist and are active
+  const categoryIds = linesToCopy.map((l: { category_id: string }) => l.category_id);
+  const { data: activeCategories } = await supabase
+    .from("categories")
+    .select("id")
+    .in("id", categoryIds)
+    .eq("is_active", true);
+
+  const activeCategoryIds = new Set((activeCategories ?? []).map((c) => c.id));
+
+  const validLines = linesToCopy.filter((l: { category_id: string }) =>
+    activeCategoryIds.has(l.category_id)
+  );
+
+  // 3. Upsert target budget row
+  const { data: targetBudget, error: budgetError } = await supabase
+    .from("budgets")
+    .upsert(
+      { tenant_id: tenantId, user_id: targetUserId, month_start: targetMonthStart },
+      { onConflict: "tenant_id,user_id,month_start" }
+    )
+    .select("id")
+    .single();
+
+  if (budgetError || !targetBudget) {
+    return { error: budgetError?.message ?? "Failed to create target budget." };
+  }
+
+  // 4. Upsert budget lines (overwrite existing amounts for matching categories)
+  const lines = validLines.map((l: { category_id: string; amount: number }) => ({
+    tenant_id: tenantId,
+    budget_id: targetBudget.id,
+    category_id: l.category_id,
+    amount: l.amount,
+  }));
+
+  const { error: linesError } = await supabase
+    .from("budget_lines")
+    .upsert(lines, { onConflict: "tenant_id,budget_id,category_id" });
+
+  if (linesError) return { error: linesError.message };
+
+  revalidatePath("/app/budgets");
+  return { success: true };
 }
