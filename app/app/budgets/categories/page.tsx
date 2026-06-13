@@ -233,7 +233,7 @@ export default async function BudgetCategoriesPage() {
                       </div>
 
                       <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                        {tagDescriptions[category.tag]}
+                        {tagDescriptions[category.tag as keyof typeof tagDescriptions]}
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
