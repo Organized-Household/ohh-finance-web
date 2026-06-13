@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getMonthStart } from "@/lib/db/month";
+import { getMonthStart, isHistoricalMonth, parseMonthParam } from "@/lib/db/month";
 import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
 import { budgetSchema } from "@/lib/validation/budget";
 
@@ -67,6 +67,23 @@ export async function getBudgetForMonth(
 
 export async function upsertBudget(input: unknown) {
   const parsed = budgetSchema.parse(input);
+
+  // OHHFIN-163: confirmedHistoricalEdit?: boolean is accepted on the input
+  // object. It is deliberately not added to budgetSchema (Zod strips unknown
+  // keys from parse output), so it is read from the raw input.
+  const confirmedHistoricalEdit =
+    typeof input === "object" &&
+    input !== null &&
+    (input as { confirmedHistoricalEdit?: boolean }).confirmedHistoricalEdit === true;
+
+  // OHHFIN-163: historical guard — editing a past month's budget requires
+  // explicit confirmation. Thrown (not returned) because the caller treats
+  // any non-throw as success.
+  if (!confirmedHistoricalEdit && isHistoricalMonth(parseMonthParam(parsed.month))) {
+    throw new Error(
+      "This budget is from a past month. Set confirmedHistoricalEdit to confirm you intend to edit historical data."
+    );
+  }
 
   const supabase = await createClient();
   const membership = await getCurrentTenantMembership();
