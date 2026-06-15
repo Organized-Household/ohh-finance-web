@@ -9,6 +9,7 @@ import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selec
 import TransactionsTabs from "@/components/transactions/TransactionsTabs";
 import ImportPanel from "@/components/transactions/ImportPanel";
 import type { StagingRow } from "@/components/transactions/ReviewTable";
+import { redirect } from "next/navigation";
 import { createTransaction } from "./actions";
 
 type SearchParams = Promise<{
@@ -420,16 +421,19 @@ export default async function TransactionsPage({
   const createAction = async (formData: FormData) => {
     "use server";
 
-    await createTransaction({
+    const result = await createTransaction({
       description: String(formData.get("description") ?? ""),
       amount: Number(formData.get("amount") ?? 0),
       transaction_date: String(formData.get("transaction_date") ?? ""),
       category_id: String(formData.get("category_id") ?? ""),
-      linked_account_id: String(formData.get("linked_account_id") ?? ""),
-      payment_source_account_id: String(
-        formData.get("payment_source_account_id") ?? ""
-      ),
+      linked_account_id: (formData.get("linked_account_id") as string) || null,
+      payment_source_account_id:
+        (formData.get("payment_source_account_id") as string) || null,
     });
+
+    if (result.ok) {
+      redirect("/app/transactions");
+    }
   };
 
   return (
