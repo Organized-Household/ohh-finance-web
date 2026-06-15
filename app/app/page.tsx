@@ -158,7 +158,7 @@ export default async function AppHomePage({
         Row 3 — BVA+Sav:  flex:1 + minHeight:0 — takes ALL remaining space
         Row 4 — Tiles:    flexShrink:0, height:220px — fixed, adjust to taste
       */}
-      <div className="flex flex-col gap-3" style={{ minHeight: '100%' }}>
+      <div className="flex flex-col gap-3" style={{ height: '100%' }}>
 
         {/* Row 1: 3 KPI cards — stacked on mobile, side-by-side on sm+ */}
         <div className="grid shrink-0 grid-cols-1 gap-2 sm:grid-cols-3">
@@ -203,7 +203,7 @@ export default async function AppHomePage({
         />
 
         {/* Row 4: Three equal bottom tiles — stacked mobile → 2-col md → 3-col lg (fixed height on lg+) */}
-        <div className="grid shrink-0 grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:h-[220px]">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3" style={{ flexShrink: 0, height: 'clamp(180px, 22vh, 260px)' }}>
           <AccountTile
             kind="investment"
             accounts={summary.investment_accounts ?? []}
