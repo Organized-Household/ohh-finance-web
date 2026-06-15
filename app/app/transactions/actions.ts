@@ -18,32 +18,37 @@ const transactionSchema = z.object({
   payment_source_account_id: z.string().uuid('Invalid payment source account ID').optional().nullable(),
 })
 
-export async function createTransaction(data: z.infer<typeof transactionSchema>) {
+export async function createTransaction(
+  data: z.infer<typeof transactionSchema>
+): Promise<{ ok: boolean; error?: string }> {
   const supabase = await createClient()
   const membership = await getCurrentTenantMembership()
 
   if (!membership) {
-    throw new Error('No tenant membership found')
+    return { ok: false, error: 'No tenant membership found' }
   }
 
   const { data: userData } = await supabase.auth.getUser()
 
-  const validatedData = transactionSchema.parse(data)
+  const parsed = transactionSchema.safeParse(data)
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues.map((e) => e.message).join(', ') }
+  }
 
   const { error } = await supabase
     .from('transactions')
     .insert({
-      ...validatedData,
+      ...parsed.data,
       tenant_id: membership.tenant_id,
       created_by_user_id: userData.user?.id,
     })
 
   if (error) {
-    throw new Error(`Failed to create transaction: ${error.message}`)
+    return { ok: false, error: `Failed to create transaction: ${error.message}` }
   }
 
   revalidatePath('/app/transactions')
-  redirect('/app/transactions')
+  return { ok: true }
 }
 
 export async function updateTransaction(
