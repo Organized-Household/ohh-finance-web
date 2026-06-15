@@ -125,7 +125,10 @@ describe('RLS Tenant Isolation', () => {
       expect(tokensB).toEqual([]);
     });
 
-    it('expense_types: Tenant B cannot read Tenant A expense_types', async () => {
+    it('expense_types: Tenant B CAN read expense_types rows (system-wide reference table, intentionally not tenant-scoped)', async () => {
+      // expense_types is a system-wide reference table shared across all tenants.
+      // RLS SELECT policy allows all authenticated users to read it regardless of tenant.
+      // Cross-tenant reads are correct and expected — this is NOT an isolation violation.
       const { data: typesA } = await clientA.from('expense_types').select('id').limit(1);
       if (!typesA || typesA.length === 0) {
         return;
@@ -136,7 +139,8 @@ describe('RLS Tenant Isolation', () => {
         .from('expense_types')
         .select('id')
         .eq('id', typeId);
-      expect(typesB).toEqual([]);
+      expect(typesB).not.toEqual([]);
+      expect(typesB?.length).toBeGreaterThan(0);
     });
 
     it('import_batches: Tenant B cannot read Tenant A import_batches', async () => {
