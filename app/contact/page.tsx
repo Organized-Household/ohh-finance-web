@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function ContactPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
@@ -14,12 +16,12 @@ export default function ContactPage() {
           .
         </p>
         <div className="flex justify-center">
-          <a
+          <Link
             href="/"
             className="text-blue-600 hover:underline font-medium"
           >
             ← Back to Home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

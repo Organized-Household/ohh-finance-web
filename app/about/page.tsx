@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
@@ -8,12 +10,12 @@ export default function AboutPage() {
           to track income, expenses, savings, and investments in one place.
           Built by the Organized Household team.
         </p>
-        <a
+        <Link
           href="/"
           className="inline-block text-blue-600 dark:text-blue-400 hover:underline"
         >
           ← Back to Home
-        </a>
+        </Link>
       </div>
     </div>
   )
