@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { buildSixMonthSlots } from './chartUtils'
 
 const APR = '2026-04-01'
