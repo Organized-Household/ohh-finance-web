@@ -7,7 +7,7 @@ export default function PrivacyPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
         <div className="bg-white shadow sm:rounded-lg p-6">
           <p className="text-gray-700 mb-6">
-            OHh-Finance does not share your financial data with third parties. All data is stored securely and used only to provide the budgeting service.
+            OHh-Budget does not share your financial data with third parties. All data is stored securely and used only to provide the budgeting service.
           </p>
           <Link
             href="/"
