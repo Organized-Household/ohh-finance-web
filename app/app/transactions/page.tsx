@@ -425,6 +425,7 @@ export default async function TransactionsPage({
       description: String(formData.get("description") ?? ""),
       amount: Number(formData.get("amount") ?? 0),
       transaction_date: String(formData.get("transaction_date") ?? ""),
+      transaction_type: (formData.get("transaction_type") as "income" | "expense") ?? "expense",
       category_id: String(formData.get("category_id") ?? ""),
       linked_account_id: (formData.get("linked_account_id") as string) || null,
       payment_source_account_id:
@@ -433,6 +434,8 @@ export default async function TransactionsPage({
 
     if (result.ok) {
       redirect("/app/transactions");
+    } else {
+      throw new Error(result.error ?? "Failed to create transaction");
     }
   };
 
