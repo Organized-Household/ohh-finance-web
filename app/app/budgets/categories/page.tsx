@@ -65,13 +65,18 @@ export default async function BudgetCategoriesPage() {
   const metricsSections = buildBudgetMetricsSections({ metrics });
 
   // Fetch household info for the static info card
-  const [{ data: tenantData }, { count: activeMemberCount }] = await Promise.all([
+  const [
+    { data: tenantData },
+    { count: activeMemberCount },
+  ] = await Promise.all([
+    // Service role required: tenants table has no RLS SELECT policy allowing members to read their own tenant row
     supabaseAdmin
       .from("tenants")
       .select("name")
       .eq("id", membership.tenant_id)
       .single(),
-    supabaseAdmin
+    // Anon client sufficient: RLS SELECT policy allows authenticated users to read tenant_members within their tenant
+    supabase
       .from("tenant_members")
       .select("*", { count: "exact", head: true })
       .eq("tenant_id", membership.tenant_id)
@@ -111,7 +116,6 @@ export default async function BudgetCategoriesPage() {
     >
       <div className="space-y-3">
         <CategoryCreateForm expenseTypes={expenseTypes} />
-
         <GroupedCategoryTable categories={categories} expenseTypes={expenseTypes} />
       </div>
     </WorkspaceShell>

@@ -29,12 +29,14 @@ export default async function ExpenseTypesPage() {
       .from("expense_types")
       .select("id, name, slug, is_active, is_system, sort_order")
       .order("sort_order", { ascending: true }),
+    // Service role required: tenants table has no RLS SELECT policy allowing members to read their own tenant row
     supabaseAdmin
       .from("tenants")
       .select("name")
       .eq("id", membership.tenant_id)
       .single(),
-    supabaseAdmin
+    // Anon client sufficient: RLS SELECT policy allows authenticated users to read tenant_members within their tenant
+    supabase
       .from("tenant_members")
       .select("*", { count: "exact", head: true })
       .eq("tenant_id", membership.tenant_id)
