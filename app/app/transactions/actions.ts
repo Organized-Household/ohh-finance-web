@@ -11,7 +11,7 @@ const transactionSchema = z.object({
     message: 'Invalid date format',
   }),
   description: z.string().min(1, 'Description is required'),
-  amount: z.number().positive('Amount must be positive'),
+  amount: z.number(),
   transaction_type: z.enum(['income', 'expense']).optional(),
   category_id: z.string().uuid('Invalid category ID'),
   linked_account_id: z.string().uuid('Invalid linked account ID').optional().nullable(),
