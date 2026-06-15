@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function BusinessModelPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -8,12 +10,12 @@ export default function BusinessModelPage() {
           serve advertisements, or use affiliate financial services. The service may
           introduce optional paid features in the future.
         </p>
-        <a
+        <Link
           href="/"
           className="text-blue-600 hover:text-blue-800 underline font-medium"
         >
           Return to Home
-        </a>
+        </Link>
       </div>
     </div>
   );

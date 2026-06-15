@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function DisclosuresPage() {
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
@@ -16,8 +18,8 @@ export default function DisclosuresPage() {
           </div>
 
           <div className="mt-8 pt-6 border-t">
-            <a 
-              href="/" 
+            <Link
+              href="/"
               className="inline-flex items-center text-primary hover:text-primary/80 font-medium transition-colors"
             >
               <svg 
@@ -34,7 +36,7 @@ export default function DisclosuresPage() {
                 />
               </svg>
               Back to Home
-            </a>
+            </Link>
           </div>
         </div>
       </div>

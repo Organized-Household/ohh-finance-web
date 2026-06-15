@@ -154,7 +154,7 @@ describe('Import Duplicate Prevention (OHHFIN-161)', () => {
     expect(error).toBeNull();
     expect(indexes).toBeDefined();
     
-    const fingerprintIndex = indexes?.find((idx: any) => 
+    const fingerprintIndex = indexes?.find((idx: { indexname: string }) =>
       idx.indexname === 'idx_import_batches_fingerprint'
     );
     
