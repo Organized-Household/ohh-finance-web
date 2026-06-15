@@ -2,10 +2,16 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { parseImportFile } from "@/lib/csv/parseImportFile";
+import {
+  parseImportFile,
+  parseImportFileWithMapping,
+  detectHeaders,
+} from "@/lib/csv/parseImportFile";
+import type { ColumnMapping } from "@/lib/csv/parseImportFile";
 import { importStagingRows } from "@/app/app/transactions/import-actions";
 import ReviewTable from "@/components/transactions/ReviewTable";
 import type { StagingRow } from "@/components/transactions/ReviewTable";
+import ColumnMappingStep from "@/components/transactions/ColumnMappingStep";
 
 interface Category {
   id: string;
@@ -24,6 +30,14 @@ interface ImportPanelProps {
   categories: Category[];
   accounts: AccountOption[];
   initialStagingRows: StagingRow[];
+}
+
+const STANDARD_HEADERS = ["date", "description", "amount"];
+
+function isStandardFormat(headers: string[]): boolean {
+  if (headers.length < 3) return false;
+  const lower = headers.map((h) => h.toLowerCase());
+  return STANDARD_HEADERS.every((h) => lower.includes(h));
 }
 
 const instructionBoxStyle: React.CSSProperties = {
@@ -48,8 +62,40 @@ export default function ImportPanel({
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFile(e.target.files?.[0] ?? null);
+  // Column mapping state
+  const [detectedHeaders, setDetectedHeaders] = useState<string[] | null>(null);
+  const [needsMapping, setNeedsMapping] = useState(false);
+  const [showMappingStep, setShowMappingStep] = useState(false);
+  const [confirmedMapping, setConfirmedMapping] = useState<ColumnMapping | null>(null);
+
+  const resetMappingState = () => {
+    setDetectedHeaders(null);
+    setNeedsMapping(false);
+    setShowMappingStep(false);
+    setConfirmedMapping(null);
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    resetMappingState();
+    setParseErrors([]);
+    setResultMessage(null);
+    setIsError(false);
+
+    if (!file) return;
+
+    // Peek at headers to decide if mapping step is needed
+    try {
+      const headers = await detectHeaders(file);
+      setDetectedHeaders(headers);
+      if (!isStandardFormat(headers)) {
+        setNeedsMapping(true);
+      }
+    } catch {
+      // Non-fatal — if detectHeaders fails, fall through to standard parse
+      // which will surface any format errors to the user normally
+    }
   };
 
   const handleImport = () => {
@@ -57,6 +103,12 @@ export default function ImportPanel({
     if (!file) {
       setIsError(true);
       setResultMessage("Please choose a CSV file first.");
+      return;
+    }
+
+    // If non-standard format and user hasn't mapped yet, show mapping step
+    if (needsMapping && !confirmedMapping) {
+      setShowMappingStep(true);
       return;
     }
 
@@ -68,7 +120,11 @@ export default function ImportPanel({
       // Step 1 — Client-side parse and validation
       let parsed;
       try {
-        parsed = await parseImportFile(file);
+        if (confirmedMapping) {
+          parsed = await parseImportFileWithMapping(file, confirmedMapping);
+        } else {
+          parsed = await parseImportFile(file);
+        }
       } catch {
         setIsError(true);
         setResultMessage("Failed to read file. Please check it is a valid CSV.");
@@ -107,13 +163,80 @@ export default function ImportPanel({
         `✓ ${result.data.count} row${result.data.count === 1 ? "" : "s"} imported — review below.`
       );
 
-      // Reset file picker
+      // Reset file picker and mapping state
       setSelectedFile(null);
+      resetMappingState();
       if (fileRef.current) fileRef.current.value = "";
 
       // Refresh to get updated staging rows from server
       router.refresh();
     });
+  };
+
+  const handleMappingConfirm = (mapping: ColumnMapping) => {
+    setConfirmedMapping(mapping);
+    setShowMappingStep(false);
+    // Immediately proceed with import using confirmed mapping
+    const file = selectedFile;
+    if (!file) return;
+
+    startTransition(async () => {
+      setParseErrors([]);
+      setResultMessage(null);
+      setIsError(false);
+
+      let parsed;
+      try {
+        parsed = await parseImportFileWithMapping(file, mapping);
+      } catch {
+        setIsError(true);
+        setResultMessage("Failed to read file. Please check it is a valid CSV.");
+        return;
+      }
+
+      if (parsed.errors.length > 0) {
+        setParseErrors(parsed.errors);
+        return;
+      }
+
+      if (parsed.rows.length === 0) {
+        setIsError(true);
+        setResultMessage("No valid rows found in file.");
+        return;
+      }
+
+      const fileContent = await file.text();
+      const result = await importStagingRows({
+        rows: parsed.rows,
+        original_filename: file.name,
+        file_content: fileContent,
+      });
+
+      if (!result.ok) {
+        setIsError(true);
+        setResultMessage(`Import failed: ${result.error}`);
+        return;
+      }
+
+      setResultMessage(
+        `✓ ${result.data.count} row${result.data.count === 1 ? "" : "s"} imported — review below.`
+      );
+
+      setSelectedFile(null);
+      resetMappingState();
+      if (fileRef.current) fileRef.current.value = "";
+
+      router.refresh();
+    });
+  };
+
+  const handleMappingCancel = () => {
+    setSelectedFile(null);
+    resetMappingState();
+    setParseErrors([]);
+    setResultMessage(null);
+    setIsError(false);
+    if (fileRef.current) fileRef.current.value = "";
   };
 
   return (
@@ -134,10 +257,9 @@ export default function ImportPanel({
           }}
         >
           <li>
-            Format your file with exactly 3 columns:{" "}
-            <code style={{ background: "#f1f5f9", padding: "1px 4px", borderRadius: 3 }}>
-              Date, Description, Amount
-            </code>
+            Upload any CSV with Date, Description, and Amount columns — column
+            names don&apos;t need to match exactly, you&apos;ll be able to map
+            them if needed
           </li>
           <li>
             Date must be{" "}
@@ -147,12 +269,6 @@ export default function ImportPanel({
             format (e.g. 2026-04-15)
           </li>
           <li>Amount: positive for income, negative for expenses and savings</li>
-          <li>
-            First row must be the header:{" "}
-            <code style={{ background: "#f1f5f9", padding: "1px 4px", borderRadius: 3 }}>
-              Date,Description,Amount
-            </code>
-          </li>
           <li>Save as CSV (UTF-8 encoding) before importing</li>
           <li>
             Category, type, and account will be auto-filled if we have history
@@ -173,55 +289,63 @@ export default function ImportPanel({
         </a>
       </div>
 
-      {/* File chooser + Import button */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        {/* Hidden native input — triggered by the label below */}
-        <label
-          htmlFor="csv-file-input"
-          style={{ cursor: "pointer", display: "inline-block" }}
-        >
-          <input
-            id="csv-file-input"
-            ref={fileRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            style={{ display: "none" }}
-          />
-          <span
+      {/* Column mapping step — shown when non-standard headers detected */}
+      {showMappingStep && detectedHeaders ? (
+        <ColumnMappingStep
+          headers={detectedHeaders}
+          onConfirm={handleMappingConfirm}
+          onCancel={handleMappingCancel}
+        />
+      ) : (
+        /* File chooser + Import button */
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <label
+            htmlFor="csv-file-input"
+            style={{ cursor: "pointer", display: "inline-block" }}
+          >
+            <input
+              id="csv-file-input"
+              ref={fileRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: "1px solid #475569",
+                background: "white",
+                color: "#475569",
+                display: "inline-block",
+                lineHeight: 1.4,
+              }}
+            >
+              {selectedFile ? selectedFile.name : "Choose CSV file"}
+            </span>
+          </label>
+
+          <button
+            onClick={handleImport}
+            disabled={isPending}
             style={{
               fontSize: 12,
               fontWeight: 600,
-              padding: "5px 12px",
+              padding: "6px 14px",
               borderRadius: 6,
-              border: "1px solid #475569",
-              background: "white",
-              color: "#475569",
-              display: "inline-block",
-              lineHeight: 1.4,
+              border: "1px solid #1d9e75",
+              background: isPending ? "#6ee7b7" : "#1d9e75",
+              color: "white",
+              cursor: isPending ? "not-allowed" : "pointer",
             }}
           >
-            {selectedFile ? selectedFile.name : "Choose CSV file"}
-          </span>
-        </label>
-
-        <button
-          onClick={handleImport}
-          disabled={isPending}
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            padding: "6px 14px",
-            borderRadius: 6,
-            border: "1px solid #1d9e75",
-            background: isPending ? "#6ee7b7" : "#1d9e75",
-            color: "white",
-            cursor: isPending ? "not-allowed" : "pointer",
-          }}
-        >
-          {isPending ? "Importing…" : "Import"}
-        </button>
-      </div>
+            {isPending ? "Importing…" : "Import"}
+          </button>
+        </div>
+      )}
 
       {/* Parse errors — shown before server call */}
       {parseErrors.length > 0 && (
