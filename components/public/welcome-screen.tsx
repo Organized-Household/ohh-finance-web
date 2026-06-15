@@ -13,7 +13,7 @@ function HeroCardContent() {
             Take Control of Your Household Finances - Together 💡
           </h1>
           <p className="max-w-2xl text-sm text-slate-700 sm:text-base">
-            OHh-Finance helps your household plan, track, and understand your complete financial
+            OHh-Budget helps your household plan, track, and understand your complete financial
             picture in one secure place.
           </p>
         </div>
@@ -27,7 +27,7 @@ function HeroCardContent() {
         </ul>
 
         <p className="text-sm text-slate-700">
-          Designed for households, OHh-Finance brings clarity to everyday financial decisions -
+          Designed for households, OHh-Budget brings clarity to everyday financial decisions -
           helping you stay organized and confident about where your money is going.
         </p>
 

@@ -11,7 +11,7 @@ export default function DisclosuresPage() {
           
           <div className="prose prose-slate max-w-none">
             <p className="text-muted-foreground text-lg leading-relaxed">
-              OHh-Finance does not use Plaid or any third-party financial data 
+              OHh-Budget does not use Plaid or any third-party financial data 
               aggregation service. Bank account numbers are never required. The app 
               uses Supabase for data storage and Vercel for hosting.
             </p>

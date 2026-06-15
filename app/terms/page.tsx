@@ -8,7 +8,7 @@ export default function TermsPage() {
           Terms of Service
         </h1>
         <p className="text-gray-700 mb-6">
-          By using OHh-Finance you agree to use the service for personal household budgeting only. The service is provided as-is without warranty.
+          By using OHh-Budget you agree to use the service for personal household budgeting only. The service is provided as-is without warranty.
         </p>
         <Link
           href="/"

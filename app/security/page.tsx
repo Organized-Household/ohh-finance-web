@@ -8,7 +8,7 @@ export default function SecurityPage() {
         
         <div className="prose prose-lg max-w-none">
           <p className="text-gray-700 leading-relaxed mb-6">
-            OHh-Finance uses Supabase for secure data storage with Row Level Security (RLS) 
+            OHh-Budget uses Supabase for secure data storage with Row Level Security (RLS) 
             enforced on all tables. All data is encrypted in transit via HTTPS. Passwords are 
             managed by Supabase Auth and are never stored in plain text.
           </p>
