@@ -163,21 +163,6 @@ export default function TransactionForm({
           </select>
         </div>
 
-        <div>
-          <label htmlFor="transaction_type" className="sr-only">
-            Type
-          </label>
-          <select
-            id="transaction_type"
-            name="transaction_type"
-            defaultValue="expense"
-            className="h-8 w-full rounded border border-slate-300 px-2 text-sm"
-          >
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-          </select>
-        </div>
-
         <button
           type="submit"
           className="h-8 rounded bg-slate-900 px-3 text-sm font-medium text-white"

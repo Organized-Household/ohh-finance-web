@@ -421,12 +421,21 @@ export default async function TransactionsPage({
   const createAction = async (formData: FormData) => {
     "use server";
 
+    const categoryId = String(formData.get("category_id") ?? "");
+    const supabase = await createClient();
+    const { data: category } = await supabase
+      .from("categories")
+      .select("category_type")
+      .eq("id", categoryId)
+      .single();
+    const transactionType = (category?.category_type ?? "expense") as "income" | "expense";
+
     const result = await createTransaction({
       description: String(formData.get("description") ?? ""),
       amount: Number(formData.get("amount") ?? 0),
       transaction_date: String(formData.get("transaction_date") ?? ""),
-      transaction_type: (formData.get("transaction_type") as "income" | "expense") ?? "expense",
-      category_id: String(formData.get("category_id") ?? ""),
+      transaction_type: transactionType,
+      category_id: categoryId,
       linked_account_id: (formData.get("linked_account_id") as string) || null,
       payment_source_account_id:
         (formData.get("payment_source_account_id") as string) || null,
