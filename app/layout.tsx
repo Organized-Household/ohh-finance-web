@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OHh-Finance",
+  title: "OHh-Budget",
   description: "Household budgeting and financial tracking",
 };
 
