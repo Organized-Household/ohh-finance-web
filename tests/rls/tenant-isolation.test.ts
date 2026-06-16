@@ -277,15 +277,22 @@ describe('RLS Tenant Isolation', () => {
       }
       const lineId = linesA[0].id;
 
-      const { error } = await clientB
+      // RLS filters out cross-tenant rows before UPDATE executes.
+      // Supabase returns no error when 0 rows are affected — verify by
+      // confirming the original value is unchanged after the attempted update.
+      await clientB
         .from('budget_lines')
-        .update({ amount: 999 })
+        .update({ amount: 999999 })
         .eq('id', lineId);
 
-      expect(error).toBeTruthy();
-      if (error) {
-        expect(error.message.toLowerCase()).toContain('policy');
-      }
+      // Verify the row was NOT actually updated by reading it as Tenant A
+      const { data: lineAfter } = await clientA
+        .from('budget_lines')
+        .select('amount')
+        .eq('id', lineId)
+        .single();
+
+      expect(lineAfter?.amount).not.toBe(999999);
     });
   });
 
