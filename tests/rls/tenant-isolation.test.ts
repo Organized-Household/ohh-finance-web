@@ -326,6 +326,7 @@ describe('RLS Tenant Isolation', () => {
         tenant_id: memberData.tenant_id,
         name: 'Member Attempt',
         tag: tagSlug,
+        category_type: 'expense',
       });
 
       expect(error).toBeTruthy();

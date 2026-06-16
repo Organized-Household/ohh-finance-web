@@ -8,9 +8,9 @@ const uniqueSuffix = Date.now().toString();
 describe('OHHFIN-175: Import Row Idempotency', () => {
   let testTenantId: string;
   let testBatchId: string;
+  let testUserId: string;
 
   beforeAll(async () => {
-    // Create a real tenant for this test run
     const { data: tenant, error: tenantError } = await adminClient
       .from('tenants')
       .insert({ alias: `test-row-idempotency-${uniqueSuffix}` })
@@ -22,13 +22,23 @@ describe('OHHFIN-175: Import Row Idempotency', () => {
     }
     testTenantId = tenant.id;
 
-    // Create a real import batch
+    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+      email: `test-row-idempotency-${uniqueSuffix}@example.com`,
+      password: 'test-password-123',
+      email_confirm: true
+    });
+
+    if (authError || !authUser.user) {
+      throw new Error('Failed to create test user: ' + authError?.message);
+    }
+    testUserId = authUser.user.id;
+
     const { data: batch, error: batchError } = await adminClient
       .from('import_batches')
       .insert({
         tenant_id: testTenantId,
         original_filename: 'test-idempotency.csv',
-        imported_by: '00000000-0000-0000-0000-000000000001',
+        imported_by: testUserId,
         status: 'created'
       })
       .select('id')
@@ -39,7 +49,6 @@ describe('OHHFIN-175: Import Row Idempotency', () => {
     }
     testBatchId = batch.id;
 
-    // Clean up any existing test staging data
     await adminClient
       .from('import_staging')
       .delete()
@@ -50,6 +59,9 @@ describe('OHHFIN-175: Import Row Idempotency', () => {
     await adminClient.from('import_staging').delete().eq('tenant_id', testTenantId);
     await adminClient.from('import_batches').delete().eq('tenant_id', testTenantId);
     await adminClient.from('tenants').delete().eq('id', testTenantId);
+    if (testUserId) {
+      await adminClient.auth.admin.deleteUser(testUserId);
+    }
   });
 
   it('should have row_fingerprint column on import_staging', async () => {
