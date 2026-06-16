@@ -6,13 +6,17 @@ import { updateProfile } from "./actions";
 type ProfileFormProps = {
   initialFirstName: string;
   initialLastName: string;
+  initialHouseholdName: string;
   email: string;
+  isAdmin: boolean;
 };
 
 export default function ProfileForm({
   initialFirstName,
   initialLastName,
+  initialHouseholdName,
   email,
+  isAdmin,
 }: ProfileFormProps) {
   const [state, formAction, isPending] = useActionState(updateProfile, null);
 
@@ -31,6 +35,35 @@ export default function ProfileForm({
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
           Profile saved successfully.
         </div>
+      )}
+
+      {isAdmin && (
+        <div className="space-y-1">
+          <label htmlFor="household_name" className={labelCls}>
+            Household Name
+          </label>
+          <input
+            id="household_name"
+            name="household_name"
+            type="text"
+            required
+            defaultValue={initialHouseholdName}
+            disabled={isPending}
+            className={inputCls}
+            autoComplete="off"
+          />
+          <p className="text-xs text-slate-500">
+            This name is shown to all household members. Only admins can change it.
+          </p>
+        </div>
+      )}
+
+      {!isAdmin && (
+        <input
+          type="hidden"
+          name="household_name"
+          value={initialHouseholdName}
+        />
       )}
 
       <div className="space-y-1">
