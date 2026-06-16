@@ -39,19 +39,21 @@ describe('RLS Tenant Isolation', () => {
     });
     if (errorB) throw new Error(`Tenant B login failed: ${errorB.message}`);
 
-    const { data: memberA } = await clientA
+    const { data: membersA } = await clientA
       .from('tenant_members')
       .select('tenant_id')
-      .single();
-    if (!memberA) throw new Error('Tenant A membership not found');
-    tenantAId = memberA.tenant_id;
+      .eq('is_active', true)
+      .limit(1);
+    if (!membersA || membersA.length === 0) throw new Error('Tenant A membership not found');
+    tenantAId = membersA[0].tenant_id;
 
-    const { data: memberB } = await clientB
+    const { data: membersB } = await clientB
       .from('tenant_members')
       .select('tenant_id')
-      .single();
-    if (!memberB) throw new Error('Tenant B membership not found');
-    tenantBId = memberB.tenant_id;
+      .eq('is_active', true)
+      .limit(1);
+    if (!membersB || membersB.length === 0) throw new Error('Tenant B membership not found');
+    tenantBId = membersB[0].tenant_id;
   });
 
   describe('Read Isolation', () => {
