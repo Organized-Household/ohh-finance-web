@@ -32,7 +32,7 @@ export default async function ExpenseTypesPage() {
     // Service role required: tenants table has no RLS SELECT policy allowing members to read their own tenant row
     supabaseAdmin
       .from("tenants")
-      .select("name")
+      .select("alias")
       .eq("id", membership.tenant_id)
       .single(),
     // Anon client sufficient: RLS SELECT policy allows authenticated users to read tenant_members within their tenant
@@ -47,7 +47,7 @@ export default async function ExpenseTypesPage() {
     throw new Error(`Failed to load expense types: ${etError.message}`);
   }
 
-  const tenantName = tenantData?.name ?? "Your Household";
+  const tenantName = tenantData?.alias ?? "Your Household";
   const memberCount = activeMemberCount ?? 1;
 
   const leftPanelSections = [
