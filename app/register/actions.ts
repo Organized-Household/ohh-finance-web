@@ -3,7 +3,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { registerSchema } from "@/lib/validation/register";
 
 type RegisterState = {
@@ -19,61 +18,13 @@ async function resolveEmailRedirectUrl(): Promise<string> {
   const proto = h.get("x-forwarded-proto") ?? "https";
 
   if (host) {
-    return `${proto}://${host}/login`;
+    return `${proto}://${host}/auth/callback`;
   }
 
   const fallback =
     process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL ?? "http://localhost:3000";
 
-  return `${fallback.replace(/\/$/, "")}/login`;
-}
-
-async function bootstrapTenantMembership(params: {
-  alias: string;
-  userId: string;
-}): Promise<{ error?: string }> {
-  // Service role required: initial tenants + tenant_members INSERT at registration.
-  // RLS policies block writes before membership exists (chicken-egg problem).
-  const admin = createAdminClient();
-
-  const { data: tenantData, error: tenantError } = await admin
-    .from("tenants")
-    .insert({ alias: params.alias })
-    .select("id")
-    .single();
-
-  if (tenantError || !tenantData) {
-    return {
-      error: `Failed to create tenant bootstrap records: ${tenantError?.message ?? "tenant not created"}`,
-    };
-  }
-
-  const { error: membershipError } = await admin.from("tenant_members").insert({
-    tenant_id: tenantData.id,
-    user_id: params.userId,
-    role: "admin",
-  });
-
-  if (!membershipError) {
-    return {};
-  }
-
-  const { error: cleanupError } = await admin
-    .from("tenants")
-    .delete()
-    .eq("id", tenantData.id);
-
-  if (cleanupError) {
-    console.error("Failed to roll back tenant after membership insert error", {
-      tenantId: tenantData.id,
-      cleanupError: cleanupError.message,
-      membershipError: membershipError.message,
-    });
-  }
-
-  return {
-    error: `Failed to create tenant bootstrap records: ${membershipError.message}`,
-  };
+  return `${fallback.replace(/\/$/, "")}/auth/callback`;
 }
 
 export async function registerAction(
@@ -81,7 +32,6 @@ export async function registerAction(
   formData: FormData
 ): Promise<RegisterState> {
   const parsed = registerSchema.safeParse({
-    alias: String(formData.get("alias") ?? ""),
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
   });
@@ -120,14 +70,7 @@ export async function registerAction(
     };
   }
 
-  const bootstrapResult = await bootstrapTenantMembership({
-    alias: parsed.data.alias,
-    userId,
-  });
-
-  if (bootstrapResult.error) {
-    return { error: bootstrapResult.error };
-  }
-
-  redirect("/app");
+  // Email confirmation disabled (e.g. local dev) — go straight to complete-setup
+  // so the user can set their household name and profile.
+  redirect("/register/complete-setup");
 }
