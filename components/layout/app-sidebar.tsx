@@ -198,7 +198,7 @@ export default function AppSidebar({
             </div>
             {!collapsed ? (
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">OHh Finance</p>
+                <p className="truncate text-sm font-semibold">OHh-Budget</p>
                 <p className="truncate text-xs text-slate-400">Workspace</p>
               </div>
             ) : null}
