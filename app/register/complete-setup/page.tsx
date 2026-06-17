@@ -26,7 +26,7 @@ export default async function CompleteSetupPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-slate-900">Welcome to OHh-Budget</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Let's finish setting up your household. This only takes a moment.
+            Let&apos;s finish setting up your household. This only takes a moment.
           </p>
         </div>
         <CompleteSetupForm userId={user.id} />

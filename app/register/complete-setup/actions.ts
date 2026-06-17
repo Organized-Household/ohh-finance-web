@@ -4,7 +4,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
-export async function completeSetupAction(formData: FormData) {
+export async function completeSetupAction(
+  _prevState: { error: string } | null,
+  formData: FormData
+) {
   const supabase = await createClient();
 
   const alias = formData.get('alias') as string;
