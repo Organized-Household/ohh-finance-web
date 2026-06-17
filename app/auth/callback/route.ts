@@ -12,12 +12,26 @@ export async function GET(request: NextRequest) {
     | "email"
     | null;
   const next = searchParams.get("next") ?? "/app";
-
   const supabase = await createClient();
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Check if user has a tenant membership — new users won't
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: membership } = await supabase
+          .from("tenant_members")
+          .select("tenant_id")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (!membership) {
+          return NextResponse.redirect(`${origin}/register/complete-setup`);
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   } else if (tokenHash && type) {
