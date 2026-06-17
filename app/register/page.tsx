@@ -14,7 +14,6 @@ import { registerAction } from "./actions";
 const initialState: { error?: string; success?: string; status?: "email_verification_required"; email?: string } = {};
 
 type RegisterFieldErrors = {
-  alias?: string;
   email?: string;
   password?: string;
 };
@@ -38,7 +37,6 @@ function mapRegisterError(error: string): string {
 }
 
 export default function RegisterPage() {
-  const [alias, setAlias] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
@@ -50,10 +48,6 @@ export default function RegisterPage() {
 
   function validateFields(): RegisterFieldErrors {
     const nextErrors: RegisterFieldErrors = {};
-
-    if (!alias.trim()) {
-      nextErrors.alias = "Household Alias is required.";
-    }
 
     if (!email.trim()) {
       nextErrors.email = "Email is required.";
@@ -151,7 +145,7 @@ export default function RegisterPage() {
       <main className="mx-auto flex w-full max-w-6xl flex-1 justify-center px-4 pb-10 pt-10 sm:pt-14">
         <AuthCard
           title="Register"
-          description="Create your household and admin account."
+          description="Create your account to get started."
           footer={
             <p className="text-sm text-slate-600">
               Already have an account?{" "}
@@ -169,28 +163,6 @@ export default function RegisterPage() {
             {state?.success ? <FormAlert tone="success" message={state.success} /> : null}
 
             <form action={formAction} onSubmit={handleSubmit} className="space-y-3">
-              <div>
-                <label htmlFor="alias" className="mb-1 block text-sm font-medium text-slate-700">
-                  Household Alias
-                </label>
-                <input
-                  id="alias"
-                  name="alias"
-                  type="text"
-                  required
-                  value={alias}
-                  onChange={(event) => {
-                    setAlias(event.target.value);
-                    if (fieldErrors.alias) {
-                      setFieldErrors((prev) => ({ ...prev, alias: undefined }));
-                    }
-                  }}
-                  aria-describedby={fieldErrors.alias ? "alias-error" : undefined}
-                  className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
-                />
-                <InlineErrorMessage id="alias-error" message={fieldErrors.alias} />
-              </div>
-
               <div>
                 <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
                   Email
