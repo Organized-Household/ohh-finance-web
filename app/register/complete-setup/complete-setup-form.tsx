@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useActionState } from 'react';
 import { completeSetupAction } from './actions';
 
 interface CompleteSetupFormProps {
@@ -8,54 +8,76 @@ interface CompleteSetupFormProps {
 }
 
 export function CompleteSetupForm({ userId }: CompleteSetupFormProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, formAction, isPending] = useActionState(completeSetupAction, null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    formData.set('userId', userId);
-
-    const result = await completeSetupAction(formData);
-
-    if (result?.error) {
-      setError(result.error);
-      setIsLoading(false);
-    }
-    // On success, the action will redirect
-  }
+  const inputCls =
+    'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500';
+  const labelCls = 'block text-sm font-medium text-slate-700';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="alias" className="block text-sm font-medium text-gray-700">
-          Household Alias
+    <form action={formAction} className="space-y-4">
+      <input type="hidden" name="userId" value={userId} />
+
+      {state?.error && (
+        <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {state.error}
+        </div>
+      )}
+
+      <div className="space-y-1">
+        <label htmlFor="alias" className={labelCls}>
+          Household Name
         </label>
         <input
           type="text"
           id="alias"
           name="alias"
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-          placeholder="e.g., Smith Family"
+          disabled={isPending}
+          className={inputCls}
+          placeholder="e.g., The Smith Family"
+        />
+        <p className="text-xs text-slate-500">
+          This name is shown to all household members.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+        <label htmlFor="first_name" className={labelCls}>
+          First Name
+        </label>
+        <input
+          type="text"
+          id="first_name"
+          name="first_name"
+          required
+          disabled={isPending}
+          className={inputCls}
+          autoComplete="given-name"
         />
       </div>
 
-      {error && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-          {error}
-        </div>
-      )}
+      <div className="space-y-1">
+        <label htmlFor="last_name" className={labelCls}>
+          Last Name
+        </label>
+        <input
+          type="text"
+          id="last_name"
+          name="last_name"
+          required
+          disabled={isPending}
+          className={inputCls}
+          autoComplete="family-name"
+        />
+      </div>
 
       <button
         type="submit"
-        disabled={isLoading}
-        className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+        disabled={isPending}
+        className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
       >
-        {isLoading ? 'Completing Setup...' : 'Complete Setup'}
+        {isPending ? 'Setting up your household…' : 'Complete Setup'}
       </button>
     </form>
   );
