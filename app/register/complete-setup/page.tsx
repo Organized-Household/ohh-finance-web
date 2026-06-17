@@ -10,7 +10,6 @@ export default async function CompleteSetupPage() {
     redirect('/login');
   }
 
-  // Check if user already has membership (shouldn't be here)
   const { data: memberships } = await supabase
     .from('tenant_members')
     .select('tenant_id')
@@ -22,12 +21,12 @@ export default async function CompleteSetupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow-sm border border-slate-200">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Complete Your Setup</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Your account was created but setup did not complete. Click below to finish setting up your household.
+          <h1 className="text-2xl font-bold text-slate-900">Welcome to OHh-Budget</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Let's finish setting up your household. This only takes a moment.
           </p>
         </div>
         <CompleteSetupForm userId={user.id} />

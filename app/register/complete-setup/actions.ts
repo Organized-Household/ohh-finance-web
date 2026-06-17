@@ -8,20 +8,19 @@ export async function completeSetupAction(formData: FormData) {
   const supabase = await createClient();
 
   const alias = formData.get('alias') as string;
+  const firstName = formData.get('first_name') as string;
+  const lastName = formData.get('last_name') as string;
   const userId = formData.get('userId') as string;
 
-  if (!alias || !userId) {
-    return { error: 'Missing required fields.' };
+  if (!alias || !userId || !firstName || !lastName) {
+    return { error: 'All fields are required.' };
   }
 
-  // Verify user is authenticated and matches the userId
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || user.id !== userId) {
     return { error: 'Authentication error.' };
   }
 
-  // Service role required: initial tenants + tenant_members INSERT at registration.
-  // RLS policies block writes before membership exists (chicken-egg problem).
   const admin = createAdminClient();
 
   const { data: tenantData, error: tenantError } = await admin
@@ -32,7 +31,7 @@ export async function completeSetupAction(formData: FormData) {
 
   if (tenantError || !tenantData) {
     if (tenantError?.code === '23505') {
-      return { error: 'This household alias is already taken. Please choose another.' };
+      return { error: 'This household name is already taken. Please choose another.' };
     }
     return {
       error: `Failed to complete setup: ${tenantError?.message ?? 'tenant not created'}`,
@@ -46,23 +45,19 @@ export async function completeSetupAction(formData: FormData) {
   });
 
   if (membershipError) {
-    // Roll back tenant if membership insert fails
-    const { error: cleanupError } = await admin
-      .from('tenants')
-      .delete()
-      .eq('id', tenantData.id);
+    await admin.from('tenants').delete().eq('id', tenantData.id);
+    return { error: `Failed to complete setup: ${membershipError.message}` };
+  }
 
-    if (cleanupError) {
-      console.error('Failed to roll back tenant after membership insert error', {
-        tenantId: tenantData.id,
-        cleanupError: cleanupError.message,
-        membershipError: membershipError.message,
-      });
-    }
+  const { error: profileError } = await admin.from('profiles').upsert({
+    user_id: userId,
+    first_name: firstName,
+    last_name: lastName,
+    display_name: `${firstName} ${lastName}`,
+  });
 
-    return {
-      error: `Failed to complete setup: ${membershipError.message}`,
-    };
+  if (profileError) {
+    return { error: `Failed to save profile: ${profileError.message}` };
   }
 
   redirect('/app');
