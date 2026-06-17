@@ -1,12 +1,20 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { upsertBudget } from "@/app/app/budgets/actions";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  upsertBudget,
+  copyBudgetFromMonth,
+} from "@/app/app/budgets/actions";
+import GroupedBudgetTable, {
+  type GroupedBudgetSection,
+} from "@/components/budgets/grouped-budget-table";
+import BudgetTotalsFooter from "@/components/budgets/budget-totals-footer";
 
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: string;
   category_type: "income" | "expense";
 };
 
@@ -19,47 +27,34 @@ type Props = {
   categories: Category[];
   month: string;
   initialLines: InitialLine[];
+  isHistoricalMonth: boolean;
+  latestBudget: { monthStart: string; monthLabel: string } | null;
+  hasExistingBudget: boolean;
+  currentMonthStart: string;
+  activeMemberId: string;
 };
-
-type TagKey = "standard" | "savings" | "investment";
-type CategoryTypeKey = "income" | "expense";
-
-const TAG_ORDER: TagKey[] = ["standard", "savings", "investment"];
-const CATEGORY_TYPE_ORDER: CategoryTypeKey[] = ["income", "expense"];
-
-const TAG_LABELS: Record<TagKey, string> = {
-  standard: "Standard",
-  savings: "Savings",
-  investment: "Investment",
-};
-
-const TAG_HELPER_TEXT: Record<TagKey, string> = {
-  standard: "Everyday categories",
-  savings: "Money set aside for a goal or future use",
-  investment: "Money planned for long-term growth",
-};
-
-const SECTION_LABELS: Record<CategoryTypeKey, string> = {
-  income: "Income",
-  expense: "Expense",
-};
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency: "CAD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
 
 export default function BudgetTable({
   categories,
   month,
   initialLines,
+  isHistoricalMonth,
+  latestBudget,
+  hasExistingBudget,
+  currentMonthStart,
+  activeMemberId,
 }: Props) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string>("");
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [showCopyConfirm, setShowCopyConfirm] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
+
+  // Show whenever there is any prior budget to copy from.
+  // getLatestBudgetMonth already excludes the current month server-side,
+  // so latestBudget is always a prior month when non-null.
+  const showCopyButton = latestBudget !== null;
 
   const initialValues = useMemo(() => {
     const map: Record<string, string> = {};
@@ -73,55 +68,83 @@ export default function BudgetTable({
 
   const [values, setValues] = useState<Record<string, string>>(initialValues);
 
-  const groupedCategories = useMemo(() => {
-    const result: Record<
-      CategoryTypeKey,
-      Record<TagKey, Category[]>
-    > = {
-      income: {
-        standard: [],
-        savings: [],
-        investment: [],
-      },
-      expense: {
-        standard: [],
-        savings: [],
-        investment: [],
-      },
+  // When initialLines changes (e.g. after router.refresh() following a copy),
+  // sync values so the table displays the newly copied amounts immediately.
+  useEffect(() => {
+    setValues(initialValues);
+  }, [initialValues]);
+  const [historicalEditingEnabled, setHistoricalEditingEnabled] = useState(
+    !isHistoricalMonth
+  );
+  const isReadOnly = isHistoricalMonth && !historicalEditingEnabled;
+
+  function toAmount(value: string | undefined) {
+    const amount = Number(value ?? 0);
+    return Number.isFinite(amount) && amount > 0 ? amount : 0;
+  }
+
+  const groupedSections = useMemo(() => {
+    const buildSection = (
+      key: string,
+      title: string,
+      sectionCategories: Category[]
+    ): GroupedBudgetSection => {
+      const subtotal = sectionCategories.reduce(
+        (sum, category) => sum + toAmount(values[category.id]),
+        0
+      );
+      return {
+        key,
+        title,
+        subtotal,
+        rows: sectionCategories.map((category) => ({
+          id: category.id,
+          name: category.name,
+          amount: values[category.id] ?? "",
+        })),
+      };
     };
 
-    for (const category of categories) {
-      result[category.category_type][category.tag].push(category);
+    const incomeSection = buildSection(
+      "income",
+      "Income",
+      categories.filter((c) => c.category_type === "income")
+    );
+
+    // Collect unique expense tags in the order they first appear (server sorts by tag)
+    const seenTags = new Set<string>();
+    const expenseTags: string[] = [];
+    for (const c of categories) {
+      if (c.category_type === "expense" && !seenTags.has(c.tag)) {
+        seenTags.add(c.tag);
+        expenseTags.push(c.tag);
+      }
     }
 
-    return result;
-  }, [categories]);
+    const expenseSections = expenseTags.map((tag) =>
+      buildSection(
+        tag,
+        tag.charAt(0).toUpperCase() + tag.slice(1).replace(/_/g, " "),
+        categories.filter((c) => c.category_type === "expense" && c.tag === tag)
+      )
+    );
+
+    return [incomeSection, ...expenseSections];
+  }, [categories, values]);
 
   const totals = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-
-    for (const category of categories) {
-      const rawValue = values[category.id];
-      const amount = Number(rawValue || 0);
-
-      if (!Number.isFinite(amount) || amount < 0) {
-        continue;
-      }
-
-      if (category.category_type === "income") {
-        income += amount;
-      } else {
-        expense += amount;
-      }
-    }
+    const incomeSubtotal =
+      groupedSections.find((section) => section.key === "income")?.subtotal ?? 0;
+    const totalExpenses = groupedSections
+      .filter((section) => section.key !== "income")
+      .reduce((sum, section) => sum + section.subtotal, 0);
 
     return {
-      income,
-      expense,
-      remaining: income - expense,
+      totalIncome: incomeSubtotal,
+      totalExpenses,
+      remainingBalance: incomeSubtotal - totalExpenses,
     };
-  }, [categories, values]);
+  }, [groupedSections]);
 
   const hasChanges = useMemo(() => {
     const allIds = new Set([
@@ -142,6 +165,10 @@ export default function BudgetTable({
   }, [initialValues, values]);
 
   function updateValue(categoryId: string, value: string) {
+    if (isReadOnly) {
+      return;
+    }
+
     setValues((prev) => ({
       ...prev,
       [categoryId]: value,
@@ -154,6 +181,10 @@ export default function BudgetTable({
   }
 
   function handleSave() {
+    if (isReadOnly) {
+      return;
+    }
+
     setMessage("");
 
     startTransition(async () => {
@@ -178,34 +209,52 @@ export default function BudgetTable({
     });
   }
 
+  async function handleCopy() {
+    if (!latestBudget || isCopying) return;
+    setCopyError(null);
+    setShowCopyConfirm(false);
+    setIsCopying(true);
+    try {
+      const result = await copyBudgetFromMonth(
+        latestBudget.monthStart,
+        currentMonthStart,
+        activeMemberId
+      );
+      if (result.error) {
+        setCopyError(result.error);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setIsCopying(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-600">Planned income</p>
-          <p className="mt-1 text-2xl font-semibold text-green-700">
-            {formatCurrency(totals.income)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-600">Planned expenses</p>
-          <p className="mt-1 text-2xl font-semibold text-red-700">
-            {formatCurrency(totals.expense)}
-          </p>
-        </div>
-
-        <div className="rounded-xl border bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-600">Remaining</p>
-          <p
-            className={`mt-1 text-2xl font-semibold ${
-              totals.remaining >= 0 ? "text-blue-700" : "text-red-700"
-            }`}
-          >
-            {formatCurrency(totals.remaining)}
-          </p>
-        </div>
-      </div>
+      {isHistoricalMonth ? (
+        <section className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p>
+              This is a historical month. Budgets are view-only until you enable
+              editing for this month.
+            </p>
+            {!historicalEditingEnabled ? (
+              <button
+                type="button"
+                onClick={() => setHistoricalEditingEnabled(true)}
+                className="rounded border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-900"
+              >
+                Enable Editing
+              </button>
+            ) : (
+              <span className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                Editing enabled
+              </span>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       {message ? (
         <div className="rounded-lg border bg-white px-4 py-3 text-sm shadow-sm">
@@ -213,120 +262,82 @@ export default function BudgetTable({
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        {CATEGORY_TYPE_ORDER.map((categoryType) => {
-          const sectionGroups = groupedCategories[categoryType];
-          const hasAnyRows = TAG_ORDER.some(
-            (tag) => sectionGroups[tag].length > 0
-          );
+      <GroupedBudgetTable
+        sections={groupedSections}
+        onAmountChange={updateValue}
+        inputsDisabled={isReadOnly}
+      />
 
-          if (!hasAnyRows) {
-            return null;
-          }
-
-          return (
-            <section
-              key={categoryType}
-              className="rounded-xl border bg-white p-4 shadow-sm"
-            >
-              <div className="mb-4 flex items-center justify-between border-b pb-3">
-                <h2 className="text-lg font-semibold">
-                  {SECTION_LABELS[categoryType]}
-                </h2>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-gray-600">
-                  {sectionGroups.standard.length +
-                    sectionGroups.savings.length +
-                    sectionGroups.investment.length}{" "}
-                  categories
-                </span>
-              </div>
-
-              <div className="space-y-6">
-                {TAG_ORDER.map((tag) => {
-                  const tagCategories = sectionGroups[tag];
-
-                  if (!tagCategories.length) {
-                    return null;
-                  }
-
-                  return (
-                    <div key={tag} className="space-y-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold">
-                            {TAG_LABELS[tag]}
-                          </h3>
-                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-                            {tagCategories.length}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-gray-500">
-                          {TAG_HELPER_TEXT[tag]}
-                        </p>
-                      </div>
-
-                      <div className="space-y-3">
-                        {tagCategories.map((category) => (
-                          <div
-                            key={category.id}
-                            className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div className="min-w-0">
-                              <p className="font-medium">{category.name}</p>
-                              <p className="text-xs text-gray-500 capitalize">
-                                {category.category_type}
-                              </p>
-                            </div>
-
-                            <div className="w-full sm:w-40">
-                              <label
-                                htmlFor={`amount-${category.id}`}
-                                className="mb-1 block text-xs font-medium text-gray-600"
-                              >
-                                Amount
-                              </label>
-                              <input
-                                id={`amount-${category.id}`}
-                                type="number"
-                                inputMode="decimal"
-                                min="0"
-                                step="0.01"
-                                value={values[category.id] ?? ""}
-                                onChange={(e) =>
-                                  updateValue(category.id, e.target.value)
-                                }
-                                className="w-full rounded border px-3 py-2 text-right"
-                                aria-label={`Planned amount for ${category.name}`}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
-      </div>
+      <BudgetTotalsFooter
+        totalIncome={totals.totalIncome}
+        totalExpenses={totals.totalExpenses}
+        remainingBalance={totals.remainingBalance}
+      />
 
       <div className="sticky bottom-4 z-10">
         <div className="flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-lg sm:flex-row sm:items-center sm:justify-between">
+          {/* Left zone: label + copy control */}
           <div>
-            <p className="text-sm font-medium">Budget for {month}</p>
-            <p className="text-xs text-gray-600">
-              {hasChanges
-                ? "You have unsaved changes."
-                : "No unsaved changes."}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium leading-none">Budget for {month}</span>
+
+              {/* Copy button / inline confirmation — vertically centred with label */}
+              {showCopyButton && latestBudget && (
+                !showCopyConfirm ? (
+                  <button
+                    type="button"
+                    disabled={isCopying || isPending}
+                    onClick={() => {
+                      if (hasExistingBudget) {
+                        setShowCopyConfirm(true);
+                      } else {
+                        void handleCopy();
+                      }
+                    }}
+                    className="rounded border px-3 py-1 text-sm font-medium leading-none disabled:opacity-50"
+                  >
+                    {isCopying ? "Copying..." : `Copy from ${latestBudget.monthLabel}`}
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm leading-none text-amber-600">
+                      Overwrite with {latestBudget.monthLabel} budget?
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isCopying}
+                      onClick={() => void handleCopy()}
+                      className="text-sm font-medium leading-none text-green-600 hover:text-green-800 disabled:opacity-50"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isCopying}
+                      onClick={() => setShowCopyConfirm(false)}
+                      className="text-sm leading-none text-gray-500 hover:text-gray-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+
+            <p className="mt-1 text-xs text-gray-600">
+              {hasChanges ? "You have unsaved changes." : "No unsaved changes."}
             </p>
+            {copyError ? (
+              <p className="mt-1 text-xs text-rose-700">{copyError}</p>
+            ) : null}
           </div>
 
+          {/* Right zone: Discard + Save */}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={handleDiscard}
-              disabled={!hasChanges || isPending}
+              disabled={!hasChanges || isPending || isReadOnly}
               className="rounded border px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
               Discard
@@ -335,7 +346,7 @@ export default function BudgetTable({
             <button
               type="button"
               onClick={handleSave}
-              disabled={!hasChanges || isPending}
+              disabled={!hasChanges || isPending || isReadOnly}
               className="rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {isPending ? "Saving..." : "Save"}

@@ -1,0 +1,501 @@
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
+import WorkspaceShell from "@/components/layout/workspace-shell";
+import MemberSelectorCard from "@/components/layout/MemberSelectorCard";
+import type { WorkspaceLeftPanelSection } from "@/components/layout/workspace-left-panel";
+import TransactionForm from "@/components/transactions/transaction-form";
+import TransactionTable from "@/components/transactions/transaction-table";
+import DashboardMonthSelector from "@/components/dashboard/dashboard-month-selector";
+import TransactionsTabs from "@/components/transactions/TransactionsTabs";
+import ImportPanel from "@/components/transactions/ImportPanel";
+import type { StagingRow } from "@/components/transactions/ReviewTable";
+import { redirect } from "next/navigation";
+import { createTransaction } from "./actions";
+
+type SearchParams = Promise<{
+  month?: string;
+  member?: string;
+}>;
+
+type Category = {
+  id: string;
+  name: string;
+  tag: "standard" | "savings" | "investment" | "debt_payment";
+  category_type: "income" | "expense";
+};
+
+type Transaction = {
+  id: string;
+  transaction_date: string;
+  description: string;
+  amount: number;
+  transaction_type: "income" | "expense";
+  category_id: string;
+  linked_account_id: string | null;
+  payment_source_account_id: string | null;
+};
+
+type AccountOption = {
+  id: string;
+  name: string;
+  account_kind: string;
+  account_subtype: string | null;
+};
+
+function getMonthRange(month: string) {
+  const [yearString, monthString] = month.split("-");
+  const year = Number(yearString);
+  const monthIndex = Number(monthString) - 1;
+  const start = new Date(Date.UTC(year, monthIndex, 1));
+  const end = new Date(Date.UTC(year, monthIndex + 1, 1));
+
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
+function toMonthString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function isValidMonth(month: string): boolean {
+  const match = /^(\d{4})-(\d{2})$/.exec(month);
+
+  if (!match) {
+    return false;
+  }
+
+  const monthNumber = Number(match[2]);
+  return monthNumber >= 1 && monthNumber <= 12;
+}
+
+function getMonthOptions(selectedMonth: string): string[] {
+  const [yearString, monthString] = selectedMonth.split("-");
+  const baseYear = Number(yearString);
+  const baseMonthIndex = Number(monthString) - 1;
+  const options: string[] = [];
+
+  for (let offset = -5; offset <= 5; offset += 1) {
+    const date = new Date(baseYear, baseMonthIndex + offset, 1);
+    options.push(toMonthString(date));
+  }
+
+  return options;
+}
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+export default async function TransactionsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const currentMonth = toMonthString(new Date());
+  const selectedMonth =
+    params.month && isValidMonth(params.month)
+      ? params.month
+      : currentMonth;
+
+  const monthRange = getMonthRange(selectedMonth);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Authenticated user not found");
+  }
+
+  const membership = await getCurrentTenantMembership();
+  const isAdmin = membership.role === "admin";
+  // Server enforces: members always see own data regardless of URL param
+  const activeMemberId = isAdmin ? (params.member ?? user.id) : user.id;
+
+  const { data: categoriesData, error: categoriesError } = await supabase
+    .from("categories")
+    .select("id, name, tag, category_type")
+    .eq("tenant_id", membership.tenant_id)
+    .order("category_type", { ascending: true })
+    .order("tag", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (categoriesError) {
+    throw new Error(`Failed to load categories: ${categoriesError.message}`);
+  }
+
+  const categories: Category[] = (categoriesData ?? []) as Category[];
+
+  const { data: accountsData, error: accountsError } = await supabase
+    .from("accounts")
+    .select("id, name, account_kind, account_subtype")
+    .eq("tenant_id", membership.tenant_id)
+    .eq("is_active", true)
+    .order("account_kind", { ascending: true })
+    .order("name", { ascending: true });
+
+  if (accountsError) {
+    throw new Error(`Failed to load accounts: ${accountsError.message}`);
+  }
+
+  const accountOptions: AccountOption[] = (accountsData ?? []) as AccountOption[];
+
+  const { data: transactionsData, error: transactionsError } = await supabase
+    .from("transactions")
+    .select(
+      "id, transaction_date, description, amount, transaction_type, category_id, linked_account_id, payment_source_account_id"
+    )
+    .eq("tenant_id", membership.tenant_id)
+    .eq("created_by_user_id", activeMemberId)
+    .gte("transaction_date", monthRange.start)
+    .lt("transaction_date", monthRange.end)
+    .order("transaction_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (transactionsError) {
+    throw new Error(`Failed to load transactions: ${transactionsError.message}`);
+  }
+
+  const transactions: Transaction[] = (transactionsData ?? []).map((row) => ({
+    id: String(row.id),
+    transaction_date: String(row.transaction_date),
+    description: String(row.description),
+    amount: Number(row.amount ?? 0),
+    transaction_type: row.transaction_type as "income" | "expense",
+    category_id: String(row.category_id),
+    linked_account_id:
+      typeof row.linked_account_id === "string" ? row.linked_account_id : null,
+    payment_source_account_id:
+      typeof row.payment_source_account_id === "string"
+        ? row.payment_source_account_id
+        : null,
+  }));
+
+  // Fetch all pending staging rows for the tenant (not month-filtered —
+  // users need to see and post all pending imports regardless of month selector)
+  const { data: stagingData } = await supabase
+    .from("import_staging")
+    .select(
+      "id, occurred_at, description, amount, transaction_type, category_id, linked_account_id, payment_source_account_id"
+    )
+    .eq("tenant_id", membership.tenant_id)
+    .eq("status", "pending")
+    .order("occurred_at", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const initialStagingRows: StagingRow[] = (stagingData ?? []).map((row) => ({
+    id: String(row.id),
+    occurred_at: String(row.occurred_at),
+    description: String(row.description),
+    amount: Number(row.amount ?? 0),
+    transaction_type: typeof row.transaction_type === "string" ? row.transaction_type : null,
+    category_id: typeof row.category_id === "string" ? row.category_id : null,
+    linked_account_id:
+      typeof row.linked_account_id === "string" ? row.linked_account_id : null,
+    payment_source_account_id:
+      typeof row.payment_source_account_id === "string"
+        ? row.payment_source_account_id
+        : null,
+    // We don't store auto_filled in DB; newly fetched rows have no green tint
+    auto_filled: false,
+  }));
+
+  const categoryMap = new Map(categories.map((category) => [category.id, category]));
+  const accountMap = new Map(
+    accountOptions.map((a) => [
+      a.id,
+      a.account_subtype ? `${a.name} - ${a.account_subtype}` : a.name,
+    ])
+  );
+
+  const tableRows = transactions.map((transaction) => {
+    const category = categoryMap.get(transaction.category_id);
+    const linkedAccountLabel = transaction.linked_account_id
+      ? (accountMap.get(transaction.linked_account_id) ?? null)
+      : null;
+    const paymentSourceLabel = transaction.payment_source_account_id
+      ? (accountMap.get(transaction.payment_source_account_id) ?? null)
+      : null;
+
+    return {
+      id: transaction.id,
+      transaction_date: transaction.transaction_date,
+      description: transaction.description,
+      amount: transaction.amount,
+      transaction_type: transaction.transaction_type,
+      category_id: transaction.category_id,
+      category_name: category?.name ?? "Unknown category",
+      category_tag: (category?.tag ?? "standard") as
+        | "standard"
+        | "savings"
+        | "investment"
+        | "debt_payment",
+      linked_account_id: transaction.linked_account_id,
+      payment_source_account_id: transaction.payment_source_account_id,
+      linked_account_label: linkedAccountLabel,
+      payment_source_label: paymentSourceLabel,
+    };
+  });
+
+  const transactionCount = tableRows.length;
+  const monthIncome = tableRows
+    .filter((row) => row.transaction_type === "income")
+    .reduce((sum, row) => sum + row.amount, 0);
+  const monthExpense = tableRows
+    .filter((row) => row.transaction_type === "expense")
+    .reduce((sum, row) => sum + row.amount, 0);
+  const standardExpense = tableRows
+    .filter(
+      (row) => row.transaction_type === "expense" && row.category_tag === "standard"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+  const savingsExpense = tableRows
+    .filter(
+      (row) => row.transaction_type === "expense" && row.category_tag === "savings"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+  const investmentExpense = tableRows
+    .filter(
+      (row) =>
+        row.transaction_type === "expense" && row.category_tag === "investment"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+  const debtPaymentExpense = tableRows
+    .filter(
+      (row) =>
+        row.transaction_type === "expense" && row.category_tag === "debt_payment"
+    )
+    .reduce((sum, row) => sum + row.amount, 0);
+
+  const maxValue = Math.max(monthIncome, monthExpense, 1);
+  const incomeBarHeight = (monthIncome / maxValue) * 100;
+  const standardBarHeight = (standardExpense / maxValue) * 100;
+  const savingsBarHeight = (savingsExpense / maxValue) * 100;
+  const investmentBarHeight = (investmentExpense / maxValue) * 100;
+  const debtPaymentBarHeight = (debtPaymentExpense / maxValue) * 100;
+
+  const leftPanelSections: WorkspaceLeftPanelSection[] = [
+    {
+      title: "Household Member",
+      content: (
+        <MemberSelectorCard
+          isAdmin={isAdmin}
+          currentUserId={user.id}
+          activeMemberId={activeMemberId}
+        />
+      ),
+    },
+    {
+      title: "Month Overview",
+      content: (
+        <div className="space-y-2 text-xs text-slate-700">
+          <div className="flex items-center justify-between">
+            <span>Transactions</span>
+            <span className="font-semibold tabular-nums">{transactionCount}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Income</span>
+            <span className="font-semibold tabular-nums text-emerald-700">
+              {formatCurrency(monthIncome)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Expense</span>
+            <span className="font-semibold tabular-nums text-rose-700">
+              {formatCurrency(monthExpense)}
+            </span>
+          </div>
+          <div className="space-y-1 border-t border-slate-200 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-600">Standard</span>
+              <span className="font-medium tabular-nums text-slate-700">
+                {formatCurrency(standardExpense)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-teal-700">Savings</span>
+              <span className="font-medium tabular-nums text-teal-700">
+                {formatCurrency(savingsExpense)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-indigo-700">Investment</span>
+              <span className="font-medium tabular-nums text-indigo-700">
+                {formatCurrency(investmentExpense)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-rose-700">Debt Payment</span>
+              <span className="font-medium tabular-nums text-rose-700">
+                {formatCurrency(debtPaymentExpense)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Income vs Expense",
+      content: (
+        <div className="space-y-2">
+          <div className="flex h-28 items-end justify-center gap-8 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="flex w-12 flex-col items-center gap-1">
+              <div className="flex h-20 w-7 items-end overflow-hidden rounded-t bg-slate-200">
+                <div
+                  className="w-full bg-emerald-500"
+                  style={{ height: `${incomeBarHeight}%` }}
+                />
+              </div>
+              <span className="text-[11px] text-slate-700">Income</span>
+            </div>
+            <div className="flex w-12 flex-col items-center gap-1">
+              <div className="flex h-20 w-7 flex-col-reverse overflow-hidden rounded-t bg-slate-200">
+                <div
+                  className="bg-indigo-500"
+                  style={{ height: `${investmentBarHeight}%` }}
+                />
+                <div
+                  className="bg-rose-500"
+                  style={{ height: `${debtPaymentBarHeight}%` }}
+                />
+                <div
+                  className="bg-teal-500"
+                  style={{ height: `${savingsBarHeight}%` }}
+                />
+                <div
+                  className="bg-slate-500"
+                  style={{ height: `${standardBarHeight}%` }}
+                />
+              </div>
+              <span className="text-[11px] text-slate-700">Expense</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-emerald-500" />
+              <span>Income</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-slate-500" />
+              <span>Standard</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-teal-500" />
+              <span>Savings</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-indigo-500" />
+              <span>Investment</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-rose-500" />
+              <span>Debt Payment</span>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Data Scope",
+      content: (
+        <p className="text-xs text-slate-600">
+          Transactions are tenant-scoped and tied to categories. Category type
+          determines income or expense classification.
+        </p>
+      ),
+    },
+  ];
+
+  const createAction = async (formData: FormData) => {
+    "use server";
+
+    const categoryId = String(formData.get("category_id") ?? "");
+    const supabase = await createClient();
+    const { data: category } = await supabase
+      .from("categories")
+      .select("category_type")
+      .eq("id", categoryId)
+      .single();
+    const transactionType = (category?.category_type ?? "expense") as "income" | "expense";
+
+    const result = await createTransaction({
+      description: String(formData.get("description") ?? ""),
+      amount: Number(formData.get("amount") ?? 0),
+      transaction_date: String(formData.get("transaction_date") ?? ""),
+      transaction_type: transactionType,
+      category_id: categoryId,
+      linked_account_id: (formData.get("linked_account_id") as string) || null,
+      payment_source_account_id:
+        (formData.get("payment_source_account_id") as string) || null,
+    });
+
+    if (result.ok) {
+      redirect("/app/transactions");
+    } else {
+      throw new Error(result.error ?? "Failed to create transaction");
+    }
+  };
+
+  return (
+    <WorkspaceShell
+      title="Transactions"
+      description="Capture actual financial activity for reporting, summaries, and budget-vs-actual analysis."
+      leftPanelSections={leftPanelSections}
+      topbarControls={<DashboardMonthSelector selectedMonth={selectedMonth} />}
+      isAdmin={isAdmin}
+      currentUserId={user.id}
+      activeMemberId={activeMemberId}
+    >
+      {/*
+        TransactionsTabs is a client component that manages the Transactions /
+        Import tab state. Server-rendered children (transactionsPanel,
+        importPanel) are passed as props — this is the standard Next.js
+        App Router pattern for server→client composition.
+      */}
+      <TransactionsTabs
+        transactionsPanel={
+          <div className="space-y-3">
+            {categories.length ? (
+              <TransactionForm
+                categories={categories}
+                defaultDate={monthRange.start}
+                accounts={accountOptions}
+                action={createAction}
+              />
+            ) : (
+              <section className="rounded-lg border border-slate-300 bg-white px-3 py-4 text-sm text-slate-600">
+                No categories found for this tenant. Create categories first before
+                adding transactions.
+              </section>
+            )}
+
+            <TransactionTable
+              rows={tableRows}
+              categories={categories}
+              accounts={accountOptions}
+            />
+          </div>
+        }
+        importPanel={
+          <ImportPanel
+            categories={categories}
+            accounts={accountOptions}
+            initialStagingRows={initialStagingRows}
+          />
+        }
+      />
+    </WorkspaceShell>
+  );
+}

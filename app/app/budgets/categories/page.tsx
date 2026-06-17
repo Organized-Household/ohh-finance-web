@@ -1,276 +1,123 @@
 import { createClient } from "@/lib/supabase/server";
-import {
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "./actions";
+import { createAdminClient } from "@/lib/supabase/admin";
+import WorkspaceShell from "@/components/layout/workspace-shell";
+import { computeBudgetMetrics } from "@/components/budgets/budget-metrics";
+import { buildBudgetMetricsSections } from "@/components/budgets/left-panel-insights";
+import CategoryCreateForm from "@/components/categories/category-create-form";
+import GroupedCategoryTable from "@/components/categories/grouped-category-table";
+import { getCurrentTenantMembership } from "@/lib/tenant/get-current-tenant-membership";
+import { getBudgetForMonth } from "../actions";
 
 type Category = {
   id: string;
   name: string;
-  tag: "standard" | "savings" | "investment";
+  tag: string;
   category_type: "income" | "expense";
-};
-
-const typeOrder: Array<"income" | "expense"> = ["income", "expense"];
-
-const tagDescriptions: Record<"standard" | "savings" | "investment", string> = {
-  standard: "Everyday categories used in normal budgeting.",
-  savings: "Money set aside for a goal or future use.",
-  investment: "Money planned for long-term growth.",
 };
 
 export default async function BudgetCategoriesPage() {
   const supabase = await createClient();
+  const supabaseAdmin = createAdminClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  const { data: categories, error } = await supabase
-    .from("categories")
-    .select("id, name, tag, category_type")
-    .order("category_type", { ascending: true })
-    .order("name", { ascending: true });
-
-  if (error) {
-    throw new Error(`Failed to load categories: ${error.message}`);
+  if (userError || !user) {
+    throw new Error("Authenticated user not found");
   }
 
-  const grouped = {
-    income: (categories ?? []).filter((c) => c.category_type === "income"),
-    expense: (categories ?? []).filter((c) => c.category_type === "expense"),
-  };
+  const membership = await getCurrentTenantMembership();
+  const isAdmin = membership.role === "admin";
+
+  const month = new Date().toISOString().slice(0, 7);
+
+  const [
+    { data: categoriesData, error: categoriesError },
+    { data: expenseTypesData, error: expenseTypesError },
+  ] = await Promise.all([
+    supabase
+      .from("categories")
+      .select("id, name, tag, category_type")
+      .order("category_type", { ascending: true })
+      .order("name", { ascending: true }),
+    supabase
+      .from("expense_types")
+      .select("id, name, slug")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true }),
+  ]);
+
+  if (categoriesError) {
+    throw new Error(`Failed to load categories: ${categoriesError.message}`);
+  }
+  if (expenseTypesError) {
+    throw new Error(`Failed to load expense types: ${expenseTypesError.message}`);
+  }
+
+  const categories: Category[] = (categoriesData ?? []) as Category[];
+  const expenseTypes = expenseTypesData ?? [];
+
+  // Budget metrics for categories use the logged-in user's budget (not activeMemberId —
+  // categories page has no member selector; shared household context only).
+  const budgetLines = await getBudgetForMonth(month);
+  const metrics = computeBudgetMetrics(categories, budgetLines);
+  const metricsSections = buildBudgetMetricsSections({ metrics });
+
+  // Fetch household info for the static info card
+  const [
+    { data: tenantData },
+    { count: activeMemberCount },
+  ] = await Promise.all([
+    // Service role required: tenants table has no RLS SELECT policy allowing members to read their own tenant row
+    supabaseAdmin
+      .from("tenants")
+      .select("alias")
+      .eq("id", membership.tenant_id)
+      .single(),
+    // Anon client sufficient: RLS SELECT policy allows authenticated users to read tenant_members within their tenant
+    supabase
+      .from("tenant_members")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", membership.tenant_id)
+      .eq("is_active", true),
+  ]);
+
+  const tenantName = tenantData?.alias ?? "Your Household";
+  const memberCount = activeMemberCount ?? 1;
+
+  const leftPanelSections = [
+    {
+      title: "Household",
+      content: (
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Household
+          </p>
+          <p className="mt-1 text-sm font-medium text-slate-800">{tenantName}</p>
+          <p className="mt-1.5 text-xs text-slate-500">
+            These categories are shared by {memberCount}{" "}
+            {memberCount === 1 ? "member" : "members"}.
+          </p>
+        </div>
+      ),
+    },
+    ...metricsSections,
+  ];
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Categories</h1>
-        <p className="text-sm text-gray-600">
-          Categories are shared across your household. Category type controls
-          whether a budget amount is treated as income or expense. Tag helps
-          group the category for budgeting and future reporting.
-        </p>
+    <WorkspaceShell
+      title="Categories"
+      description="Categories are shared across your household. Category type controls whether a budget amount is treated as income or expense. Tag helps group categories for budgeting and reporting."
+      leftPanelSections={leftPanelSections}
+      isAdmin={isAdmin}
+      currentUserId={user.id}
+      activeMemberId={user.id}
+    >
+      <div className="space-y-3">
+        <CategoryCreateForm expenseTypes={expenseTypes} />
+        <GroupedCategoryTable categories={categories} expenseTypes={expenseTypes} />
       </div>
-
-      <section className="rounded-xl border bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold">Create Category</h2>
-        <p className="mt-1 text-sm text-gray-600">
-          Use clear names your whole household will understand.
-        </p>
-
-        <form
-          action={async (formData) => {
-            "use server";
-
-            await createCategory({
-              name: String(formData.get("name") ?? ""),
-              tag: String(formData.get("tag") ?? "standard"),
-              category_type: String(formData.get("category_type") ?? "expense"),
-            });
-          }}
-          className="mt-5 grid gap-4 md:grid-cols-4"
-        >
-          <div className="md:col-span-2">
-            <label htmlFor="name" className="mb-1 block text-sm font-medium">
-              Category name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              className="w-full rounded border px-3 py-2"
-              required
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="category_type"
-              className="mb-1 block text-sm font-medium"
-            >
-              Category type
-            </label>
-            <select
-              id="category_type"
-              name="category_type"
-              defaultValue="expense"
-              className="w-full rounded border px-3 py-2"
-            >
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="tag" className="mb-1 block text-sm font-medium">
-              Tag
-            </label>
-            <select
-              id="tag"
-              name="tag"
-              defaultValue="standard"
-              className="w-full rounded border px-3 py-2"
-            >
-              <option value="standard">Standard</option>
-              <option value="savings">Savings</option>
-              <option value="investment">Investment</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
-            <p>
-              <span className="font-medium">Type</span> decides whether the
-              category counts as income or expense.
-            </p>
-            <p className="mt-1">
-              <span className="font-medium">Tag</span> helps organize categories
-              such as standard, savings, or investment.
-            </p>
-          </div>
-
-          <div className="md:col-span-4">
-            <button
-              type="submit"
-              className="rounded bg-black px-4 py-2 text-white"
-            >
-              Create
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        {typeOrder.map((type) => (
-          <section
-            key={type}
-            className="rounded-xl border bg-white p-5 shadow-sm"
-          >
-            <div className="mb-4 flex items-center justify-between border-b pb-3">
-              <h2 className="text-lg font-semibold capitalize">{type}</h2>
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-gray-600">
-                {grouped[type].length} categories
-              </span>
-            </div>
-
-            {!grouped[type].length ? (
-              <p className="text-sm text-gray-600">
-                No {type} categories yet.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {grouped[type].map((category) => (
-                  <div
-                    key={category.id}
-                    className="rounded-lg border p-4"
-                  >
-                    <form
-                      action={async (formData) => {
-                        "use server";
-
-                        await updateCategory({
-                          id: String(formData.get("id")),
-                          name: String(formData.get("name") ?? ""),
-                          tag: String(formData.get("tag") ?? "standard"),
-                          category_type: String(
-                            formData.get("category_type") ?? "expense"
-                          ),
-                        });
-                      }}
-                    >
-                      <input type="hidden" name="id" value={category.id} />
-
-                      <div className="grid gap-4 md:grid-cols-4">
-                        <div className="md:col-span-2">
-                          <label
-                            htmlFor={`name-${category.id}`}
-                            className="mb-1 block text-sm font-medium"
-                          >
-                            Category name
-                          </label>
-                          <input
-                            id={`name-${category.id}`}
-                            name="name"
-                            type="text"
-                            defaultValue={category.name}
-                            className="w-full rounded border px-3 py-2"
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor={`category-type-${category.id}`}
-                            className="mb-1 block text-sm font-medium"
-                          >
-                            Category type
-                          </label>
-                          <select
-                            id={`category-type-${category.id}`}
-                            name="category_type"
-                            defaultValue={category.category_type}
-                            className="w-full rounded border px-3 py-2"
-                          >
-                            <option value="expense">Expense</option>
-                            <option value="income">Income</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label
-                            htmlFor={`tag-${category.id}`}
-                            className="mb-1 block text-sm font-medium"
-                          >
-                            Tag
-                          </label>
-                          <select
-                            id={`tag-${category.id}`}
-                            name="tag"
-                            defaultValue={category.tag}
-                            className="w-full rounded border px-3 py-2"
-                          >
-                            <option value="standard">Standard</option>
-                            <option value="savings">Savings</option>
-                            <option value="investment">Investment</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                        {tagDescriptions[category.tag]}
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="submit"
-                          className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    </form>
-
-                    <form
-                      action={async (formData) => {
-                        "use server";
-
-                        await deleteCategory({
-                          id: String(formData.get("id")),
-                        });
-                      }}
-                      className="mt-2"
-                    >
-                      <input type="hidden" name="id" value={category.id} />
-                      <button
-                        type="submit"
-                        className="rounded border px-4 py-2 text-sm font-medium"
-                      >
-                        Delete
-                      </button>
-                    </form>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        ))}
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 }

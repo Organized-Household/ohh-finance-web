@@ -1,24 +1,14 @@
+import PublicBrandHeader from "@/components/public/public-brand-header";
+import WelcomeScreen from "@/components/public/welcome-screen";
+
 export default function LandingPage() {
   return (
-    <main>
-      <h1>Organized Household</h1>
+    <div className="flex min-h-screen flex-col bg-slate-900">
+      <PublicBrandHeader current="welcome" />
 
-      <p>Welcome to the household finance platform.</p>
-
-      <ul>
-        <li>
-          <a href="/login">Login</a>
-        </li>
-
-        <li>
-          <a href="/register">Register</a>
-        </li>
-
-        <li>
-          <a href="/app">Go to App (requires login)</a>
-        </li>
-      </ul>
-
-    </main>
+      <main className="flex flex-1 flex-col">
+        <WelcomeScreen />
+      </main>
+    </div>
   );
 }

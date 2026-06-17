@@ -6,7 +6,8 @@ const PUBLIC_PATHS = [
   "/",
   "/login",
   "/register",
-  "/auth/callback"
+  "/auth/callback",
+  "/accept-invite",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -38,6 +39,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|hero/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|map|txt|xml|woff|woff2)$).*)",
   ],
 };
