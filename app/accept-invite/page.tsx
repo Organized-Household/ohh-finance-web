@@ -138,7 +138,7 @@ export default function AcceptInvitePage() {
             OH
           </div>
           <h1 className="text-xl font-semibold text-white">
-            Welcome to OHh Finance
+            Welcome to OHh-Budget
           </h1>
           <p className="mt-1 text-sm text-slate-400">
             Complete your account setup to join the household.
